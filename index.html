@@ -2229,7 +2229,7 @@ function toast(msg){
    BAŞLAT
    ============================================================ */
 /* ---------- PIN kilit + hareketsizlik zamanlayıcısı ---------- */
-const LOCK_PIN='2222';
+const LOCK_PIN='1234';
 const LOCK_MS=3*60*1000; // 3 dakika
 let lockTimer=null, pinBuffer='', lastActivity=0;
 const lockscreen=document.getElementById('lockscreen');
@@ -2293,13 +2293,23 @@ let remState={}; // key -> son gönderim ms
 let reminderTimer=null;
 
 /* ---------- Bulut senkron (Firebase / Firestore) ---------- */
-let cloudCfg={enabled:false,config:''};
+// Gömülü yapılandırma: linki açan her cihaz otomatik bağlanır.
+const EMBEDDED_FIREBASE_CONFIG = `{
+  "apiKey": "AIzaSyD5sp1sg_aifAjSKqI3CHG4vszCdXKQNJw",
+  "authDomain": "sirketlerkontrol.firebaseapp.com",
+  "projectId": "sirketlerkontrol",
+  "storageBucket": "sirketlerkontrol.firebasestorage.app",
+  "messagingSenderId": "1035721181519",
+  "appId": "1:1035721181519:web:1270201c491de9d703dd3a"
+}`;
+let cloudCfg={enabled:true, config:EMBEDDED_FIREBASE_CONFIG};
 let fb=null, cloudReady=false, cloudTimer=null;
 
 async function loadSettings(){
   const w=await getOne('settings','whatsapp');if(w&&w.data)waCfg={...waCfg,...w.data};
   const r=await getOne('settings','reminders');if(r&&r.data)remState=r.data;
   const cl=await getOne('settings','cloud');if(cl&&cl.data)cloudCfg={...cloudCfg,...cl.data};
+  if(!cloudCfg.config){ cloudCfg.config=EMBEDDED_FIREBASE_CONFIG; cloudCfg.enabled=true; }
 }
 async function saveWaCfg(){await put('settings',{id:'whatsapp',data:waCfg})}
 async function saveRem(){await put('settings',{id:'reminders',data:remState})}
