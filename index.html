@@ -377,6 +377,8 @@
   .qtag{font-family:'Inter',sans-serif;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:99px;vertical-align:middle;margin-left:4px}
   .qtag.verilen{background:#F6E6E3;color:#A4453B}
   .qtag.alinan{background:#E6ECE2;color:#4f6b46}
+  .qtag.sahsi{background:#F1E7D6;color:#B07B3E}
+  .qtag.ticari{background:#E3E6F1;color:#3E4C7A}
   .billtotals{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line-strong)}
   .sumchip{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink);background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:99px}
   .sumchip em{color:var(--faint);font-style:normal;margin-right:6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
@@ -651,7 +653,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 6);
+    const r = indexedDB.open('rutinMerkezi', 7);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -664,6 +666,8 @@ function openDB(){
       if(!d.objectStoreNames.contains('installments')) d.createObjectStore('installments',{keyPath:'id'});
       if(!d.objectStoreNames.contains('cheques')) d.createObjectStore('cheques',{keyPath:'id'});
       if(!d.objectStoreNames.contains('settings')) d.createObjectStore('settings',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('banks')) d.createObjectStore('banks',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('bankAccounts')) d.createObjectStore('bankAccounts',{keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -676,7 +680,7 @@ function del(store,key){return new Promise(r=>{const q=tx(store,'readwrite').del
 function clearStore(store){return new Promise(r=>{const q=tx(store,'readwrite').clear();q.onsuccess=()=>{afterWrite(store);r()}})}
 function getOne(store,key){return new Promise(res=>{try{const q=tx(store).get(key);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)}catch(e){res(null)}})}
 
-const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques'];
+const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts'];
 let suppressPush=false;
 function afterWrite(store){
   if(suppressPush)return;
@@ -706,7 +710,8 @@ function periodKeyFor(freq,d=new Date()){
 /* ---------- State ---------- */
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
-let view={page:'home', companyId:null, section:null, cardId:null, homeTab:'overview'};
+let banks=[], bankAccounts=[];
+let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview'};
 let calMonth=new Date(); // aylık takvimde gösterilen ay
 
 const noteId=(cid,dateKey)=>`${cid}__${dateKey}`;
@@ -862,6 +867,15 @@ async function seedMetalCompany(){
   await put('companies',flag);
 }
 
+// 'Şahsi' kişisel alanı bir kez ekler; şirket gibi davranır ama sadece faturalar içerir.
+async function seedPersonalCompany(){
+  if(!companies.length)return;
+  if(!companies.some(c=>c.isPersonal)){
+    const pal=PALETTE[6]; // Hardal
+    await put('companies',{id:uid(),name:'Şahsi',type:'Kişisel',accent:pal.accent,tint:pal.tint,logo:null,link:'',linkLabel:'',isPersonal:true,order:9999});
+  }
+}
+
 async function loadAll(){
   companies = (await getAll('companies')).sort((a,b)=>(a.order??0)-(b.order??0));
   routines  = await getAll('routines');
@@ -878,6 +892,8 @@ async function loadAll(){
   ps.forEach(p=>payments[p.id]=p);
   installments = (await getAll('installments')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
   cheques = (await getAll('cheques')).sort((a,b)=>String(a.dueDate||'').localeCompare(String(b.dueDate||'')));
+  banks = (await getAll('banks')).sort((a,b)=>(a.order??0)-(b.order??0));
+  bankAccounts = (await getAll('bankAccounts')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
 }
 
 /* ---------- Toggle ---------- */
@@ -905,6 +921,9 @@ function svgCal(){return '<svg width="15" height="15" viewBox="0 0 24 24" fill="
 function svgInvoice(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 2v5h5M8.5 12h7M8.5 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 function svgCard(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M2.5 9.5h19M6 15h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
 function svgCheque(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5.5" width="19" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M6 10h6M6 14h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="17.5" cy="12" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>'}
+function svgBank(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 10l9-6 9 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M3 18h18M2.5 21h19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
+function svgHome(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 10.5L12 4l8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 9.5V20a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 21v-6a1 1 0 011-1h3a1 1 0 011 1v6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>'}
+function svgPrint(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><rect x="3" y="9" width="18" height="8" rx="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M6 14h12v7H6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'}
 function svgLink(){return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007.07 0l2.83-2.83a5 5 0 00-7.07-7.07L11.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 00-7.07 0L4.1 13.83a5 5 0 007.07 7.07l1.33-1.33" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 function svgExternal(){return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 
@@ -917,10 +936,12 @@ function logoHTML(c){
 function render(){
   document.documentElement.style.setProperty('--accent','#1C1A17');
   if(view.page==='home') renderHome();
-  else if(view.page==='bills') renderBillsPage();
+  else if(view.page==='personal') renderPersonalPage();
   else if(view.page==='cards') renderCardsPage();
   else if(view.page==='cheques') renderChequesPage();
   else if(view.page==='card') renderCardDetail();
+  else if(view.page==='banks') renderBanksPage();
+  else if(view.page==='bank') renderBankDetail();
   else if(view.section) renderSection();
   else renderCompany();
 }
@@ -929,7 +950,8 @@ function renderHome(){
   const today=new Date();
   const dateStr=today.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   let dueToday=0, doneToday=0;
-  companies.forEach(c=>{const p=freqProgress(c.id,'daily');dueToday+=p.total;doneToday+=p.done});
+  const realCompanies=companies.filter(c=>!c.isPersonal);
+  realCompanies.forEach(c=>{const p=freqProgress(c.id,'daily');dueToday+=p.total;doneToday+=p.done});
   const remain=dueToday-doneToday;
   const tab=view.homeTab||'overview';
   const upCount=upcomingItems().filter(i=>i.days!==null && i.days<=7).length;
@@ -937,10 +959,10 @@ function renderHome(){
   const body = tab==='dashboard' ? dashboardHTML() : `
     <section class="home-sec">
       <div class="home-sec-head"><span class="eyebrow">İşletme Rutinleri</span><button class="sec-add" data-addcompany>${svgPlus()} Firma ekle</button></div>
-      <div class="grid">${companies.map(firmCard).join('')}</div>
+      <div class="grid">${realCompanies.map(firmCard).join('')}</div>
     </section>
-    ${billsEntryHTML()}
     ${cardsEntryHTML()}
+    ${banksEntryHTML()}
     ${chequesEntryHTML()}`;
 
   app.innerHTML=`
@@ -952,6 +974,7 @@ function renderHome(){
             <button class="${tab==='overview'?'on':''}" data-htab="overview" role="tab">Panel</button>
             <button class="${tab==='dashboard'?'on':''}" data-htab="dashboard" role="tab">Yaklaşanlar${upCount?`<span class="mt-count">${upCount}</span>`:''}</button>
           </div>
+          <button class="sec-add" data-personal>${svgHome()} Şahsi</button>
         </div>
         <div class="date eyebrow" style="color:var(--muted);letter-spacing:.04em;text-transform:none;font-size:13px">${dateStr}</div>
       </div>
@@ -967,6 +990,10 @@ function renderHome(){
     ${renderFooter()}
   `;
   document.querySelectorAll('[data-htab]').forEach(b=>b.addEventListener('click',()=>{view.homeTab=b.dataset.htab;render()}));
+  const pbtn=$('[data-personal]');if(pbtn)pbtn.addEventListener('click',()=>{
+    const pc=companies.find(x=>x.isPersonal);
+    if(pc){view={page:'personal',companyId:null,section:null,cardId:null,bankId:null};render()}
+  });
   if(tab==='dashboard'){ bindDashboard(); bindFooter(); }
   else { bindHome(); }
 }
@@ -983,7 +1010,13 @@ function upcomingItems(){
     if(isPaid(b.id))return;
     let date=null,days=null;
     if(b.dueDay){date=new Date(y,m,b.dueDay);days=diffDays(date)}
-    items.push({key:'bill:'+b.id,date,days,title:b.name,sub:'Fatura',kind:'bill',dir:null,amount:null,currency:null,accent:'#5C7A52',go:()=>{view={page:'bills',companyId:null,section:null,cardId:null,homeTab:'dashboard'};render()}});
+    items.push({key:'bill:'+b.id,date,days,title:b.name,sub:'Fatura',kind:'bill',dir:null,amount:null,currency:null,accent:'#5C7A52',go:()=>{
+      const bc=companies.find(x=>x.id===b.company);
+      if(bc&&bc.isPersonal){view={page:'personal',companyId:null,section:null,cardId:null,bankId:null,homeTab:'dashboard'}}
+      else if(bc){view={page:'company',companyId:bc.id,section:'bills',cardId:null,bankId:null,homeTab:'dashboard'}}
+      else{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:'dashboard'}}
+      render();
+    }});
   });
 
   // Kredi kartı ekstresi (bu ay, ödenmemiş)
@@ -1078,23 +1111,6 @@ function bindDashboard(){
   document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{const fn=_dueRefs[b.dataset.go];if(fn)fn()}));
 }
 
-function billsEntryHTML(){
-  const paidCount=bills.filter(b=>isPaid(b.id)).length;
-  const overdue=bills.filter(b=>!isPaid(b.id)&&b.dueDay&&b.dueDay<new Date().getDate()).length;
-  const summary = bills.length
-    ? `${bills.length} fatura · bu ay ${paidCount}/${bills.length} ödendi${overdue?` · ${overdue} geciken`:''}`
-    : 'Henüz fatura yok — eklemek için gir';
-  return `
-  <button class="entry-panel" data-bills style="--accent:#5C7A52;--accent-tint:#E6ECE2">
-    <span class="entry-ico">${svgInvoice()}</span>
-    <span class="entry-body">
-      <span class="entry-title">Faturalarım</span>
-      <span class="entry-sum">${summary}</span>
-    </span>
-    ${svgArrow()}
-  </button>`;
-}
-
 function billRow(b){
   const todayDay=new Date().getDate();
   const paid=isPaid(b.id);
@@ -1104,45 +1120,46 @@ function billRow(b){
   else if(b.dueDay<todayDay){status=`${todayDay-b.dueDay} gün gecikti`;scls='overdue'}
   else if(b.dueDay===todayDay){status='Bugün son gün';scls='soon'}
   else{const left=b.dueDay-todayDay;status=`${left} gün kaldı`;scls=left<=3?'soon':''}
-  const firm=companies.find(c=>c.id===b.company);
-  const tag=firm?`<span class="btag" style="background:${firm.tint};color:${firm.accent}">${esc(firm.name)}</span>`:`<span class="btag genel">Genel</span>`;
   return `<div class="bill ${paid?'paid':''}">
     <button class="bcheck" data-bpay="${b.id}" aria-label="Ödendi işaretle">${svgCheck()}</button>
     <div class="bbody" data-bedit="${b.id}">
       <div class="bname">${esc(b.name)}</div>
       <div class="bmeta">
-        ${b.dueDay?`<span class="bday">ayın ${b.dueDay}'i</span>`:''}${tag}${status?`<span class="bstat ${scls}">${status}</span>`:''}
+        ${b.dueDay?`<span class="bday">ayın ${b.dueDay}'i</span>`:''}${status?`<span class="bstat ${scls}">${status}</span>`:''}
       </div>
     </div>
     <button class="rmenu-btn" data-bmenu="${b.id}" aria-label="Seçenekler">${svgDots()}</button>
   </div>`;
 }
 
-function renderBillsPage(){
-  document.documentElement.style.setProperty('--accent','#5C7A52');
-  const paidCount=bills.filter(b=>isPaid(b.id)).length;
+function renderPersonalPage(){
+  const pc=companies.find(c=>c.isPersonal);
+  if(!pc){view.page='home';return renderHome()}
+  document.documentElement.style.setProperty('--accent',pc.accent);
+  const list=bills.filter(b=>b.company===pc.id);
+  const paidCount=list.filter(b=>isPaid(b.id)).length;
   const monthName=new Date().toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
-  const rows = bills.length ? bills.map(billRow).join('') :
-    `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz fatura yok</div><div style="font-size:13px;margin-top:4px">Kira, elektrik, internet, abonelik, vergi… hatırlamak için ekle.</div></div>`;
+  const rows = list.length ? list.map(billRow).join('') :
+    `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz fatura yok</div><div style="font-size:13px;margin-top:4px">Ev faturası, kredi taksiti, abonelik… hatırlamak için ekle.</div></div>`;
   app.innerHTML=`
-  <div class="cv" style="--accent:#5C7A52;--accent-tint:#E6ECE2">
+  <div class="cv" style="--accent:${pc.accent};--accent-tint:${pc.tint}">
     <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
     <div class="cv-head">
-      <span class="logo" style="background:var(--accent-tint);color:var(--accent);width:56px;height:56px">${svgInvoice()}</span>
+      <span class="logo" style="background:${pc.tint};color:${pc.accent};width:56px;height:56px">${svgHome()}</span>
       <div class="cv-title">
-        <div class="eyebrow" style="color:var(--accent)">Her ayın başında sıfırlanır</div>
-        <h2>Faturalarım</h2>
+        <div class="eyebrow" style="color:var(--accent)">Ev & kişisel</div>
+        <h2>Şahsi</h2>
       </div>
       <span class="spacer"></span>
       <button class="sec-add" data-addbill>${svgPlus()} Fatura ekle</button>
     </div>
-    ${bills.length?`<div class="prog"><span class="ptxt" style="margin-left:0">${monthName} · <b>${paidCount}</b>/${bills.length} ödendi</span></div>`:''}
+    ${list.length?`<div class="prog"><span class="ptxt" style="margin-left:0">${monthName} · <b>${paidCount}</b>/${list.length} ödendi</span></div>`:''}
     <div class="billlist">${rows}</div>
   </div>
   ${renderFooter()}
   `;
-  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,homeTab:view.homeTab||'overview'};render()});
-  const ab=$('[data-addbill]');if(ab)ab.addEventListener('click',()=>openBillModal(null));
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  const ab=$('[data-addbill]');if(ab)ab.addEventListener('click',()=>openBillModal(null,pc.id));
   document.querySelectorAll('[data-bpay]').forEach(b=>b.addEventListener('click',async e=>{
     e.stopPropagation();await togglePaid(b.dataset.bpay,'bill',0);render();
   }));
@@ -1192,6 +1209,21 @@ function chequesEntryHTML(){
     <span class="entry-ico">${svgCheque()}</span>
     <span class="entry-body">
       <span class="entry-title">Çeklerim</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+function banksEntryHTML(){
+  const summary = banks.length
+    ? `${banks.length} banka · ${bankAccounts.length} hesap`
+    : 'Henüz banka yok — eklemek için gir';
+  return `
+  <button class="entry-panel" data-banks style="--accent:#4B5B6B;--accent-tint:#E3E8EC">
+    <span class="entry-ico">${svgBank()}</span>
+    <span class="entry-body">
+      <span class="entry-title">Banka Hesaplarım</span>
       <span class="entry-sum">${summary}</span>
     </span>
     ${svgArrow()}
@@ -1261,6 +1293,188 @@ function renderCardsPage(){
   bindFooter();
 }
 
+function formatIban(iban){
+  const s=(iban||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  return s.replace(/(.{4})/g,'$1 ').trim();
+}
+
+function bankTile(bk){
+  const accs=bankAccounts.filter(a=>a.bankId===bk.id);
+  const sahsi=accs.filter(a=>a.owner==='sahsi').length;
+  const ticari=accs.filter(a=>a.owner==='ticari').length;
+  return `<div class="card-tile" data-bkenter="${bk.id}" style="--c:${bk.color||'#4B5B6B'}">
+    <div class="ct-top">
+      <span class="ct-bank">${esc(bk.name)}</span>
+      <button class="ct-menu" data-bkmenu="${bk.id}" aria-label="Seçenekler">${svgDots()}</button>
+    </div>
+    ${accs.length
+      ?`<div class="ct-row"><span>${accs.length} hesap</span><span>${sahsi} şahsi · ${ticari} ticari</span></div>`
+      :`<div class="ct-row"><span>Hesap yok — içine girip ekle</span></div>`}
+  </div>`;
+}
+
+function renderBanksPage(){
+  document.documentElement.style.setProperty('--accent','#4B5B6B');
+  const tiles=banks.map(bankTile).join('');
+  const body = banks.length ? `<div class="cardgrid">${tiles}</div>` :
+    `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz banka yok</div><div style="font-size:13px;margin-top:4px">Bankanı ekle (örn. Garanti Bankası), içine girip hesaplarını kaydet.</div></div>`;
+  app.innerHTML=`
+  <div class="cv" style="--accent:#4B5B6B;--accent-tint:#E3E8EC">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:var(--accent-tint);color:var(--accent);width:56px;height:56px">${svgBank()}</span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:var(--accent)">Bankaya dokun, içine gir</div>
+        <h2>Banka Hesaplarım</h2>
+      </div>
+      <span class="spacer"></span>
+      ${bankAccounts.length?`<button class="sec-add" data-printbanks>${svgPrint()} Yazdır</button>`:''}
+      <button class="sec-add" data-addbank>${svgPlus()} Banka ekle</button>
+    </div>
+    ${body}
+  </div>
+  ${renderFooter()}
+  `;
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  const ab2=$('[data-addbank]');if(ab2)ab2.addEventListener('click',()=>openBankModal(null));
+  const pb=$('[data-printbanks]');if(pb)pb.addEventListener('click',printBankAccounts);
+  document.querySelectorAll('[data-bkenter]').forEach(b=>b.addEventListener('click',e=>{
+    if(e.target.closest('[data-bkmenu]'))return;
+    view={page:'bank',companyId:null,section:null,cardId:null,bankId:b.dataset.bkenter};render();
+  }));
+  document.querySelectorAll('[data-bkmenu]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();openBankMenu(b.dataset.bkmenu,b);
+  }));
+  bindFooter();
+}
+
+function openBankMenu(id,anchor){
+  const bk=banks.find(x=>x.id===id);if(!bk)return;
+  popover.innerHTML=`<button data-edit>${svgGear()} Düzenle</button><div class="sep"></div><button class="del" data-del>🗑 Sil</button>`;
+  placePopover(anchor);popover.classList.add('show');
+  popover.querySelector('[data-edit]').onclick=()=>{closePopover();openBankModal(bk)};
+  popover.querySelector('[data-del]').onclick=async()=>{
+    closePopover();
+    for(const a of bankAccounts.filter(x=>x.bankId===bk.id))await del('bankAccounts',a.id);
+    bankAccounts=bankAccounts.filter(x=>x.bankId!==bk.id);
+    await del('banks',bk.id);banks=banks.filter(x=>x.id!==bk.id);
+    render();toast('Banka silindi');
+  };
+}
+
+function printBankAccounts(){
+  const dateStr=new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+  const sections=banks.map(bk=>{
+    const accs=bankAccounts.filter(a=>a.bankId===bk.id);
+    if(!accs.length)return '';
+    const accRows=accs.map(a=>`
+      <tr>
+        <td>${esc(a.label||'—')}</td>
+        <td class="iban">${esc(formatIban(a.iban))}</td>
+        <td><span class="tag ${a.owner==='ticari'?'ticari':'sahsi'}">${a.owner==='ticari'?'Ticari':'Şahsi'}</span></td>
+      </tr>`).join('');
+    return `
+      <section>
+        <h2>${esc(bk.name)} <span class="count">${accs.length} hesap</span></h2>
+        <table>
+          <thead><tr><th>Hesap adı</th><th>IBAN</th><th>Tür</th></tr></thead>
+          <tbody>${accRows}</tbody>
+        </table>
+      </section>`;
+  }).join('');
+  const html=`<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8">
+<title>Banka Hesaplarım</title>
+<style>
+  @page{ size:A4; margin:14mm; }
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,sans-serif;color:#1C1A17;margin:0;padding:0;font-size:11.5px}
+  h1{font-size:20px;margin:0 0 2px}
+  .sub{font-size:11px;color:#736C61;margin-bottom:18px}
+  section{margin-bottom:14px;break-inside:avoid}
+  h2{font-size:13.5px;margin:0 0 6px;border-bottom:1px solid #D6CDB8;padding-bottom:4px;display:flex;justify-content:space-between}
+  .count{font-size:10.5px;color:#736C61;font-weight:400}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:4px 6px;font-size:11px;border-bottom:1px solid #E4DDCD}
+  th{color:#736C61;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+  .iban{font-family:ui-monospace,'JetBrains Mono',monospace;letter-spacing:.02em}
+  .tag{font-size:9.5px;font-weight:600;padding:2px 7px;border-radius:99px;white-space:nowrap}
+  .tag.sahsi{background:#F1E7D6;color:#B07B3E}
+  .tag.ticari{background:#E3E6F1;color:#3E4C7A}
+  .foot{margin-top:18px;font-size:9.5px;color:#A39C8E;text-align:right}
+</style></head>
+<body>
+  <h1>Banka Hesaplarım</h1>
+  <div class="sub">${banks.length} banka · ${bankAccounts.length} hesap · ${dateStr}</div>
+  ${sections}
+  <div class="foot">Şirketler Kontrol Paneli</div>
+  <script>window.onload=()=>{window.print()}<\/script>
+</body></html>`;
+  const w=window.open('','_blank');
+  if(!w){toast('Pop-up engellendi, izin ver');return}
+  w.document.write(html);
+  w.document.close();
+}
+
+function accountRow(a){
+  const ticari=a.owner==='ticari';
+  return `<div class="bill">
+    <div class="bbody" data-aedit="${a.id}">
+      <div class="bname">${a.label?esc(a.label)+' · ':''}<span class="mono">${esc(formatIban(a.iban))}</span><span class="qtag ${ticari?'ticari':'sahsi'}">${ticari?'Ticari':'Şahsi'}</span></div>
+    </div>
+    <button class="rmenu-btn" data-amenu="${a.id}" aria-label="Seçenekler">${svgDots()}</button>
+  </div>`;
+}
+
+function renderBankDetail(){
+  const bk=banks.find(x=>x.id===view.bankId);
+  if(!bk){view.page='banks';view.bankId=null;return renderBanksPage()}
+  const accent=bk.color||'#4B5B6B', tint=bk.tint||'#E3E8EC';
+  document.documentElement.style.setProperty('--accent',accent);
+  const accs=bankAccounts.filter(a=>a.bankId===bk.id);
+  const sahsi=accs.filter(a=>a.owner==='sahsi').length;
+  const ticari=accs.filter(a=>a.owner==='ticari').length;
+  const rows=accs.length?accs.map(accountRow).join(''):
+    `<div class="empty mini"><div style="font-weight:500;color:var(--ink)">Hesap yok</div><div style="font-size:13px;margin-top:4px">Bu bankadaki hesaplarını IBAN'la ekle.</div></div>`;
+  app.innerHTML=`
+  <div class="cv" style="--accent:${accent};--accent-tint:${tint}">
+    <button class="backbtn" data-back>${svgBack()} Banka Hesaplarım</button>
+    <div class="cv-head">
+      <span class="logo" style="background:var(--accent-tint);color:var(--accent);width:56px;height:56px">${svgBank()}</span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:var(--accent)">${accs.length} hesap${accs.length?` · ${sahsi} şahsi · ${ticari} ticari`:''}</div>
+        <h2>${esc(bk.name)}</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-bankedit aria-label="Bankayı düzenle">${svgGear()}</button>
+      <button class="sec-add" data-addaccount>${svgPlus()} Hesap ekle</button>
+    </div>
+    <div class="billlist">${rows}</div>
+  </div>
+  ${renderFooter()}
+  `;
+  $('[data-back]').addEventListener('click',()=>{view={page:'banks',companyId:null,section:null,cardId:null,bankId:null};render()});
+  $('[data-bankedit]').addEventListener('click',()=>openBankModal(bk));
+  const aa=$('[data-addaccount]');if(aa)aa.addEventListener('click',()=>openAccountModal(bk.id,null));
+  document.querySelectorAll('[data-aedit]').forEach(b=>b.addEventListener('click',()=>{
+    const a=bankAccounts.find(x=>x.id===b.dataset.aedit);if(a)openAccountModal(bk.id,a);
+  }));
+  document.querySelectorAll('[data-amenu]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();openAccountMenu(b.dataset.amenu,b);
+  }));
+  bindFooter();
+}
+
+function openAccountMenu(id,anchor){
+  const a=bankAccounts.find(x=>x.id===id);if(!a)return;
+  popover.innerHTML=`<button data-edit>${svgGear()} Düzenle</button><div class="sep"></div><button class="del" data-del>🗑 Sil</button>`;
+  placePopover(anchor);popover.classList.add('show');
+  popover.querySelector('[data-edit]').onclick=()=>{closePopover();openAccountModal(a.bankId,a)};
+  popover.querySelector('[data-del]').onclick=async()=>{
+    closePopover();await del('bankAccounts',a.id);bankAccounts=bankAccounts.filter(x=>x.id!==a.id);render();toast('Hesap silindi');
+  };
+}
+
 function firmCard(c){
   const rows=FREQ.map(f=>{
     const p=freqProgress(c.id,f.key);
@@ -1300,12 +1514,12 @@ function bindHome(){
   });
   const ac2=$('[data-addcompany]');if(ac2)ac2.addEventListener('click',()=>openCompanyModal(null));
 
-  // Faturalar — tek girişle aç
-  const eb=$('[data-bills]');if(eb)eb.addEventListener('click',()=>{view={page:'bills',companyId:null,section:null,cardId:null,homeTab:view.homeTab||'overview'};render()});
   // Kredi kartları — tek girişle aç
   const ek=$('[data-cards]');if(ek)ek.addEventListener('click',()=>{view={page:'cards',companyId:null,section:null,cardId:null};render()});
   // Çekler — tek girişle aç
   const eq=$('[data-cheques]');if(eq)eq.addEventListener('click',()=>{view={page:'cheques',companyId:null,section:null,cardId:null};render()});
+  // Banka hesapları — tek girişle aç
+  const ebk=$('[data-banks]');if(ebk)ebk.addEventListener('click',()=>{view={page:'banks',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
 
   bindFooter();
 }
@@ -1368,6 +1582,20 @@ function renderCompany(){
         <span class="frac">${noteCount} not<em></em> bu ay</span>
       </div>
     </button>`;
+  const billsForC=bills.filter(b=>b.company===c.id);
+  const paidForC=billsForC.filter(b=>isPaid(b.id)).length;
+  const billsPct=billsForC.length?Math.round(paidForC/billsForC.length*100):0;
+  const billsCard=`<button class="secpanel" data-section="bills">
+      <div class="secpanel-top">
+        <span class="seckey eyebrow" style="display:inline-flex;align-items:center">${svgInvoice()}</span>
+        <span class="secname">Faturalar</span>
+        ${svgArrow()}
+      </div>
+      <div class="secbar"><i style="width:${billsPct}%"></i></div>
+      <div class="secmeta">
+        <span class="frac">${paidForC}<em>/${billsForC.length}</em> ödendi</span>
+      </div>
+    </button>`;
 
   app.innerHTML=`
   <div class="cv" style="--accent:${c.accent};--accent-tint:${c.tint}">
@@ -1389,7 +1617,7 @@ function renderCompany(){
       </span>
       <span class="fl-go">${svgExternal()}</span>
     </a>`:''}
-    <div class="secgrid">${FREQ.map(sectionCard).join('')}${calCard}</div>
+    <div class="secgrid">${FREQ.map(sectionCard).join('')}${calCard}${billsCard}</div>
   </div>
   ${renderFooter()}
   `;
@@ -1409,11 +1637,14 @@ function renderSection(){
   document.documentElement.style.setProperty('--accent',c.accent);
   const sec=view.section;
   const isCal=sec==='calendar';
-  const fLabel=isCal?'Takvim':FREQ.find(f=>f.key===sec).label;
+  const isBills=sec==='bills';
+  const fLabel=isCal?'Takvim':(isBills?'Faturalar':FREQ.find(f=>f.key===sec).label);
   const noteCount=Object.values(notes).filter(x=>x.companyId===c.id && x.date.startsWith(monthlyKey(new Date()))).length;
+  const billsForC=bills.filter(b=>b.company===c.id);
+  const paidForC=billsForC.filter(b=>isPaid(b.id)).length;
 
-  const list=isCal?[]:compRoutines(c.id,sec);
-  const p=isCal?{done:0,total:0}:freqProgress(c.id,sec);
+  const list=(isCal||isBills)?[]:compRoutines(c.id,sec);
+  const p=(isCal||isBills)?{done:0,total:0}:freqProgress(c.id,sec);
   const pct=p.total?Math.round(p.done/p.total*100):0;
 
   const menu=`
@@ -1426,6 +1657,9 @@ function renderSection(){
       <button class="tab ${isCal?'active':''}" data-tab="calendar" role="tab">
         ${svgCal()} Takvim${noteCount?`<span class="tcount">${noteCount}</span>`:''}
       </button>
+      <button class="tab ${isBills?'active':''}" data-tab="bills" role="tab">
+        ${svgInvoice()} Faturalar${billsForC.length?`<span class="tcount">${paidForC}/${billsForC.length}</span>`:''}
+      </button>
     </div>`;
 
   let bodyHTML;
@@ -1433,6 +1667,19 @@ function renderSection(){
     bodyHTML=`
       ${calendarHTML(c)}
       <div class="cal-hint eyebrow" style="text-transform:none;letter-spacing:.03em">Bir güne tıklayıp not ekleyebilirsin. Notlu günler renklenir.</div>`;
+  }else if(isBills){
+    const monthName=new Date().toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
+    bodyHTML=`
+      ${billsForC.length?`<div class="prog">
+        <span class="ptxt" style="margin-left:0">${monthName} · <b>${paidForC}</b>/${billsForC.length} ödendi</span>
+      </div>`:''}
+      <div class="billlist">
+        ${billsForC.length?billsForC.map(billRow).join(''):`
+          <div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz fatura yok</div><div style="font-size:13px;margin-top:4px">Kira, elektrik, internet, abonelik, vergi… hatırlamak için ekle.</div></div>`}
+      </div>
+      <div class="add-row">
+        <button class="add-btn" data-addbill>${svgPlus()} Fatura ekle</button>
+      </div>`;
   }else{
     bodyHTML=`
       ${sec==='daily'?weekStrip(c):''}
@@ -1456,7 +1703,7 @@ function renderSection(){
       <span class="logo" style="width:50px;height:50px;border-radius:13px">${logoHTML(c)}</span>
       <div class="cv-title">
         <div class="eyebrow" style="color:var(--accent)">${esc(c.name)} · ${esc(c.type)}</div>
-        <h2>${isCal?'Takvim':fLabel+' rutinler'}</h2>
+        <h2>${isCal?'Takvim':(isBills?'Faturalar':fLabel+' rutinler')}</h2>
       </div>
       <span class="spacer"></span>
       <button class="icon-btn" data-settings aria-label="Firma ayarları">${svgGear()}</button>
@@ -1552,6 +1799,16 @@ function bindSection(c){
     calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+(b.dataset.cal==='next'?1:-1),1);render();
   }));
   document.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click',()=>openNoteModal(c,b.dataset.day)));
+  const addbill=$('[data-addbill]');if(addbill)addbill.addEventListener('click',()=>openBillModal(null,c.id));
+  document.querySelectorAll('[data-bpay]').forEach(b=>b.addEventListener('click',async e=>{
+    e.stopPropagation();await togglePaid(b.dataset.bpay,'bill',0);render();
+  }));
+  document.querySelectorAll('[data-bedit]').forEach(b=>b.addEventListener('click',()=>{
+    const bill=bills.find(x=>x.id===b.dataset.bedit);if(bill)openBillModal(bill);
+  }));
+  document.querySelectorAll('[data-bmenu]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();openBillMenu(b.dataset.bmenu,b);
+  }));
   bindFooter();
 }
 
@@ -1956,10 +2213,9 @@ function openChequeModal(ch){
   if(editing)$('#qDelete').onclick=async()=>{await del('cheques',ch.id);cheques=cheques.filter(x=>x.id!==ch.id);closeModal();render();toast('Çek silindi')};
 }
 
-function openBillModal(bill){
+function openBillModal(bill,companyId){
   const editing=!!bill;
-  const company=bill?(bill.company||''):'';
-  const compOpts=[`<option value="">Genel</option>`].concat(companies.map(c=>`<option value="${c.id}" ${company===c.id?'selected':''}>${esc(c.name)}</option>`)).join('');
+  const cid=editing?bill.company:companyId;
   modal.innerHTML=`
     <div class="modal-head">
       <div class="eyebrow">${editing?'Faturayı düzenle':'Yeni fatura'}</div>
@@ -1968,12 +2224,8 @@ function openBillModal(bill){
     <div class="modal-body">
       <div class="field"><label>Fatura adı</label>
         <input type="text" id="bName" placeholder="Örn. Elektrik, Shopify aboneliği" value="${editing?esc(bill.name):''}"></div>
-      <div class="two">
-        <div class="field"><label>Her ayın kaçında <span style="font-weight:400;color:var(--faint)">(isteğe bağlı)</span></label>
-          <input type="number" id="bDay" min="1" max="31" placeholder="—" value="${editing&&bill.dueDay?bill.dueDay:''}"></div>
-        <div class="field"><label>Firma</label>
-          <select id="bComp">${compOpts}</select></div>
-      </div>
+      <div class="field"><label>Her ayın kaçında <span style="font-weight:400;color:var(--faint)">(isteğe bağlı)</span></label>
+        <input type="number" id="bDay" min="1" max="31" placeholder="—" value="${editing&&bill.dueDay?bill.dueDay:''}"></div>
       <div class="field"><label>Not (isteğe bağlı)</label>
         <textarea id="bNote" rows="2" placeholder="...">${editing?esc(bill.note||''):''}</textarea></div>
       <div class="modal-foot">
@@ -1987,9 +2239,9 @@ function openBillModal(bill){
   $('#bSave').onclick=async()=>{
     const name=$('#bName').value.trim();if(!name){$('#bName').focus();return}
     let dueDay=parseInt($('#bDay').value);dueDay=isNaN(dueDay)?null:Math.min(31,Math.max(1,dueDay));
-    const note=$('#bNote').value.trim();const comp=$('#bComp').value;
-    if(editing){Object.assign(bill,{name,dueDay,company:comp,note});await put('bills',bill)}
-    else{await put('bills',{id:uid(),name,dueDay,company:comp,note,createdAt:Date.now()})}
+    const note=$('#bNote').value.trim();
+    if(editing){Object.assign(bill,{name,dueDay,note});await put('bills',bill)}
+    else{await put('bills',{id:uid(),name,dueDay,company:cid,note,createdAt:Date.now()})}
     bills=(await getAll('bills')).sort((a,b)=>(a.dueDay??99)-(b.dueDay??99));
     closeModal();render();toast(editing?'Güncellendi':'Fatura eklendi');
   };
@@ -2051,6 +2303,90 @@ function openCardModal(card){
     closeModal();render();toast(editing?'Güncellendi':'Kart eklendi');
   };
   if(editing)$('#kDelete').onclick=async()=>{await del('cards',card.id);cards=cards.filter(x=>x.id!==card.id);closeModal();render();toast('Kart silindi')};
+}
+
+function openBankModal(bank){
+  const editing=!!bank;
+  let accent=bank?(bank.color||PALETTE[2].accent):PALETTE[2].accent;
+  let tint=bank?(bank.tint||PALETTE[2].tint):PALETTE[2].tint;
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="eyebrow">${editing?'Bankayı düzenle':'Yeni banka'}</div>
+      <h3>${editing?'Düzenle':'Banka ekle'}</h3>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Banka adı</label>
+        <input type="text" id="bkName" placeholder="Örn. Garanti Bankası" value="${editing?esc(bank.name):''}"></div>
+      <div class="field"><label>Renk</label>
+        <div class="swatches" id="bkColor">${PALETTE.map(p=>`<button class="swatch ${p.accent===accent?'on':''}" title="${p.name}" data-a="${p.accent}" data-t="${p.tint}" style="background:${p.accent}"></button>`).join('')}</div></div>
+      <div class="modal-foot">
+        ${editing?'<button class="btn danger" id="bkDelete">Sil</button>':''}
+        <button class="btn subtle" id="bkCancel">Vazgeç</button>
+        <button class="btn primary" id="bkSave">${editing?'Kaydet':'Ekle'}</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');setTimeout(()=>$('#bkName').focus(),60);
+  modal.querySelectorAll('#bkColor .swatch').forEach(b=>b.onclick=()=>{
+    accent=b.dataset.a;tint=b.dataset.t;modal.querySelectorAll('#bkColor .swatch').forEach(x=>x.classList.toggle('on',x===b));
+  });
+  $('#bkCancel').onclick=closeModal;
+  $('#bkSave').onclick=async()=>{
+    const name=$('#bkName').value.trim();if(!name){$('#bkName').focus();return}
+    if(editing){Object.assign(bank,{name,color:accent,tint});await put('banks',bank)}
+    else{await put('banks',{id:uid(),name,color:accent,tint,order:banks.length,createdAt:Date.now()})}
+    banks=(await getAll('banks')).sort((a,b)=>(a.order??0)-(b.order??0));
+    closeModal();render();toast(editing?'Güncellendi':'Banka eklendi');
+  };
+  if(editing)$('#bkDelete').onclick=async()=>{
+    for(const a of bankAccounts.filter(x=>x.bankId===bank.id))await del('bankAccounts',a.id);
+    bankAccounts=bankAccounts.filter(x=>x.bankId!==bank.id);
+    await del('banks',bank.id);banks=banks.filter(x=>x.id!==bank.id);
+    closeModal();render();toast('Banka silindi');
+  };
+}
+
+function openAccountModal(bankId,acc){
+  const editing=!!acc;
+  let owner=acc?(acc.owner||'sahsi'):'sahsi';
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="eyebrow">${editing?'Hesabı düzenle':'Yeni hesap'}</div>
+      <h3>${editing?'Düzenle':'Hesap ekle'}</h3>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>IBAN</label>
+        <input type="text" id="baIban" class="mono" placeholder="TR00 0000 0000 0000 0000 0000 00" value="${editing?formatIban(acc.iban):''}"></div>
+      <div class="field"><label>Hesap adı (isteğe bağlı)</label>
+        <input type="text" id="baLabel" placeholder="Örn. Vadesiz TL hesabı" value="${editing?esc(acc.label||''):''}"></div>
+      <div class="field"><label>Tür</label>
+        <div class="seg" id="baOwner">
+          <button data-o="sahsi" class="${owner==='sahsi'?'on':''}">Şahsi</button>
+          <button data-o="ticari" class="${owner==='ticari'?'on':''}">Ticari</button>
+        </div></div>
+      <div class="modal-foot">
+        ${editing?'<button class="btn danger" id="baDelete">Sil</button>':''}
+        <button class="btn subtle" id="baCancel">Vazgeç</button>
+        <button class="btn primary" id="baSave">${editing?'Kaydet':'Ekle'}</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');setTimeout(()=>$('#baIban').focus(),60);
+  modal.querySelectorAll('#baOwner button').forEach(b=>b.onclick=()=>{
+    owner=b.dataset.o;modal.querySelectorAll('#baOwner button').forEach(x=>x.classList.toggle('on',x===b));
+  });
+  $('#baCancel').onclick=closeModal;
+  $('#baSave').onclick=async()=>{
+    const iban=$('#baIban').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(!iban){$('#baIban').focus();return}
+    const label=$('#baLabel').value.trim();
+    if(editing){Object.assign(acc,{iban,label,owner});await put('bankAccounts',acc)}
+    else{await put('bankAccounts',{id:uid(),bankId,iban,label,owner,createdAt:Date.now()})}
+    bankAccounts=(await getAll('bankAccounts')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+    closeModal();render();toast(editing?'Güncellendi':'Hesap eklendi');
+  };
+  if(editing)$('#baDelete').onclick=async()=>{
+    await del('bankAccounts',acc.id);bankAccounts=bankAccounts.filter(x=>x.id!==acc.id);
+    closeModal();render();toast('Hesap silindi');
+  };
 }
 
 let pendingLogo=undefined; // undefined=değişmedi, null=kaldır, string=yeni
@@ -2176,7 +2512,7 @@ function bindFooter(){
   const rt=$('[data-reset-today]');if(rt)rt.onclick=resetToday;
 }
 async function exportData(){
-  const data={version:5,exportedAt:new Date().toISOString(),companies,routines,completions:Object.values(completions),notes:Object.values(notes),bills,cards,payments:Object.values(payments),installments,cheques};
+  const data={version:5,exportedAt:new Date().toISOString(),companies,routines,completions:Object.values(completions),notes:Object.values(notes),bills,cards,payments:Object.values(payments),installments,cheques,banks,bankAccounts};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`rutin-yedek-${dailyKey(new Date())}.json`;a.click();
@@ -2194,6 +2530,7 @@ function importData(){
         if(!confirm('Mevcut tüm veriler bu yedekle değiştirilecek. Devam edilsin mi?'))return;
         await clearStore('companies');await clearStore('routines');await clearStore('completions');await clearStore('notes');
         await clearStore('bills');await clearStore('cards');await clearStore('payments');await clearStore('installments');await clearStore('cheques');
+        await clearStore('banks');await clearStore('bankAccounts');
         for(const c of data.companies)await put('companies',c);
         for(const r of data.routines)await put('routines',r);
         for(const cm of (data.completions||[]))await put('completions',cm);
@@ -2203,7 +2540,9 @@ function importData(){
         for(const pm of (data.payments||[]))await put('payments',pm);
         for(const it of (data.installments||[]))await put('installments',it);
         for(const ch of (data.cheques||[]))await put('cheques',ch);
-        await loadAll();view={page:'home',companyId:null,section:null,cardId:null,homeTab:view.homeTab||'overview'};render();toast('Yedek yüklendi');
+        for(const bk of (data.banks||[]))await put('banks',bk);
+        for(const ba of (data.bankAccounts||[]))await put('bankAccounts',ba);
+        await loadAll();view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render();toast('Yedek yüklendi');
       }catch(e){toast('Dosya okunamadı')}
     };
     reader.readAsText(f);
@@ -2421,6 +2760,8 @@ async function cloudPullAll(){
       }
     }
     await loadAll();
+    await seedPersonalCompany();
+    await loadAll();
     render();
   }catch(e){console.error('pull',e)}
   finally{ suppressPush=false; }
@@ -2471,7 +2812,7 @@ function openCloudModal(){
         <div class="seg" id="clEn"><button data-v="1" class="${en?'on':''}">Açık</button><button data-v="0" class="${!en?'on':''}">Kapalı</button></div></div>
       <div class="field"><label>Firebase yapılandırması (config)</label>
         <textarea id="clCfg" rows="7" placeholder='{ "apiKey": "...", "projectId": "...", "appId": "..." }'>${esc(cloudCfg.config||'')}</textarea></div>
-      <div class="wa-help">Firebase web "config"ini yapıştır. Bağlanınca <b>tüm verin</b> (firmalar, rutinler, kartlar, faturalar, çekler, notlar) buluta kaydedilir ve her cihazda otomatik senkronlanır. Yaklaşan kalemler ayrıca WhatsApp zamanlayıcısına da yazılır.</div>
+      <div class="wa-help">Firebase web "config"ini yapıştır. Bağlanınca <b>tüm verin</b> (firmalar, rutinler, kartlar, faturalar, çekler, banka hesapları, notlar) buluta kaydedilir ve her cihazda otomatik senkronlanır. Yaklaşan kalemler ayrıca WhatsApp zamanlayıcısına da yazılır.</div>
       <div class="modal-foot">
         <button class="btn subtle" id="clSync">Şimdi senkronla</button>
         <button class="btn subtle" id="clCancel">Vazgeç</button>
@@ -2588,6 +2929,7 @@ function openReminderModal(){
     await renameInsaat();
     await seedInsaatLink();
     await seedMetalCompany();
+    await seedPersonalCompany();
     await loadAll();
     await loadSettings();
     render();
