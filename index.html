@@ -653,7 +653,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 7);
+    const r = indexedDB.open('rutinMerkezi', 8);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -668,6 +668,7 @@ function openDB(){
       if(!d.objectStoreNames.contains('settings')) d.createObjectStore('settings',{keyPath:'id'});
       if(!d.objectStoreNames.contains('banks')) d.createObjectStore('banks',{keyPath:'id'});
       if(!d.objectStoreNames.contains('bankAccounts')) d.createObjectStore('bankAccounts',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('loans')) d.createObjectStore('loans',{keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -680,7 +681,7 @@ function del(store,key){return new Promise(r=>{const q=tx(store,'readwrite').del
 function clearStore(store){return new Promise(r=>{const q=tx(store,'readwrite').clear();q.onsuccess=()=>{afterWrite(store);r()}})}
 function getOne(store,key){return new Promise(res=>{try{const q=tx(store).get(key);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)}catch(e){res(null)}})}
 
-const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts'];
+const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans'];
 let suppressPush=false;
 function afterWrite(store){
   if(suppressPush)return;
@@ -710,7 +711,7 @@ function periodKeyFor(freq,d=new Date()){
 /* ---------- State ---------- */
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
-let banks=[], bankAccounts=[];
+let banks=[], bankAccounts=[], loans=[];
 let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview'};
 let calMonth=new Date(); // aylık takvimde gösterilen ay
 
@@ -894,6 +895,7 @@ async function loadAll(){
   cheques = (await getAll('cheques')).sort((a,b)=>String(a.dueDate||'').localeCompare(String(b.dueDate||'')));
   banks = (await getAll('banks')).sort((a,b)=>(a.order??0)-(b.order??0));
   bankAccounts = (await getAll('bankAccounts')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+  loans = (await getAll('loans')).sort((a,b)=>(a.order??0)-(b.order??0));
 }
 
 /* ---------- Toggle ---------- */
@@ -921,6 +923,7 @@ function svgCal(){return '<svg width="15" height="15" viewBox="0 0 24 24" fill="
 function svgInvoice(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 2v5h5M8.5 12h7M8.5 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 function svgCard(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M2.5 9.5h19M6 15h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
 function svgCheque(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5.5" width="19" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M6 10h6M6 14h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="17.5" cy="12" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>'}
+function svgLoan(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 7l9-3 9 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="7" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13" r="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M6.5 10.5v5M17.5 10.5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
 function svgBank(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 10l9-6 9 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M3 18h18M2.5 21h19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
 function svgHome(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 10.5L12 4l8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 9.5V20a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 21v-6a1 1 0 011-1h3a1 1 0 011 1v6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>'}
 function svgPrint(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><rect x="3" y="9" width="18" height="8" rx="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M6 14h12v7H6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'}
@@ -938,6 +941,7 @@ function render(){
   if(view.page==='home') renderHome();
   else if(view.page==='personal') renderPersonalPage();
   else if(view.page==='cards') renderCardsPage();
+  else if(view.page==='loans') renderLoansPage();
   else if(view.page==='cheques') renderChequesPage();
   else if(view.page==='card') renderCardDetail();
   else if(view.page==='banks') renderBanksPage();
@@ -962,6 +966,7 @@ function renderHome(){
       <div class="grid">${realCompanies.map(firmCard).join('')}</div>
     </section>
     ${cardsEntryHTML()}
+    ${loansEntryHTML()}
     ${banksEntryHTML()}
     ${chequesEntryHTML()}`;
 
@@ -1025,6 +1030,15 @@ function upcomingItems(){
     if(!cd.dueDay)return;
     const date=new Date(y,m,cd.dueDay);const days=diffDays(date);
     items.push({key:'card:'+cd.id,date,days,title:`${cd.bank} ekstresi`,sub:'Kredi kartı',kind:'card',dir:'out',amount:Number(cd.debt||0)||null,currency:cd.currency||'TRY',accent:'#3E4C7A',go:()=>{view={page:'card',companyId:null,section:null,cardId:cd.id,homeTab:'dashboard'};render()}});
+  });
+
+  // Krediler (aktif, bu ayki taksit)
+  loans.forEach(l=>{
+    const months=Number(l.months||0), paid=Number(l.paidCount||0);
+    if(paid>=months)return;
+    if(!l.dueDay)return;
+    const date=new Date(y,m,l.dueDay);const days=diffDays(date);
+    items.push({key:'loan:'+l.id,date,days,title:`${l.title} taksiti`,sub:'Kredi',kind:'loan',dir:'out',amount:Number(l.monthly||0)||null,currency:l.currency||'TRY',accent:'#2F6E57',go:()=>{view={page:'loans',companyId:null,section:null,cardId:null,homeTab:'dashboard'};render()}});
   });
 
   // Çekler (kapanmamış)
@@ -1197,6 +1211,24 @@ function cardsEntryHTML(){
   </button>`;
 }
 
+function loansEntryHTML(){
+  const active=loans.filter(l=>(l.paidCount||0)<Number(l.months||0));
+  let monthly=0, remainTotal=0;
+  active.forEach(l=>{monthly+=Number(l.monthly||0);remainTotal+=Number(l.monthly||0)*Math.max(0,Number(l.months||0)-(l.paidCount||0))});
+  const summary = loans.length
+    ? `${loans.length} kredi${active.length?` · ${fmtMoney(monthly,'TRY')}/ay · kalan ${fmtMoney(remainTotal,'TRY')}`:' · tümü bitti'}`
+    : 'Henüz kredi yok — eklemek için gir';
+  return `
+  <button class="entry-panel" data-loans style="--accent:#2F6E57;--accent-tint:#DCEBE2">
+    <span class="entry-ico">${svgLoan()}</span>
+    <span class="entry-body">
+      <span class="entry-title">Kredilerim</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
 function chequesEntryHTML(){
   const pending=cheques.filter(c=>!c.done);
   const verilen=pending.filter(c=>c.type==='verilen').reduce((s,c)=>s+Number(c.amount||0),0);
@@ -1291,6 +1323,125 @@ function renderCardsPage(){
     e.stopPropagation();openCardMenu(b.dataset.cmenu,b);
   }));
   bindFooter();
+}
+
+function loanRow(l){
+  const cur=l.currency||'TRY';
+  const months=Number(l.months||0), paid=Number(l.paidCount||0);
+  const remain=Math.max(0,months-paid);
+  const pct=months>0?Math.min(100,Math.round(paid/months*100)):0;
+  const monthly=Number(l.monthly||0);
+  const remainAmt=monthly*remain;
+  const done=months>0&&paid>=months;
+  const dleft=l.dueDay?daysUntil(nextDueDate(l.dueDay)):null;
+  return `<div class="bill loan ${done?'paid':''}">
+    <div class="bbody" data-ledit="${l.id}">
+      <div class="bname">${esc(l.title)} <span class="qtag">${paid}/${months} taksit</span></div>
+      <div class="secbar" style="margin:7px 0 6px"><i style="width:${pct}%"></i></div>
+      <div class="bmeta">
+        ${monthly?`<span class="bday">${fmtMoney(monthly,cur)}/ay</span>`:''}
+        ${remain?`<span class="btag genel">kalan ${fmtMoney(remainAmt,cur)}</span>`:'<span class="bstat paid">bitti</span>'}
+        ${l.dueDay&&remain?`<span class="bstat ${dleft!=null&&dleft<=5?'soon':''}">ayın ${l.dueDay}'i${dleft!=null?` · ${dleft} gün`:''}</span>`:''}
+      </div>
+    </div>
+    <button class="ct-paid ${done?'on':''}" data-lpay="${l.id}">${done?'✓ bitti':'Taksit öde'}</button>
+    <button class="rmenu-btn" data-lmenu="${l.id}" aria-label="Seçenekler">${svgDots()}</button>
+  </div>`;
+}
+
+function renderLoansPage(){
+  document.documentElement.style.setProperty('--accent','#2F6E57');
+  const active=loans.filter(l=>(l.paidCount||0)<Number(l.months||0));
+  const sums={};
+  active.forEach(l=>{const c=l.currency||'TRY';const s=sums[c]=sums[c]||{monthly:0,remain:0};s.monthly+=Number(l.monthly||0);s.remain+=Number(l.monthly||0)*Math.max(0,Number(l.months||0)-(l.paidCount||0))});
+  const chips=Object.entries(sums).map(([cur,s])=>`
+    <span class="sumchip"><em>aylık</em> <b>${fmtMoney(s.monthly,cur)}</b></span>
+    <span class="sumchip"><em>kalan</em> ${fmtMoney(s.remain,cur)}</span>`).join('');
+  const rows= loans.length? loans.map(loanRow).join('') :
+    `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz kredi yok</div><div style="font-size:13px;margin-top:4px">Banka kredilerini ekle; aylık taksidini, kalan tutarı ve ödeme gününü takip et.</div></div>`;
+  app.innerHTML=`
+  <div class="cv" style="--accent:#2F6E57;--accent-tint:#DCEBE2">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:var(--accent-tint);color:var(--accent);width:56px;height:56px">${svgLoan()}</span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:var(--accent)">Taksit takibi</div>
+        <h2>Kredilerim</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="sec-add" data-addloan>${svgPlus()} Kredi ekle</button>
+    </div>
+    ${chips?`<div class="billtotals" style="border-top:none;padding-top:0;margin-top:0;margin-bottom:18px">${chips}</div>`:''}
+    <div class="billlist">${rows}</div>
+  </div>
+  ${renderFooter()}
+  `;
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,homeTab:view.homeTab||'overview'};render()});
+  const al=$('[data-addloan]');if(al)al.addEventListener('click',()=>openLoanModal(null));
+  document.querySelectorAll('[data-lpay]').forEach(b=>b.addEventListener('click',async e=>{e.stopPropagation();await payLoanInstallment(b.dataset.lpay);render()}));
+  document.querySelectorAll('[data-ledit]').forEach(b=>b.addEventListener('click',()=>{const l=loans.find(x=>x.id===b.dataset.ledit);if(l)openLoanModal(l)}));
+  document.querySelectorAll('[data-lmenu]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();openLoanMenu(b.dataset.lmenu,b)}));
+  bindFooter();
+}
+
+async function payLoanInstallment(id){
+  const l=loans.find(x=>x.id===id);if(!l)return;
+  const months=Number(l.months||0);
+  const paid=Number(l.paidCount||0);
+  l.paidCount = paid>=months ? 0 : paid+1; // bitince geri sıfırla (yanlış basıldıysa)
+  await put('loans',l);
+  toast(l.paidCount>=months?'Kredi tamamlandı':`${l.paidCount}/${months} taksit ödendi`);
+}
+
+function openLoanMenu(id,anchor){
+  const l=loans.find(x=>x.id===id);if(!l)return;
+  popover.innerHTML=`<button data-edit>${svgGear()} Düzenle</button><div class="sep"></div><button class="del" data-del>🗑 Sil</button>`;
+  placePopover(anchor);popover.classList.add('show');
+  popover.querySelector('[data-edit]').onclick=()=>{closePopover();openLoanModal(l)};
+  popover.querySelector('[data-del]').onclick=async()=>{closePopover();await del('loans',l.id);loans=loans.filter(x=>x.id!==l.id);render();toast('Kredi silindi')};
+}
+
+function openLoanModal(loan){
+  const editing=!!loan;
+  let cur=loan?(loan.currency||'TRY'):'TRY';
+  modal.innerHTML=`
+    <div class="modal-head"><div class="eyebrow">${editing?'Krediyi düzenle':'Yeni kredi'}</div><h3>${editing?'Düzenle':'Kredi ekle'}</h3></div>
+    <div class="modal-body">
+      <div class="field"><label>Kredi adı / banka</label>
+        <input type="text" id="lTitle" placeholder="Örn. Garanti İhtiyaç Kredisi" value="${editing?esc(loan.title):''}"></div>
+      <div class="two">
+        <div class="field"><label>Aylık taksit</label><input type="number" id="lMonthly" inputmode="decimal" placeholder="0" value="${editing?loan.monthly:''}"></div>
+        <div class="field"><label>Para birimi</label><div class="seg" id="lCur">${Object.keys(CURR).map(k=>`<button data-c="${k}" class="${k===cur?'on':''}">${k}</button>`).join('')}</div></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Toplam taksit sayısı</label><input type="number" id="lMonths" inputmode="numeric" placeholder="Örn. 36" value="${editing?loan.months:''}"></div>
+        <div class="field"><label>Ödenen taksit</label><input type="number" id="lPaid" inputmode="numeric" placeholder="0" value="${editing?(loan.paidCount||0):'0'}"></div>
+      </div>
+      <div class="field"><label>Ödeme günü (ayın kaçı)</label><input type="number" id="lDue" inputmode="numeric" min="1" max="31" placeholder="Örn. 15" value="${editing&&loan.dueDay?loan.dueDay:''}"></div>
+      <div class="field"><label>Not (isteğe bağlı)</label><textarea id="lNote" rows="2">${editing?esc(loan.note||''):''}</textarea></div>
+      <div class="modal-foot">
+        ${editing?'<button class="btn danger" id="lDelete">Sil</button>':''}
+        <button class="btn subtle" id="lCancel">Vazgeç</button>
+        <button class="btn primary" id="lSave">${editing?'Kaydet':'Ekle'}</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');setTimeout(()=>$('#lTitle').focus(),60);
+  modal.querySelectorAll('#lCur button').forEach(b=>b.onclick=()=>{cur=b.dataset.c;modal.querySelectorAll('#lCur button').forEach(x=>x.classList.toggle('on',x===b))});
+  $('#lCancel').onclick=closeModal;
+  $('#lSave').onclick=async()=>{
+    const title=$('#lTitle').value.trim();if(!title){$('#lTitle').focus();return}
+    const monthly=parseFloat($('#lMonthly').value)||0;
+    const months=parseInt($('#lMonths').value)||0;
+    let paidCount=parseInt($('#lPaid').value)||0;
+    if(paidCount<0)paidCount=0; if(months&&paidCount>months)paidCount=months;
+    const dueDay=Math.min(31,Math.max(0,parseInt($('#lDue').value)||0))||null;
+    const note=$('#lNote').value.trim();
+    if(editing){Object.assign(loan,{title,monthly,months,paidCount,dueDay,currency:cur,note});await put('loans',loan)}
+    else{await put('loans',{id:uid(),title,monthly,months,paidCount,dueDay,currency:cur,note,order:loans.length,createdAt:Date.now()})}
+    loans=(await getAll('loans')).sort((a,b)=>(a.order??0)-(b.order??0));
+    closeModal();render();toast(editing?'Güncellendi':'Kredi eklendi');
+  };
+  if(editing)$('#lDelete').onclick=async()=>{await del('loans',loan.id);loans=loans.filter(x=>x.id!==loan.id);closeModal();render();toast('Kredi silindi')};
 }
 
 function formatIban(iban){
@@ -1516,6 +1667,8 @@ function bindHome(){
 
   // Kredi kartları — tek girişle aç
   const ek=$('[data-cards]');if(ek)ek.addEventListener('click',()=>{view={page:'cards',companyId:null,section:null,cardId:null};render()});
+  // Krediler — tek girişle aç
+  const el=$('[data-loans]');if(el)el.addEventListener('click',()=>{view={page:'loans',companyId:null,section:null,cardId:null};render()});
   // Çekler — tek girişle aç
   const eq=$('[data-cheques]');if(eq)eq.addEventListener('click',()=>{view={page:'cheques',companyId:null,section:null,cardId:null};render()});
   // Banka hesapları — tek girişle aç
@@ -2512,7 +2665,7 @@ function bindFooter(){
   const rt=$('[data-reset-today]');if(rt)rt.onclick=resetToday;
 }
 async function exportData(){
-  const data={version:5,exportedAt:new Date().toISOString(),companies,routines,completions:Object.values(completions),notes:Object.values(notes),bills,cards,payments:Object.values(payments),installments,cheques,banks,bankAccounts};
+  const data={version:5,exportedAt:new Date().toISOString(),companies,routines,completions:Object.values(completions),notes:Object.values(notes),bills,cards,payments:Object.values(payments),installments,cheques,banks,bankAccounts,loans};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`rutin-yedek-${dailyKey(new Date())}.json`;a.click();
@@ -2530,7 +2683,7 @@ function importData(){
         if(!confirm('Mevcut tüm veriler bu yedekle değiştirilecek. Devam edilsin mi?'))return;
         await clearStore('companies');await clearStore('routines');await clearStore('completions');await clearStore('notes');
         await clearStore('bills');await clearStore('cards');await clearStore('payments');await clearStore('installments');await clearStore('cheques');
-        await clearStore('banks');await clearStore('bankAccounts');
+        await clearStore('banks');await clearStore('bankAccounts');await clearStore('loans');
         for(const c of data.companies)await put('companies',c);
         for(const r of data.routines)await put('routines',r);
         for(const cm of (data.completions||[]))await put('completions',cm);
@@ -2542,6 +2695,7 @@ function importData(){
         for(const ch of (data.cheques||[]))await put('cheques',ch);
         for(const bk of (data.banks||[]))await put('banks',bk);
         for(const ba of (data.bankAccounts||[]))await put('bankAccounts',ba);
+        for(const ln of (data.loans||[]))await put('loans',ln);
         await loadAll();view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render();toast('Yedek yüklendi');
       }catch(e){toast('Dosya okunamadı')}
     };
