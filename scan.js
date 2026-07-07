@@ -70,7 +70,11 @@ async function sendWhatsApp(text) {
     `&text=${encodeURIComponent(text)}` +
     `&apikey=${encodeURIComponent(APIKEY)}`;
   const res = await fetch(url);
-  return res.ok;
+  const body = await res.text();
+  console.log("WA yanıt:", body.slice(0, 150));
+  if (!res.ok) return false;
+  if (/error|failed|invalid|not registered|wrong/i.test(body)) return false;
+  return true;
 }
 
 (async () => {
@@ -127,9 +131,9 @@ async function sendWhatsApp(text) {
       console.log("  → Bu ay ödendi, atlandı:", card.bank);
       continue;
     }
-    const logKey = `card_${card.id}_${todayDateStr()}`;
+    const logKey = `c2_card_${card.id}_${todayDateStr()}`;
     const last = await checkNotifLog(logKey);
-    if (now - last < gap) { console.log("  → Zaten bildirildi (gap)"); continue; }
+    if (last) { console.log("  → Bugün zaten gönderildi"); continue; }
     const debt = card.debt ? ` Mevcut borç: ${card.debt} ${card.currency || "TRY"}.` : "";
     const text = `💳 ${card.bank || "Kredi kartı"} hesabı kesildi.${debt} Son ödeme günü: ayın ${card.dueDay || "?"}'i.`;
     const ok = await sendWhatsApp(text);
@@ -152,9 +156,9 @@ async function sendWhatsApp(text) {
     if (!loan.dueDay) continue;
     if (months > 0 && paid >= months) { console.log("  → Tamamlandı, atlandı"); continue; }
     if (!isTodayNDaysBefore(loan.dueDay, 3)) continue;
-    const logKey = `loan_${loan.id}_${todayDateStr()}`;
+    const logKey = `c2_loan_${loan.id}_${todayDateStr()}`;
     const last = await checkNotifLog(logKey);
-    if (now - last < gap) { console.log("  → Zaten bildirildi (gap)"); continue; }
+    if (last) { console.log("  → Bugün zaten gönderildi"); continue; }
     const remain = months > 0 ? months - paid : "?";
     const amt = loan.monthly ? ` ${loan.monthly} ${loan.currency || "TRY"}` : "";
     const text = `🏦 Kredi taksiti 3 gün sonra (ayın ${loan.dueDay}'i):${amt} — ${loan.title}. Kalan: ${remain} taksit.`;
