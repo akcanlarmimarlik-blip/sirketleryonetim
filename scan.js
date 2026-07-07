@@ -1,17 +1,16 @@
-// scan.js — Firestore'u tarar, vadesi yaklaşan kalemlere WhatsApp atar.
+// scan.js — Firestore'u tarar, vadesi yaklaşan kalemlere Telegram atar.
 const admin = require("firebase-admin");
 
 const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({ credential: admin.credential.cert(sa) });
 const db = admin.firestore();
 
-const LEAD_DAYS     = parseInt(process.env.LEAD_DAYS || "3", 10);
+const LEAD_DAYS      = parseInt(process.env.LEAD_DAYS || "3", 10);
 const INTERVAL_HOURS = parseInt(process.env.INTERVAL_HOURS || "5", 10);
-const TZ_OFFSET     = parseInt(process.env.TZ_OFFSET || "3", 10); // Türkiye UTC+3
-const PHONE         = (process.env.WA_PHONE || "").replace(/[^0-9]/g, "");
-const APIKEY        = process.env.WA_APIKEY;
+const TZ_OFFSET      = parseInt(process.env.TZ_OFFSET || "3", 10);
+const TG_TOKEN       = process.env.TELEGRAM_TOKEN || "";
+const TG_CHAT_ID     = process.env.TELEGRAM_CHAT_ID || "";
 
-// Yerel saate (TZ_OFFSET) göre şu anki Date nesnesi
 function localNow() {
   const d = new Date();
   d.setTime(d.getTime() + TZ_OFFSET * 3600 * 1000);
@@ -35,14 +34,12 @@ function monthKey() {
   return `${t.getUTCFullYear()}-${String(t.getUTCMonth()+1).padStart(2,"0")}`;
 }
 
-// Bugün (yerel), dayNum'dan n gün sonra mı? (ay sınırı güvenli)
 function isTodayNDaysAfter(dayNum, n) {
   const ref = localNow();
   ref.setUTCDate(ref.getUTCDate() - n);
   return ref.getUTCDate() === dayNum;
 }
 
-// Bugün (yerel), dayNum'dan n gün önce mi? (ay sınırı güvenli)
 function isTodayNDaysBefore(dayNum, n) {
   const ref = localNow();
   ref.setUTCDate(ref.getUTCDate() + n);
@@ -63,23 +60,21 @@ async function setNotifLog(key) {
   await db.collection("notifLog").doc(key).set({ lastNotified: Date.now() });
 }
 
-async function sendWhatsApp(text) {
-  const url =
-    "https://api.callmebot.com/whatsapp.php" +
-    `?phone=${encodeURIComponent(PHONE)}` +
-    `&text=${encodeURIComponent(text)}` +
-    `&apikey=${encodeURIComponent(APIKEY)}`;
-  const res = await fetch(url);
-  const body = await res.text();
-  console.log("WA yanıt:", body.slice(0, 400));
-  if (!res.ok) return false;
-  if (/color:red|error|failed|invalid|not registered|wrong|you have 0/i.test(body)) return false;
-  return true;
+async function sendTelegram(text) {
+  const url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: TG_CHAT_ID, text }),
+  });
+  const data = await res.json();
+  if (!data.ok) console.log("Telegram hata:", JSON.stringify(data));
+  return data.ok === true;
 }
 
 (async () => {
-  if (!PHONE || !APIKEY) {
-    console.error("WA_PHONE veya WA_APIKEY eksik.");
+  if (!TG_TOKEN || !TG_CHAT_ID) {
+    console.error("TELEGRAM_TOKEN veya TELEGRAM_CHAT_ID eksik.");
     process.exit(1);
   }
 
@@ -105,7 +100,7 @@ async function sendWhatsApp(text) {
       : `${days} gün kaldı`;
     const amt = it.amount ? ` (${it.amount} ${it.currency || "TRY"})` : "";
     const text = `⏰ ${it.sub || "Hatırlatma"}: ${it.title}${amt} — ${when}. Tamamlayınca durur.`;
-    const ok = await sendWhatsApp(text);
+    const ok = await sendTelegram(text);
     if (ok) {
       await doc.ref.update({ lastNotified: now });
       sent++;
@@ -118,58 +113,47 @@ async function sendWhatsApp(text) {
   // --- Kredi kartları: hesap kesilmesinden 1 gün sonra ---
   const cards = await getItems("cards");
   const payments = await getItems("payments");
-  const paidSet = new Set(payments.map((p) => p.id)); // "cardId__YYYY-MM"
+  const paidSet = new Set(payments.map((p) => p.id));
   const mk = monthKey();
 
-  console.log(`Kartlar bulundu: ${cards.length}`);
+  console.log(`Kartlar: ${cards.length}`);
   for (const card of cards) {
-    const stmt = card.statementDay || card.statementDay;
-    console.log(`  Kart: ${card.bank}, statementDay:${stmt}, dueDay:${card.dueDay}, isTodayNDaysAfter:${stmt?isTodayNDaysAfter(stmt,1):'-'}`);
+    const stmt = card.statementDay;
     if (!stmt) continue;
-    if (!isTodayNDaysAfter(stmt, 1)) continue;
-    if (paidSet.has(`${card.id}__${mk}`)) {
-      console.log("  → Bu ay ödendi, atlandı:", card.bank);
-      continue;
-    }
-    const logKey = `c3_card_${card.id}_${todayDateStr()}`;
+    const trigger = isTodayNDaysAfter(stmt, 1);
+    console.log(`  ${card.bank}: statementDay=${stmt}, trigger=${trigger}`);
+    if (!trigger) continue;
+    if (paidSet.has(`${card.id}__${mk}`)) { console.log("  → Bu ay ödendi, atlandı"); continue; }
+    const logKey = `tg_card_${card.id}_${todayDateStr()}`;
     const last = await checkNotifLog(logKey);
     if (last) { console.log("  → Bugün zaten gönderildi"); continue; }
-    const debt = card.debt ? ` Mevcut borç: ${card.debt} ${card.currency || "TRY"}.` : "";
-    const text = `💳 ${card.bank || "Kredi kartı"} hesabı kesildi.${debt} Son ödeme günü: ayın ${card.dueDay || "?"}'i.`;
-    const ok = await sendWhatsApp(text);
-    if (ok) {
-      await setNotifLog(logKey);
-      sent++;
-      console.log("  → Kart bildirimi gönderildi:", card.bank);
-    } else {
-      console.log("  → Kart bildirimi gönderilemedi:", card.bank);
-    }
+    const debt = card.debt ? ` Borç: ${card.debt} ${card.currency || "TRY"}.` : "";
+    const text = `💳 ${card.bank || "Kredi kartı"} hesabı kesildi.${debt}\nSon ödeme: ayın ${card.dueDay || "?"}'i.`;
+    const ok = await sendTelegram(text);
+    if (ok) { await setNotifLog(logKey); sent++; console.log("  → Gönderildi:", card.bank); }
+    else { console.log("  → Gönderilemedi:", card.bank); }
   }
 
   // --- Krediler: ödeme gününden 3 gün önce ---
   const loans = await getItems("loans");
-  console.log(`Krediler bulundu: ${loans.length}`);
+  console.log(`Krediler: ${loans.length}`);
   for (const loan of loans) {
+    if (!loan.dueDay) continue;
     const months = Number(loan.months || 0);
     const paid = Number(loan.paidCount || 0);
-    console.log(`  Kredi: ${loan.title}, dueDay:${loan.dueDay}, ${paid}/${months}, isTodayNDaysBefore:${loan.dueDay?isTodayNDaysBefore(loan.dueDay,3):'-'}`);
-    if (!loan.dueDay) continue;
-    if (months > 0 && paid >= months) { console.log("  → Tamamlandı, atlandı"); continue; }
-    if (!isTodayNDaysBefore(loan.dueDay, 3)) continue;
-    const logKey = `c3_loan_${loan.id}_${todayDateStr()}`;
+    if (months > 0 && paid >= months) { console.log(`  ${loan.title}: tamamlandı, atlandı`); continue; }
+    const trigger = isTodayNDaysBefore(loan.dueDay, 3);
+    console.log(`  ${loan.title}: dueDay=${loan.dueDay}, trigger=${trigger}`);
+    if (!trigger) continue;
+    const logKey = `tg_loan_${loan.id}_${todayDateStr()}`;
     const last = await checkNotifLog(logKey);
     if (last) { console.log("  → Bugün zaten gönderildi"); continue; }
     const remain = months > 0 ? months - paid : "?";
     const amt = loan.monthly ? ` ${loan.monthly} ${loan.currency || "TRY"}` : "";
-    const text = `🏦 Kredi taksiti 3 gün sonra (ayın ${loan.dueDay}'i):${amt} — ${loan.title}. Kalan: ${remain} taksit.`;
-    const ok = await sendWhatsApp(text);
-    if (ok) {
-      await setNotifLog(logKey);
-      sent++;
-      console.log("  → Kredi bildirimi gönderildi:", loan.title);
-    } else {
-      console.log("  → Kredi bildirimi gönderilemedi:", loan.title);
-    }
+    const text = `🏦 Kredi taksiti 3 gün sonra (ayın ${loan.dueDay}'i):${amt}\n${loan.title} — Kalan: ${remain} taksit.`;
+    const ok = await sendTelegram(text);
+    if (ok) { await setNotifLog(logKey); sent++; console.log("  → Gönderildi:", loan.title); }
+    else { console.log("  → Gönderilemedi:", loan.title); }
   }
 
   console.log(`Bitti. ${sent} mesaj gönderildi.`);

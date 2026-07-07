@@ -1,4 +1,4 @@
-name: WhatsApp Hatirlatici
+name: Telegram Hatirlatici
 
 on:
   schedule:
@@ -20,8 +20,8 @@ jobs:
       - run: node scan.js
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          WA_PHONE: ${{ secrets.WA_PHONE }}
-          WA_APIKEY: ${{ secrets.WA_APIKEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           LEAD_DAYS: "3"
           INTERVAL_HOURS: "5"
           TZ_OFFSET: "3"
