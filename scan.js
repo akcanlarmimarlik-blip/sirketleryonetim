@@ -120,8 +120,9 @@ async function sendTelegram(text) {
   for (const card of cards) {
     const stmt = card.statementDay;
     if (!stmt) continue;
-    const trigger = isTodayNDaysAfter(stmt, 1);
-    console.log(`  ${card.bank}: statementDay=${stmt}, trigger=${trigger}`);
+    const todayDate = localNow().getUTCDate();
+    const trigger = todayDate > stmt;
+    console.log(`  ${card.bank}: statementDay=${stmt}, today=${todayDate}, trigger=${trigger}`);
     if (!trigger) continue;
     if (paidSet.has(`${card.id}__${mk}`)) { console.log("  → Bu ay ödendi, atlandı"); continue; }
     const logKey = `tg_card_${card.id}_${todayDateStr()}`;
@@ -142,8 +143,9 @@ async function sendTelegram(text) {
     const months = Number(loan.months || 0);
     const paid = Number(loan.paidCount || 0);
     if (months > 0 && paid >= months) { console.log(`  ${loan.title}: tamamlandı, atlandı`); continue; }
-    const trigger = isTodayNDaysBefore(loan.dueDay, 3);
-    console.log(`  ${loan.title}: dueDay=${loan.dueDay}, trigger=${trigger}`);
+    const todayDateL = localNow().getUTCDate();
+    const trigger = todayDateL >= loan.dueDay - 3 && todayDateL <= loan.dueDay;
+    console.log(`  ${loan.title}: dueDay=${loan.dueDay}, today=${todayDateL}, trigger=${trigger}`);
     if (!trigger) continue;
     const logKey = `tg_loan_${loan.id}_${todayDateStr()}`;
     const last = await checkNotifLog(logKey);
