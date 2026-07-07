@@ -131,7 +131,7 @@ async function sendWhatsApp(text) {
       console.log("  → Bu ay ödendi, atlandı:", card.bank);
       continue;
     }
-    const logKey = `c2_card_${card.id}_${todayDateStr()}`;
+    const logKey = `c3_card_${card.id}_${todayDateStr()}`;
     const last = await checkNotifLog(logKey);
     if (last) { console.log("  → Bugün zaten gönderildi"); continue; }
     const debt = card.debt ? ` Mevcut borç: ${card.debt} ${card.currency || "TRY"}.` : "";
@@ -156,7 +156,7 @@ async function sendWhatsApp(text) {
     if (!loan.dueDay) continue;
     if (months > 0 && paid >= months) { console.log("  → Tamamlandı, atlandı"); continue; }
     if (!isTodayNDaysBefore(loan.dueDay, 3)) continue;
-    const logKey = `c2_loan_${loan.id}_${todayDateStr()}`;
+    const logKey = `c3_loan_${loan.id}_${todayDateStr()}`;
     const last = await checkNotifLog(logKey);
     if (last) { console.log("  → Bugün zaten gönderildi"); continue; }
     const remain = months > 0 ? months - paid : "?";
