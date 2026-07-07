@@ -71,9 +71,9 @@ async function sendWhatsApp(text) {
     `&apikey=${encodeURIComponent(APIKEY)}`;
   const res = await fetch(url);
   const body = await res.text();
-  console.log("WA yanıt:", body.slice(0, 150));
+  console.log("WA yanıt:", body.slice(0, 400));
   if (!res.ok) return false;
-  if (/error|failed|invalid|not registered|wrong/i.test(body)) return false;
+  if (/color:red|error|failed|invalid|not registered|wrong|you have 0/i.test(body)) return false;
   return true;
 }
 
