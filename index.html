@@ -714,6 +714,7 @@ let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `
 let banks=[], bankAccounts=[], loans=[];
 let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview'};
 let calMonth=new Date(); // aylık takvimde gösterilen ay
+let personalBillMonth=new Date(); // şahsi faturalar ay seçici
 
 const noteId=(cid,dateKey)=>`${cid}__${dateKey}`;
 const payId=(itemId,pk)=>`${itemId}__${pk}`;
@@ -1010,9 +1011,11 @@ function upcomingItems(){
   const diffDays=d=>Math.round((d-today)/86400000);
   const items=[];
 
-  // Faturalar (bu ay, ödenmemiş)
+  // Faturalar (bu ay, ödenmemiş — Şahsi hariç)
   bills.forEach(b=>{
     if(isPaid(b.id))return;
+    const bc=companies.find(x=>x.id===b.company);
+    if(bc&&bc.isPersonal)return; // Şahsi faturalar yaklaşanlarda çıkmaz
     let date=null,days=null;
     if(b.dueDay){date=new Date(y,m,b.dueDay);days=diffDays(date)}
     items.push({key:'bill:'+b.id,date,days,title:b.name,sub:'Fatura',kind:'bill',dir:null,amount:null,currency:null,accent:'#5C7A52',go:()=>{
@@ -1125,12 +1128,14 @@ function bindDashboard(){
   document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{const fn=_dueRefs[b.dataset.go];if(fn)fn()}));
 }
 
-function billRow(b){
+function billRow(b,d=new Date()){
   const todayDay=new Date().getDate();
-  const paid=isPaid(b.id);
+  const isCurrentMonth=monthlyKey(d)===monthlyKey(new Date());
+  const paid=isPaid(b.id,d);
   let status,scls;
   if(paid){status='Ödendi';scls='paid'}
   else if(!b.dueDay){status='';scls=''}
+  else if(!isCurrentMonth){status=`ayın ${b.dueDay}'i`;scls=''}
   else if(b.dueDay<todayDay){status=`${todayDay-b.dueDay} gün gecikti`;scls='overdue'}
   else if(b.dueDay===todayDay){status='Bugün son gün';scls='soon'}
   else{const left=b.dueDay-todayDay;status=`${left} gün kaldı`;scls=left<=3?'soon':''}
@@ -1151,10 +1156,12 @@ function renderPersonalPage(){
   if(!pc){view.page='home';return renderHome()}
   document.documentElement.style.setProperty('--accent',pc.accent);
   const list=bills.filter(b=>b.company===pc.id);
-  const paidCount=list.filter(b=>isPaid(b.id)).length;
-  const monthName=new Date().toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
-  const rows = list.length ? list.map(billRow).join('') :
-    `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz fatura yok</div><div style="font-size:13px;margin-top:4px">Ev faturası, kredi taksiti, abonelik… hatırlamak için ekle.</div></div>`;
+  const d=personalBillMonth;
+  const paidCount=list.filter(b=>isPaid(b.id,d)).length;
+  const monthName=d.toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
+  const isCurrentMonth=monthlyKey(d)===monthlyKey(new Date());
+  const rows = list.length ? list.map(b=>billRow(b,d)).join('') :
+    `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz fatura yok</div><div style="font-size:13px;margin-top:4px">Ev faturası, abonelik… hatırlamak için ekle.</div></div>`;
   app.innerHTML=`
   <div class="cv" style="--accent:${pc.accent};--accent-tint:${pc.tint}">
     <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
@@ -1167,15 +1174,27 @@ function renderPersonalPage(){
       <span class="spacer"></span>
       <button class="sec-add" data-addbill>${svgPlus()} Fatura ekle</button>
     </div>
-    ${list.length?`<div class="prog"><span class="ptxt" style="margin-left:0">${monthName} · <b>${paidCount}</b>/${list.length} ödendi</span></div>`:''}
+    <div class="cal-head" style="margin-bottom:8px">
+      <button class="cal-nav" data-pmon="-1" aria-label="Önceki ay">${svgBack()}</button>
+      <span style="font-weight:600;font-size:15px;text-transform:capitalize">${monthName}</span>
+      <button class="cal-nav" data-pmon="1" aria-label="Sonraki ay"${isCurrentMonth?' disabled style="opacity:.35;pointer-events:none"':''}><span style="transform:scaleX(-1);display:inline-flex">${svgBack()}</span></button>
+    </div>
+    ${list.length?`<div class="prog"><span class="ptxt" style="margin-left:0"><b>${paidCount}</b>/${list.length} ödendi</span></div>`:''}
     <div class="billlist">${rows}</div>
   </div>
   ${renderFooter()}
   `;
   $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  document.querySelectorAll('[data-pmon]').forEach(b=>b.addEventListener('click',()=>{
+    personalBillMonth=new Date(d.getFullYear(),d.getMonth()+parseInt(b.dataset.pmon),1);render();
+  }));
   const ab=$('[data-addbill]');if(ab)ab.addEventListener('click',()=>openBillModal(null,pc.id));
   document.querySelectorAll('[data-bpay]').forEach(b=>b.addEventListener('click',async e=>{
-    e.stopPropagation();await togglePaid(b.dataset.bpay,'bill',0);render();
+    e.stopPropagation();
+    const pk=monthlyKey(personalBillMonth);const id=payId(b.dataset.bpay,pk);
+    if(payments[id]){delete payments[id];await del('payments',id)}
+    else{const rec={id,itemId:b.dataset.bpay,kind:'bill',periodKey:pk,amount:0,paidAt:Date.now()};payments[id]=rec;await put('payments',rec)}
+    render();
   }));
   document.querySelectorAll('[data-bedit]').forEach(b=>b.addEventListener('click',()=>{
     const bill=bills.find(x=>x.id===b.dataset.bedit);if(bill)openBillModal(bill);
