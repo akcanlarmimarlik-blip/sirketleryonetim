@@ -24,3 +24,4 @@ jobs:
           WA_APIKEY: ${{ secrets.WA_APIKEY }}
           LEAD_DAYS: "3"
           INTERVAL_HOURS: "5"
+          TZ_OFFSET: "3"
