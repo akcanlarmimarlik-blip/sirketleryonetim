@@ -595,7 +595,7 @@
   .pin-dots span.on{background:var(--ink);border-color:var(--ink)}
   .pin-dots.err span{border-color:#A4453B;background:transparent}
   .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:300px}
-  .pad button{height:66px;border-radius:16px;border:1px solid var(--line);background:var(--card);font-family:'Fraunces',serif;font-size:25px;font-weight:500;color:var(--ink);transition:transform .1s ease, background .12s ease;-webkit-tap-highlight-color:transparent}
+  .pad button{height:66px;border-radius:16px;border:1px solid var(--line);background:var(--card);font-family:'Fraunces',serif;font-size:25px;font-weight:500;color:var(--ink);transition:transform .1s ease, background .12s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none}
   .pad button:hover{background:var(--paper-2)}
   .pad button:active{transform:scale(.95);background:var(--paper-2)}
   .pad .pad-ghost{visibility:hidden;border:none;background:none}
@@ -2789,17 +2789,24 @@ function onActivity(){
   if(now-lastActivity<1500)return;
   lastActivity=now;resetIdle();
 }
+let _pinLastT=0,_pinChecking=false;
 function pinInput(d){
-  if(pinBuffer.length>=4)return;
+  const now=Date.now();
+  if(now-_pinLastT<60)return; // çift dokunuşu engelle
+  _pinLastT=now;
+  if(_pinChecking||pinBuffer.length>=4)return;
   pinBuffer+=d;updatePinDots();
   if(pinBuffer.length===4){
+    _pinChecking=true;
     setTimeout(()=>{
       if(pinBuffer===LOCK_PIN){unlockApp();}
       else{
         const card=document.getElementById('lockCard');
         card.classList.add('shake');document.getElementById('pinDots').classList.add('err');
-        setTimeout(()=>{card.classList.remove('shake');document.getElementById('pinDots').classList.remove('err');pinBuffer='';updatePinDots()},420);
+        setTimeout(()=>{card.classList.remove('shake');document.getElementById('pinDots').classList.remove('err');pinBuffer='';updatePinDots();_pinChecking=false;},420);
+        return;
       }
+      _pinChecking=false;
     },110);
   }
 }
