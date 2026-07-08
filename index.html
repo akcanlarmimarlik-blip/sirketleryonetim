@@ -331,6 +331,10 @@
   .home-sec-head .eyebrow{font-size:12px;letter-spacing:.14em}
   .sec-add{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);padding:8px 13px;border-radius:10px;border:1px solid var(--line);background:var(--card);transition:all .15s ease}
   .sec-add:hover{border-color:var(--line-strong);color:var(--ink);background:var(--paper-2)}
+  .rem-shortcut{position:relative;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1.5px solid #C4B5D9;background:#EDE8F5;color:#7C5C9F;transition:all .15s ease;flex-shrink:0}
+  .rem-shortcut svg{width:22px;height:22px}
+  .rem-shortcut:hover{background:#DDD4F0;border-color:#7C5C9F}
+  .rem-badge{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;background:#7C5C9F;color:#fff;border-radius:99px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid var(--bg)}
   .empty.mini{padding:28px 20px}
 
   /* enterable entry panel */
@@ -990,8 +994,7 @@ function renderHome(){
     ${cardsEntryHTML()}
     ${loansEntryHTML()}
     ${banksEntryHTML()}
-    ${chequesEntryHTML()}
-    ${reminderEntryHTML()}`;
+    ${chequesEntryHTML()}`;
 
   app.innerHTML=`
     <div class="masthead">
@@ -1003,6 +1006,7 @@ function renderHome(){
             <button class="${tab==='dashboard'?'on':''}" data-htab="dashboard" role="tab">Yaklaşanlar${upCount?`<span class="mt-count">${upCount}</span>`:''}</button>
           </div>
           <button class="sec-add" data-personal>${svgHome()} Şahsi</button>
+          <button class="rem-shortcut" data-custom-rem>${svgBell()}${customReminders.filter(r=>r.enabled).length?`<span class="rem-badge">${customReminders.filter(r=>r.enabled).length}</span>`:''}</button>
         </div>
         <div class="date eyebrow" style="color:var(--muted);letter-spacing:.04em;text-transform:none;font-size:13px">${dateStr}</div>
       </div>
