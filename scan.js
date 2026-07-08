@@ -93,8 +93,10 @@ async function sendTelegram(text) {
   console.log(`Hatırlatıcılar: ${remItems.length}`);
   for (const r of remItems) {
     if (!r.enabled || !r.time) continue;
-    const [rHour, rMin] = r.time.split(":").map(Number);
-    if (localHour !== rHour) { console.log(`  "${r.title}": saat ${r.time} değil (şu an ${localHour}), atlandı`); continue; }
+    const [rHour] = r.time.split(":").map(Number);
+    // GitHub Actions gecikmelerine karşı 3 saatlik pencere kullan
+    const hoursPast = (localHour - rHour + 24) % 24;
+    if (hoursPast > 3) { console.log(`  "${r.title}": saat ${r.time}, şu an ${localHour}:xx (${hoursPast}s geçti), atlandı`); continue; }
     let dayMatch = false;
     if (r.freq === "daily") dayMatch = true;
     else if (r.freq === "weekly") dayMatch = (r.weekDays || []).includes(localWeekDay);

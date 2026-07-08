@@ -3112,9 +3112,13 @@ async function initFirebase(){
   await authMod.signInAnonymously(authI);
   let fsDb;
   try{
-    fsDb=fsMod.initializeFirestore(appI,{localCache:fsMod.persistentLocalCache()});
+    if(fsMod.initializeFirestore && fsMod.persistentLocalCache){
+      fsDb=fsMod.initializeFirestore(appI,{localCache:fsMod.persistentLocalCache()});
+    } else {
+      fsDb=fsMod.getFirestore(appI);
+    }
   }catch(e){
-    fsDb=fsMod.getFirestore(appI);
+    try{ fsDb=fsMod.getFirestore(appI); }catch(e2){}
   }
   fb={fs:fsMod, db:fsDb};
   cloudReady=true;
