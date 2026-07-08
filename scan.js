@@ -85,20 +85,30 @@ async function sendTelegram(text) {
   const localHour = localNow().getUTCHours();
   console.log(`Yerel tarih (UTC+${TZ_OFFSET}): ${todayDateStr()}, saat: ${localHour}:xx, ayKey: ${monthKey()}`);
 
-  // --- Günlük hatırlatıcı ---
-  const drSnap = await db.collection("appdata").doc("dailyReminder").get();
-  if (drSnap.exists) {
-    const dr = drSnap.data();
-    if (dr.enabled && dr.time) {
-      const [rHour] = dr.time.split(":").map(Number);
-      if (localHour === rHour) {
-        const logKey = `daily_rem_${todayDateStr()}`;
-        const last = await checkNotifLog(logKey);
-        if (!last) {
-          const ok = await sendTelegram(`🔔 Günlük kontrol zamanı! Şirketler panelini açmayı unutma.\nhttps://akcanlarmimarlik-blip.github.io/sirketleryonetim/`);
-          if (ok) { await setNotifLog(logKey); sent++; console.log("Günlük hatırlatıcı gönderildi."); }
-        } else { console.log("Günlük hatırlatıcı bugün zaten gönderildi."); }
-      } else { console.log(`Günlük hatırlatıcı saati ${dr.time}, şu an ${localHour}:xx — atlandı.`); }
+  // --- Özel hatırlatıcılar (customReminders) ---
+  const localD = localNow();
+  const localWeekDay = localD.getUTCDay(); // 0=Paz ... 6=Cmt
+  const localMonthDay = localD.getUTCDate();
+  const remItems = await getItems("customReminders");
+  console.log(`Hatırlatıcılar: ${remItems.length}`);
+  for (const r of remItems) {
+    if (!r.enabled || !r.time) continue;
+    const [rHour, rMin] = r.time.split(":").map(Number);
+    if (localHour !== rHour) { console.log(`  "${r.title}": saat ${r.time} değil (şu an ${localHour}), atlandı`); continue; }
+    let dayMatch = false;
+    if (r.freq === "daily") dayMatch = true;
+    else if (r.freq === "weekly") dayMatch = (r.weekDays || []).includes(localWeekDay);
+    else if (r.freq === "monthly") dayMatch = localMonthDay === Number(r.monthDay || 0);
+    else if (r.freq === "once") dayMatch = r.onceDate === todayDateStr();
+    if (!dayMatch) { console.log(`  "${r.title}": gün koşulu sağlanmadı, atlandı`); continue; }
+    const logKey = `crem_${r.id}_${todayDateStr()}`;
+    const last = await checkNotifLog(logKey);
+    if (last) { console.log(`  "${r.title}": bugün zaten gönderildi`); continue; }
+    const ok = await sendTelegram(`🔔 Hatırlatıcı: ${r.title}`);
+    if (ok) {
+      await setNotifLog(logKey);
+      sent++;
+      console.log(`  Gönderildi: "${r.title}"`);
     }
   }
 
