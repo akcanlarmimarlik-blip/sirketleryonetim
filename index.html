@@ -3110,7 +3110,13 @@ async function initFirebase(){
   const appI=appMod.initializeApp(cfg);
   const authI=authMod.getAuth(appI);
   await authMod.signInAnonymously(authI);
-  fb={fs:fsMod, db:fsMod.getFirestore(appI)};
+  let fsDb;
+  try{
+    fsDb=fsMod.initializeFirestore(appI,{localCache:fsMod.persistentLocalCache()});
+  }catch(e){
+    fsDb=fsMod.getFirestore(appI);
+  }
+  fb={fs:fsMod, db:fsDb};
   cloudReady=true;
 }
 
@@ -3155,7 +3161,8 @@ async function syncCloud(silent){
 
 function startCloudLoop(){
   clearInterval(cloudTimer);
-  cloudTimer=setInterval(()=>{ if(cloudReady) syncCloud(true); }, 10*60*1000);
+  cloudTimer=setInterval(()=>{ if(cloudReady){ cloudPushAll(); syncCloud(true); } }, 5*60*1000);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&cloudReady) cloudPushAll(); },{once:false});
 }
 
 /* ---------- TAM VERİ SENKRONU (cihazlar arası ortak kullanım) ---------- */
