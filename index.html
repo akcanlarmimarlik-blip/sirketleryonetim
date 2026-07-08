@@ -602,6 +602,11 @@
   .pad .pad-fn{font-family:'Inter',sans-serif;font-size:22px;color:var(--muted)}
   @keyframes lockshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
   .lock-card.shake{animation:lockshake .36s}
+  .lock-touch-wrap{display:none;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
+  .lock-touch-wrap.visible{display:flex}
+  .lock-touch-btn{width:58px;height:58px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s ease}
+  .lock-touch-btn:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .lock-touch-lbl{font-size:12px;color:var(--muted)}
   .wa-help{font-size:12.5px;line-height:1.5;color:var(--muted);background:var(--paper-2);border-radius:11px;padding:12px 14px}
   .wa-help b{color:var(--ink);font-weight:600}
 </style>
@@ -623,6 +628,20 @@
       <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
       <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
       <button class="pad-ghost"></button><button data-d="0">0</button><button class="pad-fn" data-back>⌫</button>
+    </div>
+    <div class="lock-touch-wrap" id="touchWrap">
+      <button class="lock-touch-btn" id="touchBtn" aria-label="Touch ID ile aç">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <path d="M17 8.5C17 5.46 14.54 3 11.5 3S6 5.46 6 8.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M3 10.5C3 14.09 4.5 17.3 6.93 19.57" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M9 8.5c0-1.38 1.12-2.5 2.5-2.5S14 7.12 14 8.5V13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M11.5 11v5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M14 16.5c0 1.38-1.12 2.5-2.5 2.5-1.04 0-1.94-.64-2.33-1.55" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M20 8.5c0 3.79-1.97 7.11-4.94 9.02" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M17 13c0 1.62-.53 3.12-1.42 4.33" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <span class="lock-touch-lbl">Touch ID ile aç</span>
     </div>
   </div>
 </div>
@@ -2741,7 +2760,7 @@ function toast(msg){
    BAŞLAT
    ============================================================ */
 /* ---------- PIN kilit + hareketsizlik zamanlayıcısı ---------- */
-const LOCK_PIN='1234';
+const LOCK_PIN='5555';
 const LOCK_MS=3*60*1000; // 3 dakika
 let lockTimer=null, pinBuffer='', lastActivity=0;
 const lockscreen=document.getElementById('lockscreen');
@@ -2784,6 +2803,50 @@ function pinInput(d){
     },110);
   }
 }
+/* ---------- Touch ID (WebAuthn) ---------- */
+const TID_KEY='tidCredId';
+async function tidAvailable(){
+  try{
+    if(location.protocol!=='https:'&&location.hostname!=='localhost')return false;
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  }catch{return false}
+}
+async function tidRegister(){
+  const cred=await navigator.credentials.create({publicKey:{
+    challenge:crypto.getRandomValues(new Uint8Array(32)),
+    rp:{name:'Şirketler Paneli',id:location.hostname},
+    user:{id:crypto.getRandomValues(new Uint8Array(16)),name:'kullanici',displayName:'Kullanıcı'},
+    pubKeyCredParams:[{alg:-7,type:'public-key'},{alg:-257,type:'public-key'}],
+    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},
+    timeout:60000
+  }});
+  const id=btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+  localStorage.setItem(TID_KEY,id);return id;
+}
+async function tidAuth(credId){
+  await navigator.credentials.get({publicKey:{
+    challenge:crypto.getRandomValues(new Uint8Array(32)),
+    allowCredentials:[{id:Uint8Array.from(atob(credId),c=>c.charCodeAt(0)),type:'public-key'}],
+    userVerification:'required',
+    rpId:location.hostname,
+    timeout:60000
+  }});
+}
+async function tryTouchId(){
+  try{
+    let id=localStorage.getItem(TID_KEY);
+    if(!id)id=await tidRegister();
+    await tidAuth(id);
+    unlockApp();
+  }catch(e){
+    if(e.name==='InvalidStateError'){
+      // kayıtlı credential geçersiz, sil ve yeniden kaydet
+      localStorage.removeItem(TID_KEY);
+    }
+    console.log('Touch ID:',e.message);
+  }
+}
+
 function setupLock(){
   document.querySelectorAll('#pinPad button[data-d]').forEach(b=>b.addEventListener('click',()=>pinInput(b.dataset.d)));
   const back=document.querySelector('#pinPad [data-back]');
@@ -2793,6 +2856,12 @@ function setupLock(){
     if(!isLocked())return;
     if(/^[0-9]$/.test(e.key))pinInput(e.key);
     else if(e.key==='Backspace')pinBuffer=pinBuffer.slice(0,-1),updatePinDots();
+  });
+  // Touch ID butonu
+  tidAvailable().then(ok=>{
+    const wrap=document.getElementById('touchWrap');
+    const btn=document.getElementById('touchBtn');
+    if(ok&&wrap&&btn){wrap.classList.add('visible');btn.addEventListener('click',tryTouchId)}
   });
   // hareket = sayaç sıfırla
   ['mousemove','mousedown','keydown','touchstart','touchmove','scroll','click','wheel'].forEach(ev=>
