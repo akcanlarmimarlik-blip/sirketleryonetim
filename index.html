@@ -3165,7 +3165,28 @@ function openReminderModal(){
 (async function init(){
   try{
     await openDB();
-    await seedIfEmpty();
+    await loadSettings();
+    setupLock();
+    lockApp();
+
+    const localCompanies = await getAll('companies');
+    const isNewDevice = localCompanies.length === 0;
+
+    if(isNewDevice && cloudCfg.enabled && cloudCfg.config){
+      // Yeni cihaz + bulut aktif: önce buluttan çek, seed etme
+      try{
+        await cloudConnect();
+        startCloudLoop();
+      }catch(e){ console.error('Bulut bağlantısı:', e); }
+      // Bulut boşsa veya bağlanamadıysa yerel seed yap
+      await seedIfEmpty();
+    } else {
+      await seedIfEmpty();
+      if(cloudCfg.enabled && cloudCfg.config){
+        cloudConnect().then(()=>startCloudLoop()).catch(e=>console.error('Bulut bağlantısı:',e));
+      }
+    }
+
     await loadAll();
     await seedPastelyaRoutines();
     await renameInsaat();
@@ -3173,15 +3194,9 @@ function openReminderModal(){
     await seedMetalCompany();
     await seedPersonalCompany();
     await loadAll();
-    await loadSettings();
     render();
-    setupLock();
-    lockApp();
     checkReminders();
     reminderTimer=setInterval(checkReminders,5*60*1000);
-    if(cloudCfg.enabled && cloudCfg.config){
-      cloudConnect().then(()=>startCloudLoop()).catch(e=>console.error('Bulut bağlantısı:',e));
-    }
   }catch(e){
     app.innerHTML=`<div class="empty" style="margin-top:60px"><div class="ico">⚠</div><div style="font-weight:500;color:var(--ink)">Veri tabanı açılamadı</div><div style="font-size:13px;margin-top:6px">Tarayıcının IndexedDB desteği gerekiyor. Dosyayı yerel olarak çift tıklayıp Chrome/Edge/Firefox ile açın.</div></div>`;
     console.error(e);
