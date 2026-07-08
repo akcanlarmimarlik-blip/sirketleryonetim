@@ -731,6 +731,7 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[];
+let dailyRem={enabled:false,time:'09:00'};
 let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview'};
 let calMonth=new Date(); // aylık takvimde gösterilen ay
 let personalBillMonth=new Date(); // şahsi faturalar ay seçici
@@ -973,10 +974,7 @@ function render(){
 function renderHome(){
   const today=new Date();
   const dateStr=today.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  let dueToday=0, doneToday=0;
   const realCompanies=companies.filter(c=>!c.isPersonal);
-  realCompanies.forEach(c=>{const p=freqProgress(c.id,'daily');dueToday+=p.total;doneToday+=p.done});
-  const remain=dueToday-doneToday;
   const tab=view.homeTab||'overview';
   const upCount=upcomingItems().filter(i=>i.days!==null && i.days<=7).length;
 
@@ -988,7 +986,8 @@ function renderHome(){
     ${cardsEntryHTML()}
     ${loansEntryHTML()}
     ${banksEntryHTML()}
-    ${chequesEntryHTML()}`;
+    ${chequesEntryHTML()}
+    ${reminderEntryHTML()}`;
 
   app.innerHTML=`
     <div class="masthead">
@@ -1002,12 +1001,6 @@ function renderHome(){
           <button class="sec-add" data-personal>${svgHome()} Şahsi</button>
         </div>
         <div class="date eyebrow" style="color:var(--muted);letter-spacing:.04em;text-transform:none;font-size:13px">${dateStr}</div>
-      </div>
-      <div class="brief-stat">
-        <div class="num ${remain===0?'done':''}">${remain}</div>
-        <div class="lbl eyebrow" style="text-transform:none;letter-spacing:.04em;font-size:12px">
-          ${remain===0 ? 'bugünkü günlük işler tamam' : `günlük iş bugün için bekliyor`}
-        </div>
       </div>
     </div>
 
@@ -1298,6 +1291,61 @@ function banksEntryHTML(){
     </span>
     ${svgArrow()}
   </button>`;
+}
+
+function svgBell(){
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function reminderEntryHTML(){
+  const on=dailyRem.enabled;
+  const summary=on?`Her gün saat ${dailyRem.time} Telegram bildirimi`:'Günlük Telegram hatırlatıcı — ayarlamak için gir';
+  return `
+  <button class="entry-panel" data-daily-rem style="--accent:#7C5C9F;--accent-tint:#EDE8F5">
+    <span class="entry-ico">${svgBell()}</span>
+    <span class="entry-body">
+      <span class="entry-title">Günlük Hatırlatıcı</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${on?`<span style="font-size:11px;font-weight:600;color:#7C5C9F;background:#EDE8F5;border-radius:6px;padding:2px 7px;flex-shrink:0">Açık</span>`:''}
+    ${svgArrow()}
+  </button>`;
+}
+
+function openDailyRemModal(){
+  let en=dailyRem.enabled;
+  modal.innerHTML=`
+    <div class="modal-head"><div class="eyebrow">Günlük hatırlatıcı</div><h3>Telegram bildirimi</h3></div>
+    <div class="modal-body">
+      <div class="field"><label>Durum</label>
+        <div class="seg" id="drEn"><button data-v="1" class="${en?'on':''}">Açık</button><button data-v="0" class="${!en?'on':''}">Kapalı</button></div></div>
+      <div class="field"><label>Bildirim saati (Türkiye saati)</label>
+        <input type="time" id="drTime" value="${dailyRem.time||'09:00'}"></div>
+      <div class="wa-help">Her gün belirlediğin saatte Telegram'dan şu mesaj gelir:<br><b>🔔 Günlük kontrol zamanı! Şirketler panelini açmayı unutma.</b></div>
+      <div class="modal-foot">
+        <button class="btn subtle" id="drCancel">Vazgeç</button>
+        <button class="btn primary" id="drSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  modal.querySelectorAll('#drEn button').forEach(b=>b.onclick=()=>{en=b.dataset.v==='1';modal.querySelectorAll('#drEn button').forEach(x=>x.classList.toggle('on',x===b))});
+  $('#drCancel').onclick=closeModal;
+  $('#drSave').onclick=async()=>{
+    dailyRem.enabled=en;
+    dailyRem.time=$('#drTime').value||'09:00';
+    await put('settings',{id:'dailyReminder',data:dailyRem});
+    await saveDailyRemToCloud();
+    closeModal();render();
+    toast(en?`Her gün ${dailyRem.time}'de Telegram bildirimi gelecek`:'Hatırlatıcı kapatıldı');
+  };
+}
+
+async function saveDailyRemToCloud(){
+  if(!cloudReady||!fb)return;
+  try{
+    const {doc,setDoc}=fb.fs;
+    await setDoc(doc(fb.db,'appdata','dailyReminder'),{enabled:dailyRem.enabled,time:dailyRem.time,updatedAt:Date.now()});
+  }catch(e){console.error('dailyRem cloud:',e)}
 }
 
 function cardTile(cd){
@@ -1711,6 +1759,8 @@ function bindHome(){
   const eq=$('[data-cheques]');if(eq)eq.addEventListener('click',()=>{view={page:'cheques',companyId:null,section:null,cardId:null};render()});
   // Banka hesapları — tek girişle aç
   const ebk=$('[data-banks]');if(ebk)ebk.addEventListener('click',()=>{view={page:'banks',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  // Günlük hatırlatıcı
+  const edr=$('[data-daily-rem]');if(edr)edr.addEventListener('click',()=>openDailyRemModal());
 
   bindFooter();
 }
@@ -2903,6 +2953,7 @@ async function loadSettings(){
   const r=await getOne('settings','reminders');if(r&&r.data)remState=r.data;
   const cl=await getOne('settings','cloud');if(cl&&cl.data)cloudCfg={...cloudCfg,...cl.data};
   if(!cloudCfg.config){ cloudCfg.config=EMBEDDED_FIREBASE_CONFIG; cloudCfg.enabled=true; }
+  const dr=await getOne('settings','dailyReminder');if(dr&&dr.data)dailyRem={...dailyRem,...dr.data};
 }
 async function saveWaCfg(){await put('settings',{id:'whatsapp',data:waCfg})}
 async function saveRem(){await put('settings',{id:'reminders',data:remState})}

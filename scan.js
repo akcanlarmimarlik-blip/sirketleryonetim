@@ -82,7 +82,25 @@ async function sendTelegram(text) {
   const gap = INTERVAL_HOURS * 3600 * 1000;
   let sent = 0;
 
-  console.log(`Yerel tarih (UTC+${TZ_OFFSET}): ${todayDateStr()}, ayKey: ${monthKey()}`);
+  const localHour = localNow().getUTCHours();
+  console.log(`Yerel tarih (UTC+${TZ_OFFSET}): ${todayDateStr()}, saat: ${localHour}:xx, ayKey: ${monthKey()}`);
+
+  // --- Günlük hatırlatıcı ---
+  const drSnap = await db.collection("appdata").doc("dailyReminder").get();
+  if (drSnap.exists) {
+    const dr = drSnap.data();
+    if (dr.enabled && dr.time) {
+      const [rHour] = dr.time.split(":").map(Number);
+      if (localHour === rHour) {
+        const logKey = `daily_rem_${todayDateStr()}`;
+        const last = await checkNotifLog(logKey);
+        if (!last) {
+          const ok = await sendTelegram(`🔔 Günlük kontrol zamanı! Şirketler panelini açmayı unutma.\nhttps://akcanlarmimarlik-blip.github.io/sirketleryonetim/`);
+          if (ok) { await setNotifLog(logKey); sent++; console.log("Günlük hatırlatıcı gönderildi."); }
+        } else { console.log("Günlük hatırlatıcı bugün zaten gönderildi."); }
+      } else { console.log(`Günlük hatırlatıcı saati ${dr.time}, şu an ${localHour}:xx — atlandı.`); }
+    }
+  }
 
   // --- Genel hatırlatıcılar (reminders koleksiyonu) ---
   const snap = await db.collection("reminders").where("done", "==", false).get();
