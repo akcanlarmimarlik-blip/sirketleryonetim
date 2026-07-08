@@ -608,6 +608,8 @@
   .pad .pad-fn{font-family:'Inter',sans-serif;font-size:22px;color:var(--muted)}
   @keyframes lockshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
   .lock-card.shake{animation:lockshake .36s}
+  .rem-me-btn{margin-top:18px;padding:9px 20px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;width:100%}
+  .rem-me-btn.on{background:#EDE8F5;border-color:#C4B5D9;color:#7C5C9F;font-weight:600}
   .lock-touch-wrap{display:none;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
   .lock-touch-wrap.visible{display:flex}
   .lock-touch-btn{width:58px;height:58px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s ease}
@@ -629,12 +631,13 @@
     <div class="lock-title">Kilitli</div>
     <div class="lock-sub">Devam etmek için şifreyi gir</div>
     <div class="pin-dots" id="pinDots"><span></span><span></span><span></span><span></span></div>
-    <div class="pad" id="pinPad">
+    <div class="pad" id="pinPad" style="touch-action:manipulation">
       <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
       <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
       <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
       <button class="pad-ghost"></button><button data-d="0">0</button><button class="pad-fn" data-back>⌫</button>
     </div>
+    <button class="rem-me-btn" id="remMeBtn">📱 Beni hatırla (7 gün)</button>
     <div class="lock-touch-wrap" id="touchWrap">
       <button class="lock-touch-btn" id="touchBtn" aria-label="Touch ID ile aç">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -2925,7 +2928,8 @@ function toast(msg){
 /* ---------- PIN kilit + hareketsizlik zamanlayıcısı ---------- */
 const LOCK_PIN='5555';
 const LOCK_MS=3*60*1000; // 3 dakika
-let lockTimer=null, pinBuffer='', lastActivity=0;
+const REM_KEY='pinRemUntil';
+let lockTimer=null, pinBuffer='', lastActivity=0, rememberMe=false;
 const lockscreen=document.getElementById('lockscreen');
 
 function isLocked(){return lockscreen.classList.contains('show')}
@@ -2962,7 +2966,10 @@ function pinInput(d){
   if(pinBuffer.length===4){
     _pinChecking=true;
     setTimeout(()=>{
-      if(pinBuffer===LOCK_PIN){unlockApp();}
+      if(pinBuffer===LOCK_PIN){
+        if(rememberMe) localStorage.setItem(REM_KEY, Date.now()+7*24*3600*1000);
+        unlockApp();
+      }
       else{
         const card=document.getElementById('lockCard');
         card.classList.add('shake');document.getElementById('pinDots').classList.add('err');
@@ -3032,6 +3039,16 @@ function setupLock(){
     if(/^[0-9]$/.test(e.key))pinInput(e.key);
     else if(e.key==='Backspace')pinBuffer=pinBuffer.slice(0,-1),updatePinDots();
   });
+  // Beni Hatırla butonu
+  const remBtn=document.getElementById('remMeBtn');
+  if(remBtn){
+    function addPinTapRem(el,fn){ let t=false; el.addEventListener('touchend',e=>{e.preventDefault();t=true;fn();},{passive:false}); el.addEventListener('click',()=>{if(t){t=false;return;}fn();}); }
+    addPinTapRem(remBtn,()=>{
+      rememberMe=!rememberMe;
+      remBtn.classList.toggle('on',rememberMe);
+      remBtn.textContent=rememberMe?'✓ 7 gün hatırlanacak':'📱 Beni hatırla (7 gün)';
+    });
+  }
   // Touch ID butonu
   tidAvailable().then(ok=>{
     const wrap=document.getElementById('touchWrap');
@@ -3342,7 +3359,9 @@ function openReminderModal(){
     await openDB();
     await loadSettings();
     setupLock();
-    lockApp();
+    const remUntil=Number(localStorage.getItem(REM_KEY)||0);
+    if(Date.now()<remUntil){ /* token geçerli, kilitleme */ }
+    else lockApp();
 
     const localCompanies = await getAll('companies');
     const isNewDevice = localCompanies.length === 0;
