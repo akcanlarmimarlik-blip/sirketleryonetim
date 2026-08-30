@@ -82,21 +82,24 @@ async function sendTelegram(text) {
   const gap = INTERVAL_HOURS * 3600 * 1000;
   let sent = 0;
 
-  const localHour = localNow().getUTCHours();
-  console.log(`Yerel tarih (UTC+${TZ_OFFSET}): ${todayDateStr()}, saat: ${localHour}:xx, ayKey: ${monthKey()}`);
+  const localD = localNow();
+  const localHour = localD.getUTCHours();
+  const localMin  = localD.getUTCMinutes();
+  const localTotalMin = localHour * 60 + localMin;
+  console.log(`Yerel tarih (UTC+${TZ_OFFSET}): ${todayDateStr()}, saat: ${localHour}:${String(localMin).padStart(2,"0")}, ayKey: ${monthKey()}`);
 
   // --- Özel hatırlatıcılar (customReminders) ---
-  const localD = localNow();
-  const localWeekDay = localD.getUTCDay(); // 0=Paz ... 6=Cmt
+  const localWeekDay = localD.getUTCDay();
   const localMonthDay = localD.getUTCDate();
   const remItems = await getItems("customReminders");
   console.log(`Hatırlatıcılar: ${remItems.length}`);
   for (const r of remItems) {
     if (!r.enabled || !r.time) continue;
-    const [rHour] = r.time.split(":").map(Number);
-    // GitHub Actions gecikmelerine karşı 3 saatlik pencere kullan
-    const hoursPast = (localHour - rHour + 24) % 24;
-    if (hoursPast > 3) { console.log(`  "${r.title}": saat ${r.time}, şu an ${localHour}:xx (${hoursPast}s geçti), atlandı`); continue; }
+    const [rHour, rMin=0] = r.time.split(":").map(Number);
+    const rTotalMin = rHour * 60 + rMin;
+    // cron-job.org her dakika tetikliyor — 2 dakikalık pencere
+    const minsPast = (localTotalMin - rTotalMin + 1440) % 1440;
+    if (minsPast > 2) { console.log(`  "${r.title}": ${r.time}, şu an ${localHour}:${String(localMin).padStart(2,"0")} (${minsPast}dk geçti), atlandı`); continue; }
     let dayMatch = false;
     if (r.freq === "daily") dayMatch = true;
     else if (r.freq === "weekly") dayMatch = (r.weekDays || []).includes(localWeekDay);
