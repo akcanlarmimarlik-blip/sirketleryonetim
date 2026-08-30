@@ -338,6 +338,12 @@
   .anlik-dots{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 6px;border-radius:6px;flex:none;line-height:0}
   .anlik-dots:hover{background:var(--paper-2);color:var(--ink)}
   .anlik-total{font-size:13px;font-weight:500;color:var(--muted)}
+  .islem-row{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
+  .islem-badge{font-size:12px;font-weight:500;padding:3px 8px;border-radius:6px;background:#EAF3E7;color:#3B6E35}
+  .islem-badge.stale{background:#FDF3E0;color:#9A6C1A}
+  .islem-badge.empty{background:var(--paper-2);color:var(--muted)}
+  .islem-btn{font-size:12px;color:var(--accent);background:none;border:1px solid currentColor;border-radius:6px;padding:3px 9px;cursor:pointer;font-weight:500;opacity:.8}
+  .islem-btn:hover{opacity:1}
   .home-sec-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
   .home-sec-head .eyebrow{font-size:12px;letter-spacing:.14em}
   .sec-add{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);padding:8px 13px;border-radius:10px;border:1px solid var(--line);background:var(--card);transition:all .15s ease}
@@ -1872,11 +1878,31 @@ function printBankAccounts(){
   w.document.close();
 }
 
+function islemDateLabel(d){
+  if(!d)return null;
+  const [y,mo,day]=d.split('-').map(Number);
+  const t=new Date(y,mo-1,day);
+  return t.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+}
+function islemBadgeClass(d){
+  if(!d)return 'empty';
+  const today=new Date();today.setHours(0,0,0,0);
+  const [y,mo,day]=d.split('-').map(Number);
+  const t=new Date(y,mo-1,day);
+  const diff=Math.round((today-t)/86400000);
+  return diff>7?'stale':'';
+}
 function accountRow(a){
   const ticari=a.owner==='ticari';
+  const lbl=islemDateLabel(a.sonIslemTarihi);
+  const cls=islemBadgeClass(a.sonIslemTarihi);
+  const badge=lbl
+    ?`<span class="islem-badge ${cls}">${lbl}'e kadar işlendi</span>`
+    :`<span class="islem-badge empty">Henüz işlenmedi</span>`;
   return `<div class="bill">
     <div class="bbody" data-aedit="${a.id}">
       <div class="bname">${a.label?esc(a.label)+' · ':''}<span class="mono">${esc(formatIban(a.iban))}</span><span class="qtag ${ticari?'ticari':'sahsi'}">${ticari?'Ticari':'Şahsi'}</span></div>
+      <div class="islem-row">${badge}<button class="islem-btn" data-islem="${a.id}">Tarih güncelle</button></div>
     </div>
     <button class="rmenu-btn" data-amenu="${a.id}" aria-label="Seçenekler">${svgDots()}</button>
   </div>`;
@@ -1918,7 +1944,45 @@ function renderBankDetail(){
   document.querySelectorAll('[data-amenu]').forEach(b=>b.addEventListener('click',e=>{
     e.stopPropagation();openAccountMenu(b.dataset.amenu,b);
   }));
+  document.querySelectorAll('[data-islem]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();openIslemModal(b.dataset.islem);
+  }));
   bindFooter();
+}
+
+function openIslemModal(id){
+  const a=bankAccounts.find(x=>x.id===id);if(!a)return;
+  const today=new Date();
+  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  modal.innerHTML=`
+    <div class="modal-head"><div class="eyebrow">İşleme tarihi</div><h3>${esc(a.label||formatIban(a.iban))}</h3></div>
+    <div class="modal-body">
+      <div style="font-size:14px;color:var(--muted);margin-bottom:4px">Bu hesabı hangi tarihe kadar işlediniz?</div>
+      <div class="field"><label>Son işleme tarihi</label>
+        <input type="date" id="islemDate" value="${a.sonIslemTarihi||todayStr}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:-4px">
+        <button class="sec-add" id="islemBugun">Bugün</button>
+        <button class="sec-add" id="islemDun">Dün</button>
+        <button class="sec-add" id="islemHaftaOnce">7 gün önce</button>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="islemCancel">İptal</button>
+        <button class="btn-prim" id="islemSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  const inp=$('#islemDate');
+  const setDate=offset=>{const d=new Date();d.setDate(d.getDate()-offset);inp.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+  $('#islemBugun').onclick=()=>setDate(0);
+  $('#islemDun').onclick=()=>setDate(1);
+  $('#islemHaftaOnce').onclick=()=>setDate(7);
+  $('#islemCancel').onclick=closeModal;
+  $('#islemSave').onclick=async()=>{
+    const v=inp.value;if(!v)return;
+    a.sonIslemTarihi=v;
+    await put('bankAccounts',a);
+    closeModal();render();toast('İşleme tarihi güncellendi');
+  };
 }
 
 function openAccountMenu(id,anchor){
