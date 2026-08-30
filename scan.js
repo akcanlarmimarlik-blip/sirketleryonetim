@@ -97,9 +97,9 @@ async function sendTelegram(text) {
     if (!r.enabled || !r.time) continue;
     const [rHour, rMin=0] = r.time.split(":").map(Number);
     const rTotalMin = rHour * 60 + rMin;
-    // cron-job.org her dakika tetikliyor — 2 dakikalık pencere
+    // 6 dakikalık pencere (5dk cron + gecikme payı)
     const minsPast = (localTotalMin - rTotalMin + 1440) % 1440;
-    if (minsPast > 2) { console.log(`  "${r.title}": ${r.time}, şu an ${localHour}:${String(localMin).padStart(2,"0")} (${minsPast}dk geçti), atlandı`); continue; }
+    if (minsPast > 6) { console.log(`  "${r.title}": ${r.time}, şu an ${localHour}:${String(localMin).padStart(2,"0")} (${minsPast}dk geçti), atlandı`); continue; }
     let dayMatch = false;
     if (r.freq === "daily") dayMatch = true;
     else if (r.freq === "weekly") dayMatch = (r.weekDays || []).includes(localWeekDay);
