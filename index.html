@@ -967,6 +967,7 @@ function svgCheque(){return '<svg width="22" height="22" viewBox="0 0 24 24" fil
 function svgLoan(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 7l9-3 9 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="7" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13" r="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M6.5 10.5v5M17.5 10.5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
 function svgBank(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 10l9-6 9 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M3 18h18M2.5 21h19" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
 function svgHome(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 10.5L12 4l8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 9.5V20a1 1 0 001 1h10a1 1 0 001-1V9.5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 21v-6a1 1 0 011-1h3a1 1 0 011 1v6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>'}
+function svgCash(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12.5" r="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M6 9.5h.01M18 9.5h.01M6 15.5h.01M18 15.5h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'}
 function svgPrint(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9V3h12v6" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><rect x="3" y="9" width="18" height="8" rx="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M6 14h12v7H6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'}
 function svgLink(){return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007.07 0l2.83-2.83a5 5 0 00-7.07-7.07L11.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 00-7.07 0L4.1 13.83a5 5 0 007.07 7.07l1.33-1.33" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 function svgExternal(){return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
@@ -988,6 +989,7 @@ function render(){
   else if(view.page==='banks') renderBanksPage();
   else if(view.page==='bank') renderBankDetail();
   else if(view.page==='reminders') renderRemindersPage();
+  else if(view.page==='anlik') renderAnlikPage();
   else if(view.section) renderSection();
   else renderCompany();
 }
@@ -1004,7 +1006,7 @@ function renderHome(){
       <div class="home-sec-head"><span class="eyebrow">İşletme Rutinleri</span><button class="sec-add" data-addcompany>${svgPlus()} Firma ekle</button></div>
       <div class="grid">${realCompanies.map(firmCard).join('')}</div>
     </section>
-    ${anlikHarcamalarSectionHTML()}
+    ${anlikEntryHTML()}
     ${cardsEntryHTML()}
     ${loansEntryHTML()}
     ${banksEntryHTML()}
@@ -1315,38 +1317,34 @@ function banksEntryHTML(){
   </button>`;
 }
 
-function anlikHarcamalarSectionHTML(){
+function anlikEntryHTML(){
   const today=new Date();
   const thisMonth=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const monthTotal=anlikHarcamalar.filter(h=>(h.date||'').startsWith(thisMonth)).reduce((s,h)=>s+Number(h.amount||0),0);
-  const formatAnlikDate=d=>{
-    if(!d)return '';
-    const [y,m,day]=d.split('-').map(Number);
-    const t=new Date(y,m-1,day);
-    const diffDays=Math.round((new Date(today.getFullYear(),today.getMonth(),today.getDate())-t)/86400000);
-    if(diffDays===0)return 'Bugün';
-    if(diffDays===1)return 'Dün';
-    if(diffDays<=6)return `${diffDays} gün önce`;
-    return t.toLocaleDateString('tr-TR',{day:'numeric',month:'short'});
-  };
-  const listHTML=anlikHarcamalar.length
-    ? anlikHarcamalar.map(h=>`
-      <div class="anlik-item">
-        <span class="anlik-amount">${fmtMoney(h.amount,h.currency||'TRY')}</span>
-        <span class="anlik-reason">${esc(h.reason||'')}</span>
-        <span class="anlik-date">${formatAnlikDate(h.date)}</span>
-        <button class="anlik-dots" data-anlikdots="${h.id}" aria-label="Sil">${svgDots()}</button>
-      </div>`).join('')
-    : `<div style="padding:14px 0;font-size:14px;color:var(--muted)">Henüz harcama yok — eklemek için butona bas.</div>`;
+  const summary=anlikHarcamalar.length
+    ? `${anlikHarcamalar.length} kayıt${monthTotal?` · bu ay ${fmtMoney(monthTotal,'TRY')}`:''}`
+    : 'Henüz harcama yok — eklemek için gir';
   return `
-  <section class="home-sec">
-    <div class="home-sec-head">
-      <span class="eyebrow">Anlık Harcamalar</span>
-      ${monthTotal?`<span class="anlik-total">${fmtMoney(monthTotal,'TRY')} bu ay</span>`:''}
-      <button class="sec-add" data-addanlik>${svgPlus()} Ekle</button>
-    </div>
-    <div class="anlik-list">${listHTML}</div>
-  </section>`;
+  <button class="entry-panel" data-anlik style="--accent:#C27C3E;--accent-tint:#F5EAD8">
+    <span class="entry-ico">${svgCash()}</span>
+    <span class="entry-body">
+      <span class="entry-title">Anlık Harcamalar</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+function formatAnlikDate(d){
+  if(!d)return '';
+  const today=new Date();
+  const [y,m,day]=d.split('-').map(Number);
+  const t=new Date(y,m-1,day);
+  const diffDays=Math.round((new Date(today.getFullYear(),today.getMonth(),today.getDate())-t)/86400000);
+  if(diffDays===0)return 'Bugün';
+  if(diffDays===1)return 'Dün';
+  if(diffDays<=6)return `${diffDays} gün önce`;
+  return t.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
 }
 
 function svgBell(){
@@ -1391,6 +1389,43 @@ function reminderRow(r){
     </div>
     <button class="rmenu-btn" data-rmmenu="${r.id}" aria-label="Seçenekler">${svgDots()}</button>
   </div>`;
+}
+
+function renderAnlikPage(){
+  document.documentElement.style.setProperty('--accent','#C27C3E');
+  const today=new Date();
+  const thisMonth=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const monthTotal=anlikHarcamalar.filter(h=>(h.date||'').startsWith(thisMonth)).reduce((s,h)=>s+Number(h.amount||0),0);
+  const rows=anlikHarcamalar.length
+    ? anlikHarcamalar.map(h=>`
+      <div class="anlik-item">
+        <span class="anlik-amount">${fmtMoney(h.amount,h.currency||'TRY')}</span>
+        <span class="anlik-reason">${esc(h.reason||'')}</span>
+        <span class="anlik-date">${formatAnlikDate(h.date)}</span>
+        <button class="anlik-dots" data-anlikdots="${h.id}" aria-label="Sil">${svgDots()}</button>
+      </div>`).join('')
+    : `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz harcama yok</div><div style="font-size:13px;margin-top:4px">Ekle butonuna bas, tutarı ve sebebini gir.</div></div>`;
+  app.innerHTML=`
+  <div class="cv" style="--accent:#C27C3E;--accent-tint:#F5EAD8">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:var(--accent-tint);color:var(--accent);width:56px;height:56px">${svgCash()}</span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:var(--accent)">${monthTotal?`Bu ay ${fmtMoney(monthTotal,'TRY')}`:' '}</div>
+        <h2>Anlık Harcamalar</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="sec-add" data-addanlik>${svgPlus()} Ekle</button>
+    </div>
+    <div class="anlik-list" style="margin-top:24px">${rows}</div>
+  </div>
+  ${renderFooter()}`;
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  const eah=$('[data-addanlik]');if(eah)eah.addEventListener('click',()=>openAnlikHarcamaModal());
+  document.querySelectorAll('[data-anlikdots]').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();openAnlikHarcamaMenu(btn.dataset.anlikdots,btn)});
+  });
+  bindFooter();
 }
 
 function renderRemindersPage(){
@@ -1924,10 +1959,7 @@ function bindHome(){
   // Hatırlatıcılar
   const edr=$('[data-custom-rem]');if(edr)edr.addEventListener('click',()=>{view={page:'reminders',companyId:null,section:null,cardId:null};render()});
   // Anlık Harcamalar
-  const eah=$('[data-addanlik]');if(eah)eah.addEventListener('click',()=>openAnlikHarcamaModal());
-  document.querySelectorAll('[data-anlikdots]').forEach(btn=>{
-    btn.addEventListener('click',e=>{e.stopPropagation();openAnlikHarcamaMenu(btn.dataset.anlikdots,btn)});
-  });
+  const eanlik=$('[data-anlik]');if(eanlik)eanlik.addEventListener('click',()=>{view={page:'anlik',companyId:null,section:null,cardId:null};render()});
 
   bindFooter();
 }
