@@ -1084,6 +1084,7 @@ function upcomingItems(){
     const months=Number(l.months||0), paid=Number(l.paidCount||0);
     if(paid>=months)return;
     if(!l.dueDay)return;
+    if(isPaid(l.id))return; // bu ay taksit ödendi
     const date=new Date(y,m,l.dueDay);const days=diffDays(date);
     items.push({key:'loan:'+l.id,date,days,title:`${l.title} taksiti`,sub:'Kredi',kind:'loan',dir:'out',amount:Number(l.monthly||0)||null,currency:l.currency||'TRY',accent:'#2F6E57',go:()=>{view={page:'loans',companyId:null,section:null,cardId:null,homeTab:'dashboard'};render()}});
   });
@@ -1624,8 +1625,9 @@ function loanRow(l){
   const monthly=Number(l.monthly||0);
   const remainAmt=monthly*remain;
   const done=months>0&&paid>=months;
+  const paidThisMonth=!done&&isPaid(l.id);
   const dleft=l.dueDay?daysUntil(nextDueDate(l.dueDay)):null;
-  return `<div class="bill loan ${done?'paid':''}">
+  return `<div class="bill loan ${done||paidThisMonth?'paid':''}">
     <div class="bbody" data-ledit="${l.id}">
       <div class="bname">${esc(l.title)} <span class="qtag">${paid}/${months} taksit</span></div>
       <div class="secbar" style="margin:7px 0 6px"><i style="width:${pct}%"></i></div>
@@ -1635,7 +1637,7 @@ function loanRow(l){
         ${l.dueDay&&remain?`<span class="bstat ${dleft!=null&&dleft<=5?'soon':''}">ayın ${l.dueDay}'i${dleft!=null?` · ${dleft} gün`:''}</span>`:''}
       </div>
     </div>
-    <button class="ct-paid ${done?'on':''}" data-lpay="${l.id}">${done?'✓ bitti':'Taksit öde'}</button>
+    <button class="ct-paid ${done||paidThisMonth?'on':''}" data-lpay="${l.id}">${done?'✓ bitti':paidThisMonth?'✓ Bu ay ödendi':'Taksit öde'}</button>
     <button class="rmenu-btn" data-lmenu="${l.id}" aria-label="Seçenekler">${svgDots()}</button>
   </div>`;
 }
@@ -1679,9 +1681,21 @@ async function payLoanInstallment(id){
   const l=loans.find(x=>x.id===id);if(!l)return;
   const months=Number(l.months||0);
   const paid=Number(l.paidCount||0);
-  l.paidCount = paid>=months ? 0 : paid+1; // bitince geri sıfırla (yanlış basıldıysa)
-  await put('loans',l);
-  toast(l.paidCount>=months?'Kredi tamamlandı':`${l.paidCount}/${months} taksit ödendi`);
+  const done=paid>=months;
+  if(done)return;
+  const alreadyPaidThisMonth=isPaid(l.id);
+  if(alreadyPaidThisMonth){
+    // geri al: aylık işareti kaldır, paidCount geri
+    await togglePaid(l.id,'loan',l.monthly);
+    l.paidCount=Math.max(0,paid-1);
+    await put('loans',l);
+    toast('Taksit geri alındı');
+  } else {
+    l.paidCount=paid+1;
+    await put('loans',l);
+    await togglePaid(l.id,'loan',l.monthly); // bu ay ödendi işareti
+    toast(l.paidCount>=months?'Kredi tamamlandı':`${l.paidCount}/${months} taksit ödendi`);
+  }
 }
 
 function openLoanMenu(id,anchor){
