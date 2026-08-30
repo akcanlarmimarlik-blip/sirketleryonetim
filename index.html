@@ -1477,7 +1477,7 @@ function openRemMenu(id,anchor){
   popover.innerHTML=`<button data-edit>${svgGear()} Düzenle</button><div class="sep"></div><button class="del" data-del>🗑 Sil</button>`;
   placePopover(anchor);popover.classList.add('show');
   popover.querySelector('[data-edit]').onclick=()=>{closePopover();openCustomRemModal(r)};
-  popover.querySelector('[data-del]').onclick=async()=>{closePopover();await del('customReminders',r.id);customReminders=customReminders.filter(x=>x.id!==r.id);render();toast('Silindi');if(cloudReady)cloudPushAll();};
+  popover.querySelector('[data-del]').onclick=async()=>{closePopover();await del('customReminders',r.id);customReminders=customReminders.filter(x=>x.id!==r.id);render();if(cloudReady)await cloudPushAll();toast('Silindi');};
 }
 
 function openCustomRemModal(rem){
@@ -1558,8 +1558,12 @@ function openCustomRemModal(rem){
     if(!editing)customReminders.push(obj);
     else{const i=customReminders.findIndex(x=>x.id===obj.id);if(i>=0)customReminders[i]=obj;}
     closeModal();render();
-    if(cloudReady) cloudPushAll();
-    toast(editing?'Kaydedildi':`"${title}" eklendi`);
+    if(cloudReady){
+      await cloudPushAll();
+      toast(editing?'Kaydedildi':`"${title}" eklendi — Telegram'a senkronize edildi`);
+    } else {
+      toast('Kaydedildi ⚠️ Firebase bağlı değil — siteyi açık bırak, otomatik senkronize olur');
+    }
   };
 }
 
