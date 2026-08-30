@@ -338,6 +338,14 @@
   .anlik-dots{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 6px;border-radius:6px;flex:none;line-height:0}
   .anlik-dots:hover{background:var(--paper-2);color:var(--ink)}
   .anlik-total{font-size:13px;font-weight:500;color:var(--muted)}
+  .anlik-meta{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap}
+  .anlik-sirket{font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:var(--paper-2);color:var(--muted)}
+  .anlik-islendi-btn{font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;border:1.5px solid var(--line);background:none;cursor:pointer;color:var(--muted);white-space:nowrap}
+  .anlik-islendi-btn.on{background:#EAF3E7;border-color:#3B6E35;color:#3B6E35}
+  .anlik-item{display:flex;flex-direction:column;padding:11px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px;gap:0}
+  .anlik-item.islendi{opacity:.55}
+  .anlik-top{display:flex;align-items:center;gap:12px}
+  .anlik-item.islendi .anlik-top{text-decoration:none}
   .islem-row{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
   .islem-badge{font-size:12px;font-weight:500;padding:3px 8px;border-radius:6px;background:#EAF3E7;color:#3B6E35}
   .islem-badge.stale{background:#FDF3E0;color:#9A6C1A}
@@ -1412,13 +1420,7 @@ function renderAnlikPage(){
   const thisMonth=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   const monthTotal=anlikHarcamalar.filter(h=>(h.date||'').startsWith(thisMonth)).reduce((s,h)=>s+Number(h.amount||0),0);
   const rows=anlikHarcamalar.length
-    ? anlikHarcamalar.map(h=>`
-      <div class="anlik-item">
-        <span class="anlik-amount">${fmtMoney(h.amount,h.currency||'TRY')}</span>
-        <span class="anlik-reason">${esc(h.reason||'')}</span>
-        <span class="anlik-date">${formatAnlikDate(h.date)}</span>
-        <button class="anlik-dots" data-anlikdots="${h.id}" aria-label="Sil">${svgDots()}</button>
-      </div>`).join('')
+    ? anlikHarcamalar.map(anlikItemHTML).join('')
     : `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz harcama yok</div><div style="font-size:13px;margin-top:4px">Ekle butonuna bas, tutarı ve sebebini gir.</div></div>`;
   app.innerHTML=`
   <div class="cv" style="--accent:#C27C3E;--accent-tint:#F5EAD8">
@@ -1439,6 +1441,9 @@ function renderAnlikPage(){
   const eah=$('[data-addanlik]');if(eah)eah.addEventListener('click',()=>openAnlikHarcamaModal());
   document.querySelectorAll('[data-anlikdots]').forEach(btn=>{
     btn.addEventListener('click',e=>{e.stopPropagation();openAnlikHarcamaMenu(btn.dataset.anlikdots,btn)});
+  });
+  document.querySelectorAll('[data-anlikislendi]').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();toggleAnlikIslendi(btn.dataset.anlikislendi)});
   });
   bindFooter();
 }
@@ -2052,21 +2057,28 @@ function bindHome(){
   bindFooter();
 }
 
-function openAnlikHarcamaModal(){
+function openAnlikHarcamaModal(editing=null){
   const today=new Date();
   const dateStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const sirketOptions=[
+    `<option value="sahsi" ${(!editing||editing.sirketId==='sahsi'||!editing.sirketId)?'selected':''}>Şahsi</option>`,
+    ...companies.filter(c=>!c.isPersonal).map(c=>`<option value="${c.id}" ${editing&&editing.sirketId===c.id?'selected':''}>${esc(c.name)}</option>`)
+  ].join('');
   modal.innerHTML=`
-    <div class="modal-head"><div class="eyebrow">Yeni kayıt</div><h3>Anlık Harcama</h3></div>
+    <div class="modal-head"><div class="eyebrow">${editing?'Düzenle':'Yeni kayıt'}</div><h3>Anlık Harcama</h3></div>
     <div class="modal-body">
       <div class="field" style="display:flex;gap:10px">
         <div style="flex:1"><label>Tutar</label>
-          <input type="number" id="ahAmount" placeholder="0" min="0" step="0.01" inputmode="decimal" style="font-size:17px;font-weight:600"></div>
+          <input type="number" id="ahAmount" placeholder="0" min="0" step="0.01" inputmode="decimal" style="font-size:17px;font-weight:600" value="${editing?editing.amount:''}"></div>
         <div style="width:90px"><label>Para birimi</label>
-          <select id="ahCur"><option value="TRY" selected>₺ TRY</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option></select></div>
+          <select id="ahCur"><option value="TRY" ${!editing||editing.currency==='TRY'?'selected':''}>₺ TRY</option><option value="USD" ${editing&&editing.currency==='USD'?'selected':''}>$ USD</option><option value="EUR" ${editing&&editing.currency==='EUR'?'selected':''}>€ EUR</option></select></div>
       </div>
       <div class="field"><label>Sebebi</label>
-        <input type="text" id="ahReason" placeholder="Örn. Market, Benzin, Yemek…"></div>
+        <input type="text" id="ahReason" placeholder="Örn. Market, Benzin, Yemek…" value="${editing?esc(editing.reason||''):''}"></div>
+      <div class="field"><label>Şirket / Kişi</label>
+        <select id="ahSirket">${sirketOptions}</select></div>
       <div class="modal-foot">
+        ${editing?'<button class="btn-ghost" id="ahDelete" style="color:#c0392b;margin-right:auto">Sil</button>':''}
         <button class="btn-ghost" id="ahCancel">İptal</button>
         <button class="btn-prim" id="ahSave">Kaydet</button>
       </div>
@@ -2074,21 +2086,58 @@ function openAnlikHarcamaModal(){
   overlay.classList.add('show');
   setTimeout(()=>$('#ahAmount').focus(),60);
   $('#ahCancel').onclick=closeModal;
+  if(editing)$('#ahDelete').onclick=async()=>{
+    await del('anlikHarcamalar',editing.id);anlikHarcamalar=anlikHarcamalar.filter(x=>x.id!==editing.id);closeModal();render();toast('Silindi');
+  };
   $('#ahSave').onclick=async()=>{
     const amount=parseFloat($('#ahAmount').value);
     const reason=$('#ahReason').value.trim();
     if(!amount||amount<=0){$('#ahAmount').focus();return}
-    const rec={id:uid(),amount,currency:$('#ahCur').value,reason,date:dateStr,createdAt:Date.now()};
-    anlikHarcamalar.unshift(rec);
-    await put('anlikHarcamalar',rec);
-    closeModal();render();toast('Harcama kaydedildi');
+    const sirketId=$('#ahSirket').value||'sahsi';
+    if(editing){
+      Object.assign(editing,{amount,currency:$('#ahCur').value,reason,sirketId});
+      await put('anlikHarcamalar',editing);
+    } else {
+      const rec={id:uid(),amount,currency:$('#ahCur').value,reason,sirketId,date:dateStr,islendi:false,createdAt:Date.now()};
+      anlikHarcamalar.unshift(rec);
+      await put('anlikHarcamalar',rec);
+    }
+    closeModal();render();toast(editing?'Güncellendi':'Harcama kaydedildi');
   };
+}
+
+function anlikSirketLabel(h){
+  if(!h.sirketId||h.sirketId==='sahsi')return 'Şahsi';
+  const c=companies.find(x=>x.id===h.sirketId);return c?c.name:'?';
+}
+function anlikItemHTML(h){
+  const sirket=anlikSirketLabel(h);
+  const islendi=!!h.islendi;
+  return `<div class="anlik-item${islendi?' islendi':''}">
+    <div class="anlik-top">
+      <span class="anlik-amount">${fmtMoney(h.amount,h.currency||'TRY')}</span>
+      <span class="anlik-reason">${esc(h.reason||'')}</span>
+      <span class="anlik-date">${formatAnlikDate(h.date)}</span>
+      <button class="anlik-dots" data-anlikdots="${h.id}" aria-label="Düzenle/Sil">${svgDots()}</button>
+    </div>
+    <div class="anlik-meta">
+      <span class="anlik-sirket">${esc(sirket)}</span>
+      <button class="anlik-islendi-btn${islendi?' on':''}" data-anlikislendi="${h.id}">${islendi?'✓ İşlendi':'İşlendi işaretle'}</button>
+    </div>
+  </div>`;
+}
+async function toggleAnlikIslendi(id){
+  const h=anlikHarcamalar.find(x=>x.id===id);if(!h)return;
+  h.islendi=!h.islendi;
+  await put('anlikHarcamalar',h);
+  render();
 }
 
 function openAnlikHarcamaMenu(id,anchor){
   const h=anlikHarcamalar.find(x=>x.id===id);if(!h)return;
-  popover.innerHTML=`<button class="del" data-del>🗑 Sil</button>`;
+  popover.innerHTML=`<button data-edit>${svgGear()} Düzenle</button><div class="sep"></div><button class="del" data-del>🗑 Sil</button>`;
   placePopover(anchor);popover.classList.add('show');
+  popover.querySelector('[data-edit]').onclick=()=>{closePopover();openAnlikHarcamaModal(h)};
   popover.querySelector('[data-del]').onclick=async()=>{
     closePopover();await del('anlikHarcamalar',h.id);anlikHarcamalar=anlikHarcamalar.filter(x=>x.id!==h.id);render();toast('Silindi');
   };
