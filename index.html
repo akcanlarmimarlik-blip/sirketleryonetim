@@ -327,6 +327,14 @@
 
   /* home sections */
   .home-sec{margin-top:40px}
+  .anlik-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .anlik-item{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+  .anlik-amount{font-weight:600;font-size:15px;color:var(--ink);min-width:72px;flex:none}
+  .anlik-reason{flex:1;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .anlik-date{font-size:12px;color:var(--muted);white-space:nowrap;flex:none}
+  .anlik-dots{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 6px;border-radius:6px;flex:none;line-height:0}
+  .anlik-dots:hover{background:var(--paper-2);color:var(--ink)}
+  .anlik-total{font-size:13px;font-weight:500;color:var(--muted)}
   .home-sec-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)}
   .home-sec-head .eyebrow{font-size:12px;letter-spacing:.14em}
   .sec-add{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);padding:8px 13px;border-radius:10px;border:1px solid var(--line);background:var(--card);transition:all .15s ease}
@@ -681,7 +689,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 9);
+    const r = indexedDB.open('rutinMerkezi', 10);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -698,6 +706,7 @@ function openDB(){
       if(!d.objectStoreNames.contains('bankAccounts')) d.createObjectStore('bankAccounts',{keyPath:'id'});
       if(!d.objectStoreNames.contains('loans')) d.createObjectStore('loans',{keyPath:'id'});
       if(!d.objectStoreNames.contains('customReminders')) d.createObjectStore('customReminders',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('anlikHarcamalar')) d.createObjectStore('anlikHarcamalar',{keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -710,7 +719,7 @@ function del(store,key){return new Promise(r=>{const q=tx(store,'readwrite').del
 function clearStore(store){return new Promise(r=>{const q=tx(store,'readwrite').clear();q.onsuccess=()=>{afterWrite(store);r()}})}
 function getOne(store,key){return new Promise(res=>{try{const q=tx(store).get(key);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)}catch(e){res(null)}})}
 
-const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans','customReminders'];
+const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans','customReminders','anlikHarcamalar'];
 let suppressPush=false;
 function afterWrite(store){
   if(suppressPush)return;
@@ -740,7 +749,7 @@ function periodKeyFor(freq,d=new Date()){
 /* ---------- State ---------- */
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
-let banks=[], bankAccounts=[], loans=[], customReminders=[];
+let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[];
 let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview'};
 let calMonth=new Date(); // aylık takvimde gösterilen ay
 let personalBillMonth=new Date(); // şahsi faturalar ay seçici
@@ -927,6 +936,7 @@ async function loadAll(){
   bankAccounts = (await getAll('bankAccounts')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
   loans = (await getAll('loans')).sort((a,b)=>(a.order??0)-(b.order??0));
   customReminders = (await getAll('customReminders')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+  anlikHarcamalar = (await getAll('anlikHarcamalar')).sort((a,b)=>(b.createdAt??0)-(a.createdAt??0));
 }
 
 /* ---------- Toggle ---------- */
@@ -994,6 +1004,7 @@ function renderHome(){
       <div class="home-sec-head"><span class="eyebrow">İşletme Rutinleri</span><button class="sec-add" data-addcompany>${svgPlus()} Firma ekle</button></div>
       <div class="grid">${realCompanies.map(firmCard).join('')}</div>
     </section>
+    ${anlikHarcamalarSectionHTML()}
     ${cardsEntryHTML()}
     ${loansEntryHTML()}
     ${banksEntryHTML()}
@@ -1302,6 +1313,40 @@ function banksEntryHTML(){
     </span>
     ${svgArrow()}
   </button>`;
+}
+
+function anlikHarcamalarSectionHTML(){
+  const today=new Date();
+  const thisMonth=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const monthTotal=anlikHarcamalar.filter(h=>(h.date||'').startsWith(thisMonth)).reduce((s,h)=>s+Number(h.amount||0),0);
+  const formatAnlikDate=d=>{
+    if(!d)return '';
+    const [y,m,day]=d.split('-').map(Number);
+    const t=new Date(y,m-1,day);
+    const diffDays=Math.round((new Date(today.getFullYear(),today.getMonth(),today.getDate())-t)/86400000);
+    if(diffDays===0)return 'Bugün';
+    if(diffDays===1)return 'Dün';
+    if(diffDays<=6)return `${diffDays} gün önce`;
+    return t.toLocaleDateString('tr-TR',{day:'numeric',month:'short'});
+  };
+  const listHTML=anlikHarcamalar.length
+    ? anlikHarcamalar.map(h=>`
+      <div class="anlik-item">
+        <span class="anlik-amount">${fmtMoney(h.amount,h.currency||'TRY')}</span>
+        <span class="anlik-reason">${esc(h.reason||'')}</span>
+        <span class="anlik-date">${formatAnlikDate(h.date)}</span>
+        <button class="anlik-dots" data-anlikdots="${h.id}" aria-label="Sil">${svgDots()}</button>
+      </div>`).join('')
+    : `<div style="padding:14px 0;font-size:14px;color:var(--muted)">Henüz harcama yok — eklemek için butona bas.</div>`;
+  return `
+  <section class="home-sec">
+    <div class="home-sec-head">
+      <span class="eyebrow">Anlık Harcamalar</span>
+      ${monthTotal?`<span class="anlik-total">${fmtMoney(monthTotal,'TRY')} bu ay</span>`:''}
+      <button class="sec-add" data-addanlik>${svgPlus()} Ekle</button>
+    </div>
+    <div class="anlik-list">${listHTML}</div>
+  </section>`;
 }
 
 function svgBell(){
@@ -1878,8 +1923,55 @@ function bindHome(){
   const ebk=$('[data-banks]');if(ebk)ebk.addEventListener('click',()=>{view={page:'banks',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
   // Hatırlatıcılar
   const edr=$('[data-custom-rem]');if(edr)edr.addEventListener('click',()=>{view={page:'reminders',companyId:null,section:null,cardId:null};render()});
+  // Anlık Harcamalar
+  const eah=$('[data-addanlik]');if(eah)eah.addEventListener('click',()=>openAnlikHarcamaModal());
+  document.querySelectorAll('[data-anlikdots]').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();openAnlikHarcamaMenu(btn.dataset.anlikdots,btn)});
+  });
 
   bindFooter();
+}
+
+function openAnlikHarcamaModal(){
+  const today=new Date();
+  const dateStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  modal.innerHTML=`
+    <div class="modal-head"><div class="eyebrow">Yeni kayıt</div><h3>Anlık Harcama</h3></div>
+    <div class="modal-body">
+      <div class="field" style="display:flex;gap:10px">
+        <div style="flex:1"><label>Tutar</label>
+          <input type="number" id="ahAmount" placeholder="0" min="0" step="0.01" inputmode="decimal" style="font-size:17px;font-weight:600"></div>
+        <div style="width:90px"><label>Para birimi</label>
+          <select id="ahCur"><option value="TRY" selected>₺ TRY</option><option value="USD">$ USD</option><option value="EUR">€ EUR</option></select></div>
+      </div>
+      <div class="field"><label>Sebebi</label>
+        <input type="text" id="ahReason" placeholder="Örn. Market, Benzin, Yemek…"></div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="ahCancel">İptal</button>
+        <button class="btn-prim" id="ahSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  setTimeout(()=>$('#ahAmount').focus(),60);
+  $('#ahCancel').onclick=closeModal;
+  $('#ahSave').onclick=async()=>{
+    const amount=parseFloat($('#ahAmount').value);
+    const reason=$('#ahReason').value.trim();
+    if(!amount||amount<=0){$('#ahAmount').focus();return}
+    const rec={id:uid(),amount,currency:$('#ahCur').value,reason,date:dateStr,createdAt:Date.now()};
+    anlikHarcamalar.unshift(rec);
+    await put('anlikHarcamalar',rec);
+    closeModal();render();toast('Harcama kaydedildi');
+  };
+}
+
+function openAnlikHarcamaMenu(id,anchor){
+  const h=anlikHarcamalar.find(x=>x.id===id);if(!h)return;
+  popover.innerHTML=`<button class="del" data-del>🗑 Sil</button>`;
+  placePopover(anchor);popover.classList.add('show');
+  popover.querySelector('[data-del]').onclick=async()=>{
+    closePopover();await del('anlikHarcamalar',h.id);anlikHarcamalar=anlikHarcamalar.filter(x=>x.id!==h.id);render();toast('Silindi');
+  };
 }
 
 function openBillMenu(id,anchor){
