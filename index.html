@@ -612,35 +612,16 @@
   @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 
   /* ---------- KİLİT EKRANI ---------- */
-  .lockscreen{
-    position:fixed;inset:0;z-index:200;background:var(--paper);
-    display:flex;align-items:center;justify-content:center;padding:24px;
-    opacity:0;pointer-events:none;transition:opacity .25s ease;
-  }
-  .lockscreen.show{opacity:1;pointer-events:auto}
-  .lock-card{width:100%;max-width:330px;display:flex;flex-direction:column;align-items:center;text-align:center}
-  .lock-ico{width:62px;height:62px;border-radius:18px;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
-  .lock-title{font-family:'Fraunces',serif;font-size:26px;font-weight:500;letter-spacing:-.01em}
-  .lock-sub{font-size:13.5px;color:var(--muted);margin-top:4px}
-  .pin-dots{display:flex;gap:16px;margin:24px 0 26px}
-  .pin-dots span{width:14px;height:14px;border-radius:50%;border:2px solid var(--line-strong);transition:all .15s ease}
-  .pin-dots span.on{background:var(--ink);border-color:var(--ink)}
-  .pin-dots.err span{border-color:#A4453B;background:transparent}
-  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:300px}
-  .pad button{height:66px;border-radius:16px;border:1px solid var(--line);background:var(--card);font-family:'Fraunces',serif;font-size:25px;font-weight:500;color:var(--ink);transition:transform .1s ease, background .12s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none}
-  .pad button:hover{background:var(--paper-2)}
-  .pad button:active{transform:scale(.95);background:var(--paper-2)}
-  .pad .pad-ghost{visibility:hidden;border:none;background:none}
-  .pad .pad-fn{font-family:'Inter',sans-serif;font-size:22px;color:var(--muted)}
-  @keyframes lockshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
-  .lock-card.shake{animation:lockshake .36s}
-  .rem-me-btn{margin-top:18px;padding:9px 20px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;width:100%}
-  .rem-me-btn.on{background:#EDE8F5;border-color:#C4B5D9;color:#7C5C9F;font-weight:600}
-  .lock-touch-wrap{display:none;flex-direction:column;align-items:center;gap:8px;margin-top:22px}
-  .lock-touch-wrap.visible{display:flex}
-  .lock-touch-btn{width:58px;height:58px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s ease}
-  .lock-touch-btn:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-  .lock-touch-lbl{font-size:12px;color:var(--muted)}
+  /* ---------- Login screen ---------- */
+  .login-screen{position:fixed;inset:0;z-index:200;background:var(--paper);display:flex;align-items:center;justify-content:center;padding:24px}
+  .login-card{width:100%;max-width:340px}
+  .login-title{font-family:'Fraunces',serif;font-size:28px;font-weight:500;letter-spacing:-.01em;margin-bottom:6px}
+  .login-sub{font-size:13.5px;color:var(--muted);margin-bottom:28px}
+  .login-input{display:block;width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;background:var(--card);color:var(--ink);margin-bottom:10px;box-sizing:border-box}
+  .login-input:focus{outline:none;border-color:var(--ink)}
+  .login-error{font-size:13px;color:#A4453B;margin-bottom:10px;display:none}
+  .login-btn{display:block;width:100%;padding:13px;border-radius:10px;background:var(--ink);color:var(--paper);font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:opacity .15s}
+  .login-btn:disabled{opacity:.55;cursor:default}
   .wa-help{font-size:12.5px;line-height:1.5;color:var(--muted);background:var(--paper-2);border-radius:11px;padding:12px 14px}
   .wa-help b{color:var(--ink);font-weight:600}
 </style>
@@ -651,33 +632,16 @@
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="popover" id="popover"></div>
 <div class="toast" id="toast"></div>
-<div class="lockscreen" id="lockscreen">
-  <div class="lock-card" id="lockCard">
-    <div class="lock-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><rect x="4" y="10.5" width="16" height="11" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M7.5 10.5V7.5a4.5 4.5 0 019 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16" r="1.4" fill="currentColor"/></svg></div>
-    <div class="lock-title">Kilitli</div>
-    <div class="lock-sub">Devam etmek için şifreyi gir</div>
-    <div class="pin-dots" id="pinDots"><span></span><span></span><span></span><span></span></div>
-    <div class="pad" id="pinPad" style="touch-action:manipulation">
-      <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
-      <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
-      <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
-      <button class="pad-ghost"></button><button data-d="0">0</button><button class="pad-fn" data-back>⌫</button>
-    </div>
-    <button class="rem-me-btn" id="remMeBtn">📱 Beni hatırla (7 gün)</button>
-    <div class="lock-touch-wrap" id="touchWrap">
-      <button class="lock-touch-btn" id="touchBtn" aria-label="Touch ID ile aç">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-          <path d="M17 8.5C17 5.46 14.54 3 11.5 3S6 5.46 6 8.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          <path d="M3 10.5C3 14.09 4.5 17.3 6.93 19.57" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          <path d="M9 8.5c0-1.38 1.12-2.5 2.5-2.5S14 7.12 14 8.5V13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          <path d="M11.5 11v5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          <path d="M14 16.5c0 1.38-1.12 2.5-2.5 2.5-1.04 0-1.94-.64-2.33-1.55" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          <path d="M20 8.5c0 3.79-1.97 7.11-4.94 9.02" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          <path d="M17 13c0 1.62-.53 3.12-1.42 4.33" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <span class="lock-touch-lbl">Touch ID ile aç</span>
-    </div>
+<div class="login-screen" id="loginScreen" style="display:none">
+  <div class="login-card">
+    <div class="login-title">Giriş</div>
+    <div class="login-sub">Şirketler Kontrol Paneli</div>
+    <input class="login-input" id="loginEmail" type="email" placeholder="E-posta" autocomplete="username"
+      onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
+    <input class="login-input" id="loginPassword" type="password" placeholder="Şifre" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Giriş Yap</button>
   </div>
 </div>
 
@@ -707,7 +671,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 10);
+    const r = indexedDB.open('rutinMerkezi', 11);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -725,6 +689,11 @@ function openDB(){
       if(!d.objectStoreNames.contains('loans')) d.createObjectStore('loans',{keyPath:'id'});
       if(!d.objectStoreNames.contains('customReminders')) d.createObjectStore('customReminders',{keyPath:'id'});
       if(!d.objectStoreNames.contains('anlikHarcamalar')) d.createObjectStore('anlikHarcamalar',{keyPath:'id'});
+      // Finance module (v11)
+      if(!d.objectStoreNames.contains('finAccounts'))     d.createObjectStore('finAccounts',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('finTransactions')) d.createObjectStore('finTransactions',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('finCategories'))   d.createObjectStore('finCategories',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('finProjects'))     d.createObjectStore('finProjects',{keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -744,7 +713,7 @@ function afterWrite(store){
   if(typeof cloudReady!=='undefined' && cloudReady && SYNC_STORES.includes(store)) schedulePush();
 }
 
-const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const generateId = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* ---------- Dönem anahtarları (otomatik sıfırlama mantığı) ---------- */
 function dailyKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -804,19 +773,19 @@ async function seedIfEmpty(){
   companies = await getAll('companies');
   if(companies.length) return;
   const seed=[
-    {id:uid(),name:'Pastelya Kids',type:'E-Ticaret',accent:PALETTE[0].accent,tint:PALETTE[0].tint,logo:null,order:0,
+    {id:generateId(),name:'Pastelya Kids',type:'E-Ticaret',accent:PALETTE[0].accent,tint:PALETTE[0].tint,logo:null,order:0,
       routines:{
         daily:['Yeni siparişleri kontrol et ve kargola','Meta reklam performansını incele','Müşteri mesajlarına / yorumlara yanıt ver','Terk edilen sepet otomasyonunu gözden geçir'],
         weekly:['Stok seviyelerini gözden geçir','Haftalık satış & dönüşüm raporunu çıkar','Retargeting kampanyasını optimize et'],
         monthly:['Aylık gelir-gider mutabakatı (GoldenKey / MINIDEN)','Ürün koleksiyonunu ve görselleri güncelle','Klaviyo e-posta akışlarını gözden geçir']
       }},
-    {id:uid(),name:'Golden Key İnşaat',type:'İnşaat',accent:PALETTE[1].accent,tint:PALETTE[1].tint,logo:null,order:1,
+    {id:generateId(),name:'Golden Key İnşaat',type:'İnşaat',accent:PALETTE[1].accent,tint:PALETTE[1].tint,logo:null,order:1,
       routines:{
         daily:['Şantiye günlük ilerleme kontrolü','Tedarikçi & malzeme sevkiyat takibi','Ekip puantaj / devam kaydı'],
         weekly:['Hakediş ve ödeme planı kontrolü','İş güvenliği saha denetimi','Haftalık maliyet girişlerini işle'],
         monthly:['Bütçe vs. gerçekleşen maliyet karşılaştırması','Proje ilerleme raporu hazırla','Resmi evrak / ruhsat takibi']
       }},
-    {id:uid(),name:'Akcanlar Mimarlık',type:'Mimarlık',accent:PALETTE[2].accent,tint:PALETTE[2].tint,logo:null,order:2,
+    {id:generateId(),name:'Akcanlar Mimarlık',type:'Mimarlık',accent:PALETTE[2].accent,tint:PALETTE[2].tint,logo:null,order:2,
       routines:{
         daily:['Aktif projelerin çizim ilerlemesini kontrol et','Müşteri revizyon taleplerini değerlendir'],
         weekly:['Proje teslim takvimini güncelle','Ekip görev dağılımını planla','Render / sunum dosyalarını derle'],
@@ -830,7 +799,7 @@ async function seedIfEmpty(){
     for(const freq of ['daily','weekly','monthly']){
       let o=0;
       for(const title of rs[freq]){
-        await put('routines',{id:uid(),companyId:comp.id,freq,title,note:'',order:o++,createdAt:Date.now()});
+        await put('routines',{id:generateId(),companyId:comp.id,freq,title,note:'',order:o++,createdAt:Date.now()});
       }
     }
   }
@@ -880,7 +849,7 @@ async function seedPastelyaRoutines(){
     let order=routines.filter(r=>r.companyId===comp.id && r.freq===freq).length;
     for(const title of PASTELYA_ROUTINES[freq]){
       if(existing.has(freq+'|'+title.trim()))continue;
-      await put('routines',{id:uid(),companyId:comp.id,freq,title,note:'',order:order++,createdAt:Date.now()});
+      await put('routines',{id:generateId(),companyId:comp.id,freq,title,note:'',order:order++,createdAt:Date.now()});
     }
   }
   comp._pastelyaSeeded=true;
@@ -919,7 +888,7 @@ async function seedMetalCompany(){
   if(!companies.some(c=>/metal/i.test(c.name||''))){
     const order=companies.reduce((m,c)=>Math.max(m,c.order??0),-1)+1;
     const pal=PALETTE[7]; // Kömür — metale uygun
-    await put('companies',{id:uid(),name:'Akcanlar Metal',type:'Metal',accent:pal.accent,tint:pal.tint,logo:null,link:'',linkLabel:'',order});
+    await put('companies',{id:generateId(),name:'Akcanlar Metal',type:'Metal',accent:pal.accent,tint:pal.tint,logo:null,link:'',linkLabel:'',order});
   }
   flag._metalSeeded=true;
   await put('companies',flag);
@@ -930,7 +899,7 @@ async function seedPersonalCompany(){
   if(!companies.length)return;
   if(!companies.some(c=>c.isPersonal)){
     const pal=PALETTE[6]; // Hardal
-    await put('companies',{id:uid(),name:'Şahsi',type:'Kişisel',accent:pal.accent,tint:pal.tint,logo:null,link:'',linkLabel:'',isPersonal:true,order:9999});
+    await put('companies',{id:generateId(),name:'Şahsi',type:'Kişisel',accent:pal.accent,tint:pal.tint,logo:null,link:'',linkLabel:'',isPersonal:true,order:9999});
   }
 }
 
@@ -1009,6 +978,7 @@ function render(){
   else if(view.page==='bank') renderBankDetail();
   else if(view.page==='reminders') renderRemindersPage();
   else if(view.page==='anlik') renderAnlikPage();
+  else if(view.page==='finance') renderFinancePage();
   else if(view.section) renderSection();
   else renderCompany();
 }
@@ -1025,6 +995,7 @@ function renderHome(){
       <div class="home-sec-head"><span class="eyebrow">İşletme Rutinleri</span><button class="sec-add" data-addcompany>${svgPlus()} Firma ekle</button></div>
       <div class="grid">${realCompanies.map(firmCard).join('')}</div>
     </section>
+    ${financeEntryHTML()}
     ${anlikEntryHTML()}
     ${cardsEntryHTML()}
     ${loansEntryHTML()}
@@ -1547,7 +1518,7 @@ function openCustomRemModal(rem){
     const title=$('#rmTitle').value.trim();if(!title){$('#rmTitle').focus();return}
     const time=$('#rmTime').value||'09:00';
     const obj={
-      id:editing?rem.id:uid(),
+      id:editing?rem.id:generateId(),
       title,time,freq,enabled:en,
       weekDays:freq==='weekly'?weekDays:[],
       monthDay:freq==='monthly'?(parseInt($('#rmMonthDay').value)||1):null,
@@ -1755,7 +1726,7 @@ function openLoanModal(loan){
     const dueDay=Math.min(31,Math.max(0,parseInt($('#lDue').value)||0))||null;
     const note=$('#lNote').value.trim();
     if(editing){Object.assign(loan,{title,monthly,months,paidCount,dueDay,currency:cur,note});await put('loans',loan)}
-    else{await put('loans',{id:uid(),title,monthly,months,paidCount,dueDay,currency:cur,note,order:loans.length,createdAt:Date.now()})}
+    else{await put('loans',{id:generateId(),title,monthly,months,paidCount,dueDay,currency:cur,note,order:loans.length,createdAt:Date.now()})}
     loans=(await getAll('loans')).sort((a,b)=>(a.order??0)-(b.order??0));
     closeModal();render();toast(editing?'Güncellendi':'Kredi eklendi');
   };
@@ -2053,6 +2024,8 @@ function bindHome(){
   const edr=$('[data-custom-rem]');if(edr)edr.addEventListener('click',()=>{view={page:'reminders',companyId:null,section:null,cardId:null};render()});
   // Anlık Harcamalar
   const eanlik=$('[data-anlik]');if(eanlik)eanlik.addEventListener('click',()=>{view={page:'anlik',companyId:null,section:null,cardId:null};render()});
+  // Finance
+  const efin=$('[data-finance]');if(efin)efin.addEventListener('click',()=>{view={page:'finance',finTab:'dashboard',companyId:null,section:null,cardId:null};render()});
   // Yenile
   const erld=$('[data-reload]');if(erld)erld.addEventListener('click',()=>{window.location.href=window.location.pathname+'?r='+Date.now()});
 
@@ -2100,7 +2073,7 @@ function openAnlikHarcamaModal(editing=null){
       Object.assign(editing,{amount,currency:$('#ahCur').value,reason,sirketId});
       await put('anlikHarcamalar',editing);
     } else {
-      const rec={id:uid(),amount,currency:$('#ahCur').value,reason,sirketId,date:dateStr,islendi:false,createdAt:Date.now()};
+      const rec={id:generateId(),amount,currency:$('#ahCur').value,reason,sirketId,date:dateStr,islendi:false,createdAt:Date.now()};
       anlikHarcamalar.unshift(rec);
       await put('anlikHarcamalar',rec);
     }
@@ -2509,7 +2482,7 @@ function openRoutineModal(cid,freq,routine){
       const i=routines.findIndex(x=>x.id===routine.id);routines[i]=routine;
     }else{
       const order=compRoutines(cid,curFreq).length;
-      const nr={id:uid(),companyId:cid,freq:curFreq,title,note,order,createdAt:Date.now()};
+      const nr={id:generateId(),companyId:cid,freq:curFreq,title,note,order,createdAt:Date.now()};
       await put('routines',nr);routines.push(nr);
     }
     view.section=curFreq;closeModal();render();toast(editing?'Güncellendi':'Rutin eklendi');
@@ -2705,7 +2678,7 @@ function openInstallmentModal(cardId,inst){
     const startMonth=$('#iStart').value||monthlyKey(new Date());
     const paidCount=Math.max(0,Math.min(months,parseInt($('#iPaid').value)||0));
     if(editing){Object.assign(inst,{title,total,currency:cur,months,startMonth,paidCount});await put('installments',inst)}
-    else{await put('installments',{id:uid(),cardId,title,total,currency:cur,months,startMonth,paidCount,createdAt:Date.now()})}
+    else{await put('installments',{id:generateId(),cardId,title,total,currency:cur,months,startMonth,paidCount,createdAt:Date.now()})}
     installments=(await getAll('installments')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
     closeModal();render();toast(editing?'Güncellendi':'Taksit eklendi');
   };
@@ -2827,7 +2800,7 @@ function openChequeModal(ch){
     const dueDate=$('#qDate').value||'';
     const bank=$('#qBank').value.trim();const note=$('#qNote').value.trim();
     if(editing){Object.assign(ch,{title,type,amount,currency:cur,dueDate,bank,note});await put('cheques',ch)}
-    else{await put('cheques',{id:uid(),title,type,amount,currency:cur,dueDate,bank,note,done:false,createdAt:Date.now()})}
+    else{await put('cheques',{id:generateId(),title,type,amount,currency:cur,dueDate,bank,note,done:false,createdAt:Date.now()})}
     cheques=(await getAll('cheques')).sort((a,b)=>String(a.dueDate||'zzz').localeCompare(String(b.dueDate||'zzz')));
     closeModal();render();toast(editing?'Güncellendi':'Çek eklendi');
   };
@@ -2862,7 +2835,7 @@ function openBillModal(bill,companyId){
     let dueDay=parseInt($('#bDay').value);dueDay=isNaN(dueDay)?null:Math.min(31,Math.max(1,dueDay));
     const note=$('#bNote').value.trim();
     if(editing){Object.assign(bill,{name,dueDay,note});await put('bills',bill)}
-    else{await put('bills',{id:uid(),name,dueDay,company:cid,note,createdAt:Date.now()})}
+    else{await put('bills',{id:generateId(),name,dueDay,company:cid,note,createdAt:Date.now()})}
     bills=(await getAll('bills')).sort((a,b)=>(a.dueDay??99)-(b.dueDay??99));
     closeModal();render();toast(editing?'Güncellendi':'Fatura eklendi');
   };
@@ -2919,7 +2892,7 @@ function openCardModal(card){
     const dueDay=Math.min(31,Math.max(1,parseInt($('#kDue').value)||1));
     const stmt=$('#kStmt').value?Math.min(31,Math.max(1,parseInt($('#kStmt').value))):null;
     if(editing){Object.assign(card,{bank,last4,limit,debt,dueDay,statementDay:stmt,currency:cur,color});await put('cards',card)}
-    else{await put('cards',{id:uid(),bank,last4,limit,debt,dueDay,statementDay:stmt,currency:cur,color,order:cards.length,createdAt:Date.now()})}
+    else{await put('cards',{id:generateId(),bank,last4,limit,debt,dueDay,statementDay:stmt,currency:cur,color,order:cards.length,createdAt:Date.now()})}
     cards=(await getAll('cards')).sort((a,b)=>(a.order??0)-(b.order??0));
     closeModal();render();toast(editing?'Güncellendi':'Kart eklendi');
   };
@@ -2954,7 +2927,7 @@ function openBankModal(bank){
   $('#bkSave').onclick=async()=>{
     const name=$('#bkName').value.trim();if(!name){$('#bkName').focus();return}
     if(editing){Object.assign(bank,{name,color:accent,tint});await put('banks',bank)}
-    else{await put('banks',{id:uid(),name,color:accent,tint,order:banks.length,createdAt:Date.now()})}
+    else{await put('banks',{id:generateId(),name,color:accent,tint,order:banks.length,createdAt:Date.now()})}
     banks=(await getAll('banks')).sort((a,b)=>(a.order??0)-(b.order??0));
     closeModal();render();toast(editing?'Güncellendi':'Banka eklendi');
   };
@@ -3000,7 +2973,7 @@ function openAccountModal(bankId,acc){
     if(!iban){$('#baIban').focus();return}
     const label=$('#baLabel').value.trim();
     if(editing){Object.assign(acc,{iban,label,owner});await put('bankAccounts',acc)}
-    else{await put('bankAccounts',{id:uid(),bankId,iban,label,owner,createdAt:Date.now()})}
+    else{await put('bankAccounts',{id:generateId(),bankId,iban,label,owner,createdAt:Date.now()})}
     bankAccounts=(await getAll('bankAccounts')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
     closeModal();render();toast(editing?'Güncellendi':'Hesap eklendi');
   };
@@ -3014,7 +2987,7 @@ let pendingLogo=undefined; // undefined=değişmedi, null=kaldır, string=yeni
 function openCompanyModal(cid){
   const creating=!cid;
   const c = creating
-    ? {id:uid(),name:'',type:'',accent:PALETTE[5].accent,tint:PALETTE[5].tint,logo:null,link:'',linkLabel:'',order:companies.reduce((m,x)=>Math.max(m,x.order??0),-1)+1}
+    ? {id:generateId(),name:'',type:'',accent:PALETTE[5].accent,tint:PALETTE[5].tint,logo:null,link:'',linkLabel:'',order:companies.reduce((m,x)=>Math.max(m,x.order??0),-1)+1}
     : companies.find(x=>x.id===cid);
   if(!c)return;
   pendingLogo=undefined;
@@ -3189,139 +3162,96 @@ function toast(msg){
 /* ============================================================
    BAŞLAT
    ============================================================ */
-/* ---------- PIN kilit + hareketsizlik zamanlayıcısı ---------- */
-const LOCK_PIN='5555';
-const LOCK_MS=3*60*1000; // 3 dakika
-const REM_KEY='pinRemUntil';
-let lockTimer=null, pinBuffer='', lastActivity=0, rememberMe=false;
-const lockscreen=document.getElementById('lockscreen');
+/* ---------- Auth state ---------- */
+let currentUser = null;
 
-function isLocked(){return lockscreen.classList.contains('show')}
-function updatePinDots(){document.querySelectorAll('#pinDots span').forEach((d,i)=>d.classList.toggle('on',i<pinBuffer.length))}
-function lockApp(){
-  clearTimeout(lockTimer);
-  pinBuffer='';updatePinDots();
-  document.getElementById('pinDots').classList.remove('err');
-  closeModal();closePopover();
-  lockscreen.classList.add('show');
+function showLoginScreen(){
+  const ls = document.getElementById('loginScreen');
+  if(ls) ls.style.display = 'flex';
+  app.innerHTML = '';
 }
-function unlockApp(){
-  lockscreen.classList.remove('show');
-  resetIdle();
+function hideLoginScreen(){
+  const ls = document.getElementById('loginScreen');
+  if(ls) ls.style.display = 'none';
 }
-function resetIdle(){
-  if(isLocked())return;
-  clearTimeout(lockTimer);
-  lockTimer=setTimeout(lockApp,LOCK_MS);
-}
-function onActivity(){
-  if(isLocked())return;
-  const now=Date.now();
-  if(now-lastActivity<1500)return;
-  lastActivity=now;resetIdle();
-}
-let _pinLastT=0,_pinChecking=false;
-function pinInput(d){
-  const now=Date.now();
-  if(now-_pinLastT<60)return; // çift dokunuşu engelle
-  _pinLastT=now;
-  if(_pinChecking||pinBuffer.length>=4)return;
-  pinBuffer+=d;updatePinDots();
-  if(pinBuffer.length===4){
-    _pinChecking=true;
-    setTimeout(()=>{
-      if(pinBuffer===LOCK_PIN){
-        if(rememberMe) localStorage.setItem(REM_KEY, Date.now()+7*24*3600*1000);
-        unlockApp();
-      }
-      else{
-        const card=document.getElementById('lockCard');
-        card.classList.add('shake');document.getElementById('pinDots').classList.add('err');
-        setTimeout(()=>{card.classList.remove('shake');document.getElementById('pinDots').classList.remove('err');pinBuffer='';updatePinDots();_pinChecking=false;},420);
-        return;
-      }
-      _pinChecking=false;
-    },110);
+
+async function doLogin(){
+  const emailEl = document.getElementById('loginEmail');
+  const passEl  = document.getElementById('loginPassword');
+  const errEl   = document.getElementById('loginError');
+  const btn     = document.getElementById('loginBtn');
+  const email = (emailEl ? emailEl.value : '').trim();
+  const pass  = passEl ? passEl.value : '';
+  if(!email || !pass){
+    if(errEl){ errEl.textContent='E-posta ve şifre gerekli'; errEl.style.display='block'; }
+    return;
+  }
+  if(btn){ btn.disabled=true; btn.textContent='Giriş yapılıyor...'; }
+  if(errEl) errEl.style.display='none';
+  try {
+    await fb.authMod.signInWithEmailAndPassword(fb.authI, email, pass);
+    // onAuthStateChanged fires → onUserSignedIn
+  } catch(e) {
+    const msgs = {
+      'auth/user-not-found':'Kullanıcı bulunamadı',
+      'auth/wrong-password':'Yanlış şifre',
+      'auth/invalid-credential':'E-posta veya şifre hatalı',
+      'auth/invalid-email':'Geçersiz e-posta',
+      'auth/too-many-requests':'Çok fazla deneme. Lütfen bekle.',
+    };
+    if(errEl){ errEl.textContent=msgs[e.code]||('Giriş hatası: '+e.message); errEl.style.display='block'; }
+    if(btn){ btn.disabled=false; btn.textContent='Giriş Yap'; }
   }
 }
-/* ---------- Touch ID (WebAuthn) ---------- */
-const TID_KEY='tidCredId';
-async function tidAvailable(){
-  try{
-    if(location.protocol!=='https:'&&location.hostname!=='localhost')return false;
-    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-  }catch{return false}
+
+async function doSignOut(){
+  if(!fb || !fb.authI) return;
+  cloudReady=false; listenersOn=false; clearInterval(cloudTimer);
+  detachFinListeners();
+  await fb.authMod.signOut(fb.authI);
+  // onAuthStateChanged fires → showLoginScreen
 }
-async function tidRegister(){
-  const cred=await navigator.credentials.create({publicKey:{
-    challenge:crypto.getRandomValues(new Uint8Array(32)),
-    rp:{name:'Şirketler Paneli',id:location.hostname},
-    user:{id:crypto.getRandomValues(new Uint8Array(16)),name:'kullanici',displayName:'Kullanıcı'},
-    pubKeyCredParams:[{alg:-7,type:'public-key'},{alg:-257,type:'public-key'}],
-    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},
-    timeout:60000
-  }});
-  const id=btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
-  localStorage.setItem(TID_KEY,id);return id;
-}
-async function tidAuth(credId){
-  await navigator.credentials.get({publicKey:{
-    challenge:crypto.getRandomValues(new Uint8Array(32)),
-    allowCredentials:[{id:Uint8Array.from(atob(credId),c=>c.charCodeAt(0)),type:'public-key'}],
-    userVerification:'required',
-    rpId:location.hostname,
-    timeout:60000
-  }});
-}
-async function tryTouchId(){
-  try{
-    let id=localStorage.getItem(TID_KEY);
-    if(!id)id=await tidRegister();
-    await tidAuth(id);
-    unlockApp();
-  }catch(e){
-    if(e.name==='InvalidStateError'){
-      // kayıtlı credential geçersiz, sil ve yeniden kaydet
-      localStorage.removeItem(TID_KEY);
+
+function setupAuthStateListener(){
+  if(!fb || !fb.authMod || !fb.authI){ showLoginScreen(); return; }
+  fb.authMod.onAuthStateChanged(fb.authI, async (user) => {
+    if(user){
+      currentUser = user;
+      try { await onUserSignedIn(user); }
+      catch(e){ console.error('onUserSignedIn:', e); }
+    } else {
+      currentUser = null;
+      showLoginScreen();
     }
-    console.log('Touch ID:',e.message);
-  }
+  });
 }
 
-function setupLock(){
-  function addPinTap(el,fn){
-    let touched=false;
-    el.addEventListener('touchend',e=>{e.preventDefault();touched=true;fn();},{passive:false});
-    el.addEventListener('click',()=>{if(touched){touched=false;return;}fn();});
+async function onUserSignedIn(user){
+  hideLoginScreen();
+  cloudReady = true;
+  const localCompanies = await getAll('companies');
+  const isNewDevice = localCompanies.length === 0;
+  if(isNewDevice && cloudCfg.enabled){
+    try { await cloudConnect_postAuth(); startCloudLoop(); } catch(e){ console.error('Bulut:', e); }
+    await seedIfEmpty();
+  } else {
+    await seedIfEmpty();
+    if(cloudCfg.enabled){
+      cloudConnect_postAuth().then(()=>startCloudLoop()).catch(e=>console.error('Bulut:',e));
+    }
   }
-  document.querySelectorAll('#pinPad button[data-d]').forEach(b=>addPinTap(b,()=>pinInput(b.dataset.d)));
-  const back=document.querySelector('#pinPad [data-back]');
-  if(back)addPinTap(back,()=>{pinBuffer=pinBuffer.slice(0,-1);updatePinDots()});
-  // donanım klavyesi
-  window.addEventListener('keydown',e=>{
-    if(!isLocked())return;
-    if(/^[0-9]$/.test(e.key))pinInput(e.key);
-    else if(e.key==='Backspace')pinBuffer=pinBuffer.slice(0,-1),updatePinDots();
-  });
-  // Beni Hatırla butonu
-  const remBtn=document.getElementById('remMeBtn');
-  if(remBtn){
-    function addPinTapRem(el,fn){ let t=false; el.addEventListener('touchend',e=>{e.preventDefault();t=true;fn();},{passive:false}); el.addEventListener('click',()=>{if(t){t=false;return;}fn();}); }
-    addPinTapRem(remBtn,()=>{
-      rememberMe=!rememberMe;
-      remBtn.classList.toggle('on',rememberMe);
-      remBtn.textContent=rememberMe?'✓ 7 gün hatırlanacak':'📱 Beni hatırla (7 gün)';
-    });
-  }
-  // Touch ID butonu
-  tidAvailable().then(ok=>{
-    const wrap=document.getElementById('touchWrap');
-    const btn=document.getElementById('touchBtn');
-    if(ok&&wrap&&btn){wrap.classList.add('visible');btn.addEventListener('click',tryTouchId)}
-  });
-  // hareket = sayaç sıfırla
-  ['mousemove','mousedown','keydown','touchstart','touchmove','scroll','click','wheel'].forEach(ev=>
-    window.addEventListener(ev,onActivity,{passive:true}));
+  await loadAll();
+  await loadAllFinance();
+  await seedPastelyaRoutines();
+  await renameInsaat();
+  await seedInsaatLink();
+  await seedMetalCompany();
+  await seedPersonalCompany();
+  await loadAll();
+  render();
+  attachFinListeners(user.uid);
+  checkReminders();
+  reminderTimer = setInterval(checkReminders, 5*60*1000);
 }
 
 /* ---------- WhatsApp hatırlatıcı (CallMeBot) ---------- */
@@ -3363,29 +3293,33 @@ function parseFirebaseConfig(raw){
   return null;
 }
 
-async function initFirebase(){
-  cloudReady=false;
-  const cfg=parseFirebaseConfig(cloudCfg.config);
-  if(!cfg||!cfg.projectId)throw new Error('Geçersiz yapılandırma');
-  const appMod=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-  const authMod=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-  const fsMod=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-  const appI=appMod.initializeApp(cfg);
-  const authI=authMod.getAuth(appI);
-  await authMod.signInAnonymously(authI);
+let _fbBootstrapped = false;
+async function bootstrapFirebase(){
+  if(_fbBootstrapped) return;
+  const cfg = parseFirebaseConfig(cloudCfg.config || EMBEDDED_FIREBASE_CONFIG);
+  if(!cfg || !cfg.projectId) return;
+  const appMod  = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+  const authMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+  const fsMod   = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  const apps = appMod.getApps();
+  const appI = apps.length ? appMod.getApp() : appMod.initializeApp(cfg);
+  const authI = authMod.getAuth(appI);
+  await authMod.setPersistence(authI, authMod.browserLocalPersistence);
   let fsDb;
-  try{
+  try {
     if(fsMod.initializeFirestore && fsMod.persistentLocalCache){
-      fsDb=fsMod.initializeFirestore(appI,{localCache:fsMod.persistentLocalCache()});
+      fsDb = fsMod.initializeFirestore(appI, {localCache: fsMod.persistentLocalCache()});
     } else {
-      fsDb=fsMod.getFirestore(appI);
+      fsDb = fsMod.getFirestore(appI);
     }
-  }catch(e){
-    try{ fsDb=fsMod.getFirestore(appI); }catch(e2){}
+  } catch(e){
+    try { fsDb = fsMod.getFirestore(appI); } catch(e2){}
   }
-  fb={fs:fsMod, db:fsDb};
-  cloudReady=true;
+  fb = {fs: fsMod, db: fsDb, authMod, authI};
+  _fbBootstrapped = true;
 }
+// Legacy alias — kept so cloudConnect() callers still work
+async function initFirebase(){ await bootstrapFirebase(); }
 
 function cloudReminderItems(){
   const out=[];
@@ -3495,9 +3429,9 @@ function attachCloudListeners(){
   listenersOn=true;
 }
 
-// İlk bağlantı: bulutta veri varsa onu al (ortak kaynak), yoksa yereli buluta yükle.
-async function cloudConnect(){
-  await initFirebase();
+// İlk bağlantı: kullanıcı zaten oturum açmış, sadece veri sync yap.
+async function cloudConnect_postAuth(){
+  if(!fb || !fb.db) throw new Error('Firebase başlatılmadı');
   if(!deviceId){
     const dv=await getOne('settings','device');
     deviceId=(dv&&dv.data&&dv.data.id)||(Date.now().toString(36)+Math.random().toString(36).slice(2,8));
@@ -3511,37 +3445,32 @@ async function cloudConnect(){
   attachCloudListeners();
   syncCloud(true);
 }
+// Legacy alias
+async function cloudConnect(){ await cloudConnect_postAuth(); }
 
 function openCloudModal(){
-  let en=cloudCfg.enabled;
+  const uid = currentUser ? currentUser.uid : '—';
+  const email = currentUser ? currentUser.email : '—';
   modal.innerHTML=`
-    <div class="modal-head"><div class="eyebrow">Bulut senkron · Firebase</div><h3>Bulut bağlantısı</h3></div>
+    <div class="modal-head"><div class="eyebrow">Bulut senkron · Firebase</div><h3>Hesap</h3></div>
     <div class="modal-body">
-      <div class="field"><label>Durum</label>
-        <div class="seg" id="clEn"><button data-v="1" class="${en?'on':''}">Açık</button><button data-v="0" class="${!en?'on':''}">Kapalı</button></div></div>
-      <div class="field"><label>Firebase yapılandırması (config)</label>
-        <textarea id="clCfg" rows="7" placeholder='{ "apiKey": "...", "projectId": "...", "appId": "..." }'>${esc(cloudCfg.config||'')}</textarea></div>
-      <div class="wa-help">Firebase web "config"ini yapıştır. Bağlanınca <b>tüm verin</b> (firmalar, rutinler, kartlar, faturalar, çekler, banka hesapları, notlar) buluta kaydedilir ve her cihazda otomatik senkronlanır. Yaklaşan kalemler ayrıca WhatsApp zamanlayıcısına da yazılır.</div>
+      <div class="field"><label>Oturum</label><div style="font-size:13px;padding:4px 0;">${esc(email)}</div></div>
+      <div class="field"><label>UID (Firestore rules için)</label>
+        <div class="mono" style="font-size:11px;word-break:break-all;padding:8px 10px;background:var(--paper-2);border-radius:8px;user-select:all;">${esc(uid)}</div>
+      </div>
+      <div class="field"><label>Senkron durumu</label>
+        <div style="font-size:13px;padding:4px 0;">${cloudReady ? 'Bağlı' : 'Bağlı değil'}</div>
+      </div>
       <div class="modal-foot">
         <button class="btn subtle" id="clSync">Şimdi senkronla</button>
-        <button class="btn subtle" id="clCancel">Vazgeç</button>
-        <button class="btn primary" id="clSave">Bağlan & senkronla</button>
+        <button class="btn subtle" id="clCancel">Kapat</button>
+        <button class="btn danger" id="clSignOut">Çıkış Yap</button>
       </div>
     </div>`;
   overlay.classList.add('show');
-  modal.querySelectorAll('#clEn button').forEach(b=>b.onclick=()=>{en=b.dataset.v==='1';modal.querySelectorAll('#clEn button').forEach(x=>x.classList.toggle('on',x===b))});
   $('#clCancel').onclick=closeModal;
-  $('#clSync').onclick=async()=>{ if(!cloudReady){toast('Önce "Bağlan & senkronla"');return} await cloudPushAll(); await syncCloud(false); };
-  $('#clSave').onclick=async()=>{
-    cloudCfg.enabled=en;cloudCfg.config=$('#clCfg').value.trim();
-    await saveCloudCfg();
-    if(en && cloudCfg.config){
-      toast('Bağlanıyor...');
-      try{ await cloudConnect(); startCloudLoop(); toast('Bulut bağlı · senkron açık'); }
-      catch(e){ toast('Bağlantı hatası'); console.error(e); return; }
-    }else{ cloudReady=false; listenersOn=false; clearInterval(cloudTimer); toast('Kaydedildi'); }
-    closeModal();
-  };
+  $('#clSync').onclick=async()=>{ if(!cloudReady){toast('Bağlantı yok');return} await cloudPushAll(); await syncCloud(false); toast('Senkronize edildi'); };
+  $('#clSignOut').onclick=async()=>{ closeModal(); await doSignOut(); };
 }
 
 function waSend(text,cfg){
@@ -3629,45 +3558,983 @@ function openReminderModal(){
   };
 }
 
+/* ============================================================
+   FİNANS MODÜLÜ
+   ============================================================ */
+
+/* ---------- Sabitler ---------- */
+const FIN = {
+  COL: {
+    TRANSACTIONS: 'financeTransactions',
+    ACCOUNTS:     'financeAccounts',
+    CATEGORIES:   'financeCategories',
+    PROJECTS:     'financeProjects',
+  },
+  userPath: uid => `users/${uid}`,
+};
+
+const FIN_TRANSFER_LABELS = {
+  INTERNAL:     'Hesaplar Arası',
+  INTERCOMPANY: 'Şirketler Arası Borç / Avans',
+  SETTLEMENT:   'Cari Ödeme / Cari Kapatma',
+  CAPITAL:      'Sermaye / Para Koyma',
+  OWNER_DRAW:   'Ortak Çekişi',
+  OTHER:        'Diğer',
+  UNCLASSIFIED: 'Sınıflandırılmamış',
+};
+
+/* ---------- State ---------- */
+let finAccounts = [], finTransactions = [], finCategories = [], finProjects = [];
+let _finListeners = []; // Firestore unsubscribe functions
+
+/* ---------- Formatting helpers ---------- */
+function finFmtCurrency(n, currency){
+  const num = parseFloat(n) || 0;
+  const cur = currency || 'TRY';
+  if(cur === 'TRY') return num.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ₺';
+  try {
+    return new Intl.NumberFormat('tr-TR',{style:'currency',currency:cur,minimumFractionDigits:2,maximumFractionDigits:2}).format(num);
+  } catch(e){
+    return num.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ' + cur;
+  }
+}
+function finFmtDate(s){
+  if(!s) return '—';
+  const d = new Date(s + 'T12:00:00');
+  if(isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'});
+}
+function finTodayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* ---------- IndexedDB load ---------- */
+async function loadAllFinance(){
+  finAccounts     = (await getAll('finAccounts')).filter(a => a.status !== 'archived');
+  finTransactions = (await getAll('finTransactions')).filter(t => t.status !== 'archived')
+                     .sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  finCategories   = (await getAll('finCategories')).filter(c => c.status !== 'archived');
+  finProjects     = (await getAll('finProjects')).filter(p => p.status !== 'archived');
+}
+
+/* ---------- Cloud sync helpers (online-only) ---------- */
+function _finCheckOnline(){
+  if(!navigator.onLine || !cloudReady || !fb || !fb.db){
+    toast('İşlem için internet bağlantısı gerekli.');
+    return false;
+  }
+  return true;
+}
+
+async function finSaveRecord(uid, idbStore, fsCollection, rec){
+  if(!_finCheckOnline()) throw new Error('offline');
+  const now = Date.now();
+  rec = {...rec, updatedAtClient: now};
+  try {
+    const {doc, setDoc, serverTimestamp} = fb.fs;
+    const clean = {...rec, serverUpdatedAt: serverTimestamp()};
+    await setDoc(doc(fb.db, FIN.userPath(uid), fsCollection, rec.id), clean);
+  } catch(e){
+    console.error('finSaveRecord', fsCollection, e.message);
+    toast('Kayıt hatası: ' + e.message);
+    throw e;
+  }
+  // Firestore write succeeded — update local cache
+  await put(idbStore, rec);
+  return rec;
+}
+
+async function _finApplyRemote(idbStore, inMemArray, remoteDoc){
+  const local = inMemArray.find(r => r.id === remoteDoc.id);
+  const localUpdated = local ? (local.updatedAtClient || 0) : 0;
+  const remoteUpdated = remoteDoc.updatedAtClient || 0;
+  if(!local || remoteUpdated > localUpdated){
+    await put(idbStore, remoteDoc);
+    const idx = inMemArray.findIndex(r => r.id === remoteDoc.id);
+    if(idx >= 0) inMemArray[idx] = remoteDoc; else inMemArray.push(remoteDoc);
+    return true;
+  }
+  return false;
+}
+
+function detachFinListeners(){
+  _finListeners.forEach(u => { try{ u(); }catch(e){} });
+  _finListeners = [];
+}
+
+function attachFinListeners(uid){
+  if(!uid || !cloudReady || !fb || !fb.db) return;
+  detachFinListeners();
+  const {collection, onSnapshot} = fb.fs;
+  const listen = (fsCol, idbStore, inMemArray, activeFilter) => {
+    const col = collection(fb.db, FIN.userPath(uid), fsCol);
+    const unsub = onSnapshot(col, snap => {
+      let changed = false;
+      snap.docChanges().forEach(change => {
+        if(change.type === 'removed') return; // soft delete only
+        const data = {id: change.doc.id, ...change.doc.data()};
+        // Remove server timestamps (not serializable in IDB)
+        if(data.serverUpdatedAt && typeof data.serverUpdatedAt.toDate === 'function')
+          data.serverUpdatedAt = data.serverUpdatedAt.toDate().getTime();
+        _finApplyRemote(idbStore, inMemArray, data).then(c => { if(c) changed = true; });
+        // Note: async in loop is fine here — render called below
+      });
+      // Re-filter and re-sort after batch
+      setTimeout(()=>{
+        if(view.page === 'finance') render();
+      }, 200);
+    }, err => console.error('finListener', fsCol, err));
+    _finListeners.push(unsub);
+  };
+  listen(FIN.COL.ACCOUNTS,     'finAccounts',     finAccounts,     a => a.status !== 'archived');
+  listen(FIN.COL.TRANSACTIONS, 'finTransactions', finTransactions, t => t.status !== 'archived');
+  listen(FIN.COL.CATEGORIES,   'finCategories',   finCategories,   c => c.status !== 'archived');
+  listen(FIN.COL.PROJECTS,     'finProjects',     finProjects,     p => p.status !== 'archived');
+}
+
+/* ---------- Balance engine ---------- */
+function finComputeBalance(accountId){
+  const account = finAccounts.find(a => a.id === accountId);
+  if(!account) return 0;
+  let balance = parseFloat(account.openingBalance) || 0;
+  const isCreditCard = account.type === 'CREDIT_CARD';
+  const cutoff = account.openingBalanceDate || null;
+  const txCurrency = account.currency || 'TRY';
+
+  finTransactions.forEach(t => {
+    if(cutoff && t.date && t.date < cutoff) return;
+    if(isCreditCard){
+      if(t.transactionType==='EXPENSE'  && t.accountId===accountId) balance += (t.amount||0);
+      if(t.transactionType==='INCOME'   && t.accountId===accountId) balance -= (t.amount||0);
+      if(t.transactionType==='TRANSFER' && t.destinationAccountId===accountId) balance -= (t.amount||0);
+      if(t.transactionType==='TRANSFER' && t.sourceAccountId===accountId)      balance += (t.amount||0);
+    } else {
+      if(t.transactionType==='INCOME'   && t.accountId===accountId) balance += (t.amount||0);
+      if(t.transactionType==='EXPENSE'  && t.accountId===accountId) balance -= (t.amount||0);
+      if(t.transactionType==='TRANSFER' && t.destinationAccountId===accountId) balance += (t.amount||0);
+      if(t.transactionType==='TRANSFER' && t.sourceAccountId===accountId)      balance -= (t.amount||0);
+    }
+  });
+  return balance;
+}
+
+/* ---------- Cari engine ---------- */
+function _finRecordCari(pairMap, debtorId, creditorId, amount, currency){
+  currency = currency || 'TRY';
+  if(!debtorId || !creditorId || debtorId===creditorId || (amount||0)<=0) return;
+  const a = debtorId < creditorId ? debtorId : creditorId;
+  const b = debtorId < creditorId ? creditorId : debtorId;
+  const key = a + '__' + b + '__' + currency;
+  if(!pairMap[key]) pairMap[key] = {partyA:a, partyB:b, net:0, currency};
+  if(debtorId===a) pairMap[key].net += (amount||0);
+  else             pairMap[key].net -= (amount||0);
+}
+
+function finComputeCari(){
+  const pairMap = {};
+  finTransactions.forEach(t => {
+    if(t.transactionType==='EXPENSE'){
+      const acct = finAccounts.find(a => a.id===t.accountId);
+      if(!acct || !acct.entityId || !t.entityId || acct.entityId===t.entityId) return;
+      const cur = t.currency || acct.currency || 'TRY';
+      _finRecordCari(pairMap, t.entityId, acct.entityId, t.amount, cur);
+    } else if(t.transactionType==='INCOME'){
+      const acct = finAccounts.find(a => a.id===t.accountId);
+      if(!acct || !acct.entityId || !t.entityId || acct.entityId===t.entityId) return;
+      const cur = t.currency || acct.currency || 'TRY';
+      _finRecordCari(pairMap, acct.entityId, t.entityId, t.amount, cur);
+    } else if(t.transactionType==='TRANSFER'){
+      const srcAcct = finAccounts.find(a => a.id===t.sourceAccountId);
+      const dstAcct = finAccounts.find(a => a.id===t.destinationAccountId);
+      if(!srcAcct || !dstAcct) return;
+      const srcOwner = srcAcct.entityId, dstOwner = dstAcct.entityId;
+      if(!srcOwner || !dstOwner || srcOwner===dstOwner) return;
+      const purpose = t.transferPurpose;
+      if(purpose!=='INTERCOMPANY' && purpose!=='SETTLEMENT') return;
+      const cur = t.currency || srcAcct.currency || 'TRY';
+      _finRecordCari(pairMap, dstOwner, srcOwner, t.amount, cur);
+    }
+  });
+  return Object.values(pairMap)
+    .filter(p => Math.abs(p.net) >= 0.01)
+    .map(p => p.net > 0
+      ? {debtorId:p.partyA, creditorId:p.partyB, balance: p.net,  currency:p.currency}
+      : {debtorId:p.partyB, creditorId:p.partyA, balance:-p.net, currency:p.currency})
+    .sort((a,b) => b.balance - a.balance);
+}
+
+/* ---------- Finance entry panel (home screen) ---------- */
+function financeEntryHTML(){
+  const txCount = finTransactions.length;
+  const acctCount = finAccounts.length;
+  const summary = acctCount
+    ? `${acctCount} hesap · ${txCount} işlem`
+    : 'Hesap ekleyerek başla';
+  return `
+  <button class="entry-panel" data-finance style="--accent:#2F6E57;--accent-tint:#DCEBE2">
+    <span class="entry-ico">${svgBank()}</span>
+    <span class="entry-body">
+      <span class="entry-title">Finans</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+/* ============================================================
+   FİNANS EKRANLARI
+   ============================================================ */
+
+function renderFinancePage(){
+  const tab = view.finTab || 'dashboard';
+  const tabs = [
+    {key:'dashboard',  label:'Genel'},
+    {key:'accounts',   label:'Hesaplar'},
+    {key:'transactions',label:'İşlemler'},
+    {key:'cari',       label:'Cari'},
+    {key:'categories', label:'Kategoriler'},
+  ];
+  const tabBar = tabs.map(t =>
+    `<button class="tab ${t.key===tab?'active':''}" data-fintab="${t.key}">${t.label}</button>`
+  ).join('');
+
+  let body = '';
+  if(tab==='dashboard')    body = _finDashboardHTML();
+  else if(tab==='accounts') body = _finAccountsHTML();
+  else if(tab==='transactions') body = _finTransactionsHTML();
+  else if(tab==='cari')    body = _finCariHTML();
+  else if(tab==='categories') body = _finCategoriesHTML();
+
+  app.innerHTML = `
+    <div class="wrap" style="padding-bottom:80px">
+      <button class="backbtn" data-finback>${svgBack()} Ana ekran</button>
+      <div style="margin-bottom:16px;">
+        <h2 style="font-family:'Fraunces',serif;font-size:26px;font-weight:500;margin:0 0 12px;">Finans</h2>
+        <div class="tabs" role="tablist">${tabBar}</div>
+      </div>
+      ${body}
+    </div>
+    ${renderFooter()}
+  `;
+  document.querySelectorAll('[data-fintab]').forEach(b =>
+    b.addEventListener('click', () => { view.finTab = b.dataset.fintab; render(); }));
+  const back = document.querySelector('[data-finback]');
+  if(back) back.addEventListener('click', () => { view.page='home'; view.finTab=null; render(); });
+  bindFooter();
+  // bind finance-specific actions
+  _finBindActions(tab);
+}
+
+/* ---- Dashboard ---- */
+function _finDashboardHTML(){
+  const today = finTodayStr();
+  const thisMonth = today.slice(0,7);
+
+  const incomeTxs  = finTransactions.filter(t => t.transactionType==='INCOME');
+  const expenseTxs = finTransactions.filter(t => t.transactionType==='EXPENSE');
+  const monthInc = incomeTxs .filter(t => (t.date||'').startsWith(thisMonth)).reduce((s,t) => s+(t.amount||0), 0);
+  const monthExp = expenseTxs.filter(t => (t.date||'').startsWith(thisMonth)).reduce((s,t) => s+(t.amount||0), 0);
+
+  // Para durumu: entity → currency grouping
+  const paraDurumu = companies.filter(c => {
+    return finAccounts.some(a => a.entityId===c.id);
+  }).map(c => {
+    const accts = finAccounts.filter(a => a.entityId===c.id);
+    const byCur = {};
+    accts.forEach(a => {
+      const cur = a.currency || 'TRY';
+      const bal = finComputeBalance(a.id);
+      const tk = ['BANK','CASH','CREDIT_CARD'].includes(a.type) ? a.type : 'OTHER';
+      if(!byCur[cur]) byCur[cur] = {BANK:[],CASH:[],OTHER:[],CREDIT_CARD:[]};
+      byCur[cur][tk].push({account:a, balance:bal});
+    });
+    return {company:c, byCur};
+  });
+
+  const cariList = finComputeCari();
+
+  const recent = finTransactions.slice(0,5);
+
+  return `
+    <!-- Bu ay -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+      <div class="card" style="padding:14px 16px;">
+        <div class="eyebrow" style="margin-bottom:4px;">Bu ay gelir</div>
+        <div style="font-family:'Fraunces',serif;font-size:22px;color:var(--good);">+${finFmtCurrency(monthInc,'TRY')}</div>
+      </div>
+      <div class="card" style="padding:14px 16px;">
+        <div class="eyebrow" style="margin-bottom:4px;">Bu ay gider</div>
+        <div style="font-family:'Fraunces',serif;font-size:22px;color:#A4453B;">-${finFmtCurrency(monthExp,'TRY')}</div>
+      </div>
+    </div>
+
+    <!-- Para durumu -->
+    ${paraDurumu.length ? `
+    <div class="eyebrow" style="margin-bottom:8px;">Para Durumu</div>
+    <div class="card" style="margin-bottom:20px;">
+      ${paraDurumu.map(pd => {
+        const currencies = Object.keys(pd.byCur).sort();
+        const multiCur = currencies.length > 1;
+        return `<div style="padding:12px 16px;border-bottom:1px solid var(--line);">
+          <div style="font-weight:600;font-size:14px;margin-bottom:8px;">${esc(pd.company.name)}</div>
+          ${currencies.map(cur => {
+            const byType = pd.byCur[cur];
+            const bankTotal = byType.BANK.reduce((s,x)=>s+x.balance,0);
+            const cashTotal = byType.CASH.reduce((s,x)=>s+x.balance,0);
+            const otherTotal= byType.OTHER.reduce((s,x)=>s+x.balance,0);
+            const debtTotal = byType.CREDIT_CARD.reduce((s,x)=>s+x.balance,0);
+            const net = bankTotal + cashTotal + otherTotal - debtTotal;
+            const rows = [];
+            if(multiCur) rows.push(`<div class="eyebrow" style="padding:4px 0 2px;">${esc(cur)}</div>`);
+            ['BANK','CASH','OTHER'].forEach(tk => {
+              const lbl = {BANK:'Banka',CASH:'Nakit',OTHER:'Diğer'}[tk];
+              byType[tk].forEach(x => {
+                const cls = x.balance >= 0 ? 'color:var(--good)' : 'color:#A4453B';
+                rows.push(`<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;">
+                  <span style="color:var(--muted)">${lbl} — ${esc(x.account.name)}</span>
+                  <span style="${cls};font-weight:500">${finFmtCurrency(x.balance,cur)}</span>
+                </div>`);
+              });
+            });
+            byType.CREDIT_CARD.forEach(x => {
+              const cls = x.balance>0?'color:#A4453B':'color:var(--good)';
+              rows.push(`<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;">
+                <span style="color:var(--muted)">${x.balance>0?'Kart Borcu':'Kart Alacağı'} — ${esc(x.account.name)}</span>
+                <span style="${cls};font-weight:500">${finFmtCurrency(Math.abs(x.balance),cur)}</span>
+              </div>`);
+            });
+            rows.push(`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0 2px;border-top:1px solid var(--line);margin-top:4px;">
+              <span style="font-weight:600">Net${multiCur?' ('+esc(cur)+')':''}</span>
+              <span style="font-weight:700;color:${net>=0?'var(--good)':'#A4453B'}">${net>=0?'+':''}${finFmtCurrency(net,cur)}</span>
+            </div>`);
+            return rows.join('');
+          }).join('')}
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <!-- Cari özeti -->
+    ${cariList.length ? `
+    <div class="eyebrow" style="margin-bottom:8px;">Şirketler Arası Cari</div>
+    <div class="card" style="margin-bottom:20px;">
+      ${cariList.map(c => {
+        const d = companies.find(e=>e.id===c.debtorId);
+        const cr= companies.find(e=>e.id===c.creditorId);
+        return `<div class="bill" style="cursor:pointer" data-caridetail="${c.debtorId}|${c.creditorId}|${c.currency}">
+          <div class="bbody">
+            <div class="bname">${esc(d?d.name:'?')} <span style="color:var(--muted);font-weight:400">→</span> ${esc(cr?cr.name:'?')}</div>
+            <div class="bmeta"><span class="btag genel">${esc(c.currency)}</span></div>
+          </div>
+          <div style="font-weight:600;font-size:14px;color:#A4453B">${finFmtCurrency(c.balance,c.currency)}</div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <!-- Son işlemler -->
+    ${recent.length ? `
+    <div class="eyebrow" style="margin-bottom:8px;">Son İşlemler</div>
+    <div class="card">
+      ${recent.map(t => {
+        const acct = finAccounts.find(a=>a.id===(t.accountId||t.sourceAccountId));
+        const entity = companies.find(c=>c.id===t.entityId);
+        const sign = t.transactionType==='EXPENSE'?'−':t.transactionType==='INCOME'?'+':'';
+        const cls  = t.transactionType==='EXPENSE'?'color:#A4453B':t.transactionType==='INCOME'?'color:var(--good)':'color:var(--muted)';
+        return `<div class="bill">
+          <div class="bbody">
+            <div class="bname">${esc(t.merchant||t.description||t.transactionType)}</div>
+            <div class="bmeta">
+              <span class="bday">${finFmtDate(t.date)}</span>
+              ${entity?`<span class="btag genel">${esc(entity.name)}</span>`:''}
+              ${acct?`<span style="font-size:11px;color:var(--faint)">${esc(acct.name)}</span>`:''}
+            </div>
+          </div>
+          <div style="${cls};font-weight:500">${sign}${finFmtCurrency(t.amount,t.currency||'TRY')}</div>
+        </div>`;
+      }).join('')}
+    </div>` : `
+    <div class="empty">
+      <div class="ico" style="font-size:32px">💼</div>
+      <div style="font-weight:500">Henüz işlem yok</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">İşlemler sekmesinden başla</div>
+    </div>`}
+
+    <div style="margin-top:16px;text-align:center;">
+      <button class="btn-prim" data-fintab="transactions" style="font-size:13px;padding:9px 20px;">+ Yeni İşlem</button>
+    </div>`;
+}
+
+/* ---- Accounts ---- */
+function _finAccountsHTML(){
+  const grouped = {};
+  finAccounts.forEach(a => {
+    if(!grouped[a.entityId]) grouped[a.entityId] = [];
+    grouped[a.entityId].push(a);
+  });
+  const entities = companies.filter(c => grouped[c.id]);
+
+  const rows = entities.length === 0
+    ? `<div class="empty"><div class="ico">🏦</div><div style="font-weight:500">Henüz hesap yok</div></div>`
+    : entities.map(entity => {
+        const accts = grouped[entity.id];
+        return `<div class="card" style="margin-bottom:12px;">
+          <div class="card-head">${esc(entity.name)}</div>
+          ${accts.map(a => {
+            const bal = finComputeBalance(a.id);
+            const isCc = a.type==='CREDIT_CARD';
+            const balCls = isCc?(bal>0?'color:#A4453B':'color:var(--good)'):(bal>=0?'color:var(--good)':'color:#A4453B');
+            return `<div class="bill" style="cursor:pointer" data-finacctedit="${a.id}">
+              <div class="bbody">
+                <div class="bname">${esc(a.name)}</div>
+                <div class="bmeta">
+                  <span class="bday">${{BANK:'Banka',CASH:'Nakit',CREDIT_CARD:'Kredi Kartı',OTHER:'Diğer'}[a.type]||a.type}</span>
+                  ${a.currency&&a.currency!=='TRY'?`<span class="btag genel">${esc(a.currency)}</span>`:''}
+                  ${!a.openingBalanceDate?'<span class="btag" style="background:#FEF3C7;color:#92400E">Başlangıç tarihi yok</span>':''}
+                </div>
+              </div>
+              <div style="${balCls};font-weight:600;font-size:14px;">${isCc?(bal>0?'Borç: ':'Alacak: ')+finFmtCurrency(Math.abs(bal),a.currency||'TRY'):'Bakiye: '+finFmtCurrency(bal,a.currency||'TRY')}</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }).join('');
+
+  return `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn-prim" id="finAddAcct" style="font-size:13px;padding:9px 18px;">+ Hesap Ekle</button>
+    </div>
+    ${rows}`;
+}
+
+/* ---- Transactions ---- */
+function _finTransactionsHTML(){
+  const rows = finTransactions.length === 0
+    ? `<div class="empty"><div class="ico">📊</div><div style="font-weight:500">Henüz işlem yok</div></div>`
+    : finTransactions.map(t => {
+        const entity = companies.find(c => c.id===t.entityId);
+        const cat = finCategories.find(c => c.id===t.categoryId);
+        const sign = t.transactionType==='EXPENSE'?'−':t.transactionType==='INCOME'?'+':'';
+        const cls  = t.transactionType==='EXPENSE'?'color:#A4453B':t.transactionType==='INCOME'?'color:var(--good)':'color:var(--muted)';
+        const purposeLabel = t.transferPurpose ? (FIN_TRANSFER_LABELS[t.transferPurpose]||t.transferPurpose) : '';
+        return `<div class="bill" style="cursor:pointer" data-fintxedit="${t.id}">
+          <div class="bbody">
+            <div class="bname">${esc(t.merchant||t.description||(purposeLabel||t.transactionType))}</div>
+            <div class="bmeta">
+              <span class="bday">${finFmtDate(t.date)}</span>
+              ${entity?`<span class="btag genel">${esc(entity.name)}</span>`:''}
+              ${cat?`<span style="font-size:11px;color:var(--faint)">${esc(cat.name)}</span>`:''}
+              ${t.transactionType==='TRANSFER'&&purposeLabel?`<span class="btag" style="background:var(--paper-2)">${esc(purposeLabel)}</span>`:''}
+            </div>
+          </div>
+          <div style="${cls};font-weight:500;white-space:nowrap">${sign}${finFmtCurrency(t.amount,t.currency||'TRY')}</div>
+        </div>`;
+      }).join('');
+
+  return `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn-prim" id="finAddTx" style="font-size:13px;padding:9px 18px;">+ Yeni İşlem</button>
+    </div>
+    <div class="card">${rows}</div>`;
+}
+
+/* ---- Cari ---- */
+function _finCariHTML(){
+  const cariList = finComputeCari();
+  const unclassified = finTransactions.filter(t => {
+    if(t.transactionType!=='TRANSFER' || t.transferPurpose) return false;
+    const src = finAccounts.find(a=>a.id===t.sourceAccountId);
+    const dst = finAccounts.find(a=>a.id===t.destinationAccountId);
+    return src && dst && src.entityId && dst.entityId && src.entityId!==dst.entityId;
+  }).length;
+
+  const rows = cariList.length === 0
+    ? `<div class="empty"><div class="ico">✅</div><div style="font-weight:500">Cari borç / alacak yok</div></div>`
+    : cariList.map(c => {
+        const d  = companies.find(e=>e.id===c.debtorId);
+        const cr = companies.find(e=>e.id===c.creditorId);
+        return `<div class="bill" style="cursor:pointer" data-caridetail="${c.debtorId}|${c.creditorId}|${c.currency}">
+          <div class="bbody">
+            <div class="bname">${esc(d?d.name:'?')} <span style="color:var(--muted);font-weight:400">→ ${esc(cr?cr.name:'?')}'a borçlu</span></div>
+            <div class="bmeta"><span class="btag genel">${esc(c.currency)}</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-weight:600;color:#A4453B">${finFmtCurrency(c.balance,c.currency)}</div>
+            <span style="font-size:12px;color:var(--muted)">›</span>
+          </div>
+        </div>`;
+      }).join('');
+
+  return `
+    ${unclassified > 0 ? `<div style="background:#FEF3C7;border:1px solid #D97706;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#92400E;">
+      <strong>${unclassified} sınıflandırılmamış transfer</strong> — İşlemler ekranından amaç seçin.
+    </div>` : ''}
+    <div class="card">${rows}</div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;">
+      Gider/Gelir'de farklı şirket sahipleri arasındaki işlemler cari oluşturur. "Şirketler Arası" veya "Cari Ödeme" transferleri de cariye dahildir. Farklı para birimleri ayrı tutulur.
+    </p>`;
+}
+
+/* ---- Categories ---- */
+function _finCategoriesHTML(){
+  const rows = finCategories.length === 0
+    ? `<div class="empty"><div class="ico">🏷</div><div style="font-weight:500">Henüz kategori yok</div></div>`
+    : finCategories.map(c =>
+        `<div class="bill" style="cursor:pointer" data-fincatedit="${c.id}">
+          <div class="bbody"><div class="bname">${esc(c.name)}</div>
+            ${c.type?`<div class="bmeta"><span class="btag genel">${c.type==='INCOME'?'Gelir':c.type==='EXPENSE'?'Gider':'Genel'}</span></div>`:''}
+          </div>
+        </div>`
+      ).join('');
+  return `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn-prim" id="finAddCat" style="font-size:13px;padding:9px 18px;">+ Kategori Ekle</button>
+    </div>
+    <div class="card">${rows}</div>`;
+}
+
+/* ---- Bind actions ---- */
+function _finBindActions(tab){
+  // Tab buttons that navigate (e.g. dashboard "Yeni İşlem" button)
+  document.querySelectorAll('[data-fintab]').forEach(b =>
+    b.addEventListener('click', () => { view.finTab = b.dataset.fintab; render(); }));
+
+  // Back button
+  const back = document.querySelector('[data-finback]');
+  if(back) back.addEventListener('click', () => { view.page='home'; view.finTab=null; render(); });
+
+  // Cari detail
+  document.querySelectorAll('[data-caridetail]').forEach(el =>
+    el.addEventListener('click', () => {
+      const [debtorId, creditorId, currency] = el.dataset.caridetail.split('|');
+      _finOpenCariDetail(debtorId, creditorId, currency);
+    }));
+
+  if(tab==='accounts'){
+    const add = document.getElementById('finAddAcct');
+    if(add) add.addEventListener('click', () => _finOpenAccountModal(null));
+    document.querySelectorAll('[data-finacctedit]').forEach(el =>
+      el.addEventListener('click', () => _finOpenAccountModal(el.dataset.finacctedit)));
+  }
+  if(tab==='transactions'){
+    const add = document.getElementById('finAddTx');
+    if(add) add.addEventListener('click', () => _finOpenTxModal(null));
+    document.querySelectorAll('[data-fintxedit]').forEach(el =>
+      el.addEventListener('click', () => _finOpenTxModal(el.dataset.fintxedit)));
+  }
+  if(tab==='categories'){
+    const add = document.getElementById('finAddCat');
+    if(add) add.addEventListener('click', () => _finOpenCategoryModal(null));
+    document.querySelectorAll('[data-fincatedit]').forEach(el =>
+      el.addEventListener('click', () => _finOpenCategoryModal(el.dataset.fincatedit)));
+  }
+}
+
+/* ---- Account modal ---- */
+function _finOpenAccountModal(id){
+  if(!currentUser) return;
+  const uid = currentUser.uid;
+  const a = id ? finAccounts.find(x=>x.id===id) : null;
+
+  const entityOpts = companies.map(c =>
+    `<option value="${c.id}" ${a&&a.entityId===c.id?'selected':''}>${esc(c.name)}</option>`
+  ).join('');
+  const typeOpts = [['BANK','Banka Hesabı'],['CASH','Nakit / Kasa'],['CREDIT_CARD','Kredi Kartı'],['OTHER','Diğer']].map(
+    ([k,v]) => `<option value="${k}" ${a&&a.type===k?'selected':k==='BANK'&&!a?'selected':''}>${v}</option>`
+  ).join('');
+  const curOpts = ['TRY','USD','EUR','GBP'].map(c =>
+    `<option value="${c}" ${a?a.currency===c?'selected':'':c==='TRY'?'selected':''}>${c}</option>`
+  ).join('');
+
+  // Legacy link options
+  const bankAcctOpts = bankAccounts.map(ba => {
+    const bk = banks.find(b=>b.id===ba.bankId);
+    const label = (bk?bk.name+' — ':'')+( ba.label||ba.iban||ba.id);
+    return `<option value="${ba.id}" ${a&&a.linkedBankAccountId===ba.id?'selected':''}>${esc(label)}</option>`;
+  });
+  const cardOpts = cards.map(cd =>
+    `<option value="${cd.id}" ${a&&a.linkedCardId===cd.id?'selected':''}>${esc(cd.bank+(cd.last4?' *'+cd.last4:''))}</option>`
+  );
+
+  modal.innerHTML = `
+    <div class="modal-head"><div class="eyebrow">${id?'Hesabı Düzenle':'Yeni Hesap'}</div><h3>${id?'Düzenle':'Hesap Ekle'}</h3></div>
+    <div class="modal-body">
+      <div class="field"><label>Sahibi</label><select id="faEntity">${entityOpts}</select></div>
+      <div class="field"><label>Hesap Adı</label><input type="text" id="faName" value="${esc(a?a.name:'')}" placeholder="Garanti Vadesiz"></div>
+      <div class="field"><label>Tür</label><select id="faType">${typeOpts}</select></div>
+      <div class="field"><label>Para Birimi</label><select id="faCur">${curOpts}</select></div>
+      <div class="field"><label>Açılış Bakiyesi</label><input type="number" id="faOpening" step="0.01" value="${a?parseFloat(a.openingBalance)||0:0}"></div>
+      <div class="field"><label>Açılış Tarihi (opsiyonel)</label>
+        <input type="date" id="faOpeningDate" value="${esc(a?a.openingBalanceDate||'':'')}">
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Bu tarihten önceki işlemler bakiyeye dahil edilmez.</div>
+      </div>
+      <div class="field"><label>Banka Adı (opsiyonel)</label><input type="text" id="faBankName" value="${esc(a?a.bankName||'':'')}"></div>
+      ${bankAccounts.length?`<div class="field"><label>Mevcut Banka Hesabına Bağla (opsiyonel)</label>
+        <select id="faLinkBank"><option value="">— bağlama —</option>${bankAcctOpts.join('')}</select></div>`:''}
+      ${cards.length?`<div class="field"><label>Mevcut Karta Bağla (opsiyonel)</label>
+        <select id="faLinkCard"><option value="">— bağlama —</option>${cardOpts.join('')}</select></div>`:''}
+      <div class="modal-foot">
+        ${id?`<button class="btn-ghost" id="faArchive" style="color:#c0392b;margin-right:auto">Pasife Al</button>`:''}
+        <button class="btn-ghost" id="faCancel">İptal</button>
+        <button class="btn-prim" id="faSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+
+  $('#faCancel').onclick = closeModal;
+  if(id) $('#faArchive').onclick = async () => {
+    if(!confirm('Bu hesabı pasife almak istiyor musunuz?')) return;
+    const rec = {...(finAccounts.find(x=>x.id===id)||{}), status:'archived', updatedAtClient:Date.now()};
+    try { await finSaveRecord(uid, 'finAccounts', FIN.COL.ACCOUNTS, rec); } catch(e){ return; }
+    finAccounts = finAccounts.filter(x=>x.id!==id);
+    closeModal(); render(); toast('Pasife alındı');
+  };
+  $('#faSave').onclick = async () => {
+    const entityId = $('#faEntity').value;
+    const name = ($('#faName').value||'').trim();
+    const type = $('#faType').value;
+    const currency = $('#faCur').value;
+    const opening = parseFloat($('#faOpening').value)||0;
+    const openingDate = $('#faOpeningDate').value || null;
+    const bankName = ($('#faBankName').value||'').trim() || null;
+    const linkBank = document.getElementById('faLinkBank')?$('#faLinkBank').value||null:null;
+    const linkCard = document.getElementById('faLinkCard')?$('#faLinkCard').value||null:null;
+    if(!name){ toast('Hesap adı gerekli'); return; }
+    if(!entityId){ toast('Hesap sahibi gerekli'); return; }
+
+    // Auto-fill name/bankName from linked record if empty
+    let finalName = name;
+    let finalBankName = bankName;
+    if(linkBank && !name){
+      const ba = bankAccounts.find(x=>x.id===linkBank);
+      const bk = ba ? banks.find(b=>b.id===ba.bankId) : null;
+      finalName = ba ? (ba.label || ba.iban || 'Banka Hesabı') : finalName;
+      finalBankName = bk ? bk.name : finalBankName;
+    }
+    if(linkCard && !name){
+      const cd = cards.find(x=>x.id===linkCard);
+      finalName = cd ? (cd.bank+(cd.last4?' *'+cd.last4:'')) : finalName;
+    }
+
+    const rec = {
+      id: a ? a.id : generateId(),
+      entityId, name:finalName||name, type, currency,
+      openingBalance:opening, openingBalanceDate:openingDate,
+      bankName:finalBankName,
+      linkedBankAccountId: linkBank || (a?a.linkedBankAccountId:null),
+      linkedCardId: linkCard || (a?a.linkedCardId:null),
+      status:'active',
+      createdAt: a ? a.createdAt : Date.now(),
+      updatedAtClient: Date.now(),
+    };
+    let saved;
+    try { saved = await finSaveRecord(uid, 'finAccounts', FIN.COL.ACCOUNTS, rec); } catch(e){ return; }
+    if(!finAccounts.find(x=>x.id===saved.id)) finAccounts.push(saved);
+    else { const i=finAccounts.findIndex(x=>x.id===saved.id); finAccounts[i]=saved; }
+    closeModal(); render(); toast(id?'Güncellendi':'Hesap eklendi');
+  };
+}
+
+/* ---- Transaction modal ---- */
+function _finOpenTxModal(id){
+  if(!currentUser) return;
+  const uid = currentUser.uid;
+  const t = id ? finTransactions.find(x=>x.id===id) : null;
+  let txType = t ? t.transactionType : 'EXPENSE';
+
+  function _buildTxForm(){
+    const acctOpts = finAccounts.map(a => {
+      const c = companies.find(x=>x.id===a.entityId);
+      return `<option value="${a.id}" ${t&&(t.accountId===a.id||t.sourceAccountId===a.id)?'selected':''}>${esc((c?c.name+' / ':'')+a.name)}</option>`;
+    }).join('');
+    const dstOpts = finAccounts.map(a => {
+      const c = companies.find(x=>x.id===a.entityId);
+      return `<option value="${a.id}" ${t&&t.destinationAccountId===a.id?'selected':''}>${esc((c?c.name+' / ':'')+a.name)}</option>`;
+    }).join('');
+    const entityOpts = companies.map(c =>
+      `<option value="${c.id}" ${t&&t.entityId===c.id?'selected':''}>${esc(c.name)}</option>`
+    ).join('');
+    const catOpts = finCategories.filter(c => !c.type || c.type===txType || c.type==='GENERAL')
+      .map(c => `<option value="${c.id}" ${t&&t.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+    const purposeOpts = Object.entries(FIN_TRANSFER_LABELS).filter(([k])=>k!=='UNCLASSIFIED').map(([k,v]) =>
+      `<option value="${k}" ${t&&t.transferPurpose===k?'selected':k==='INTERNAL'&&!t?'selected':''}>${v}</option>`
+    ).join('');
+    const today = finTodayStr();
+    const isTransfer = txType==='TRANSFER';
+    const isExpense = txType==='EXPENSE';
+    const typeRow = ['INCOME','EXPENSE','TRANSFER'].map(tp =>
+      `<button type="button" class="${tp===txType?'on':''}" data-txtype="${tp}">${tp==='INCOME'?'Gelir':tp==='EXPENSE'?'Gider':'Transfer'}</button>`
+    ).join('');
+    return `
+      <div class="seg" id="txTypeSeg" style="margin-bottom:14px">${typeRow}</div>
+      <div class="field"><label>Tarih</label><input type="date" id="faTxDate" value="${t?t.date:today}"></div>
+      <div class="field"><label>Tutar</label><input type="number" id="faTxAmount" step="0.01" min="0" placeholder="0,00" value="${t?t.amount:''}"></div>
+      ${isTransfer ? `
+        <div class="field"><label>Kaynak Hesap</label><select id="faTxSrc">${acctOpts}</select></div>
+        <div class="field"><label>Hedef Hesap</label><select id="faTxDst">${dstOpts}</select></div>
+        <div id="finCrossCurrWarn" style="display:none;background:#FEF3C7;border-radius:8px;padding:8px 12px;font-size:12px;color:#92400E;margin-bottom:8px">Farklı para birimleri — cross-currency transfer engellendi.</div>
+        <div class="field"><label>Transfer Amacı</label><select id="faTxPurpose">${purposeOpts}</select></div>
+        <div id="finSettlePrev" style="font-size:12px;color:var(--muted);padding:6px 0;display:none"></div>
+      ` : `
+        <div class="field"><label>Hesap</label><select id="faTxAcct">${acctOpts}</select></div>
+        <div id="faTxCurInfo" style="font-size:11px;color:var(--muted);margin-top:-6px;margin-bottom:6px;"></div>
+        <div class="field"><label>Taraf (${isExpense?'Gider yapan':'Gelir gelen'})</label><select id="faTxEntity"><option value="">— seç —</option>${entityOpts}</select></div>
+        <div class="field"><label>Kategori</label><select id="faTxCat"><option value="">— seç —</option>${catOpts}</select></div>
+      `}
+      <div class="field"><label>${isTransfer?'Açıklama':'İşyeri / Açıklama'}</label>
+        <input type="text" id="faTxDesc" placeholder="${isTransfer?'Opsiyonel':'Örn. Migros'}" value="${esc(t?t.merchant||t.description||'':'')}">
+      </div>`;
+  }
+
+  modal.innerHTML = `
+    <div class="modal-head"><div class="eyebrow">${id?'İşlemi Düzenle':'Yeni İşlem'}</div><h3>${id?'Düzenle':'İşlem Ekle'}</h3></div>
+    <div class="modal-body">
+      <div id="faTxFormWrap">${_buildTxForm()}</div>
+      <div class="modal-foot">
+        ${id?`<button class="btn-ghost" id="faTxDelete" style="color:#c0392b;margin-right:auto">Sil</button>`:''}
+        <button class="btn-ghost" id="faTxCancel">İptal</button>
+        <button class="btn-prim" id="faTxSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+
+  function _rebind(){
+    document.querySelectorAll('#txTypeSeg [data-txtype]').forEach(b =>
+      b.addEventListener('click',()=>{
+        txType=b.dataset.txtype;
+        document.getElementById('faTxFormWrap').innerHTML=_buildTxForm();
+        _rebind();
+      }));
+    // Currency info for expense/income
+    const acctEl=document.getElementById('faTxAcct');
+    if(acctEl) acctEl.addEventListener('change',()=>{
+      const a=finAccounts.find(x=>x.id===acctEl.value);
+      const el=document.getElementById('faTxCurInfo');
+      if(el) el.textContent=a&&a.currency&&a.currency!=='TRY'?'Para birimi: '+a.currency:'';
+    });
+    // Cross-currency check for transfer
+    const checkCross=()=>{
+      const src=document.getElementById('faTxSrc');const dst=document.getElementById('faTxDst');
+      const warn=document.getElementById('finCrossCurrWarn');
+      if(!src||!dst||!warn) return;
+      const sA=finAccounts.find(a=>a.id===src.value);
+      const dA=finAccounts.find(a=>a.id===dst.value);
+      const cross=sA&&dA&&(sA.currency||'TRY')!==(dA.currency||'TRY');
+      warn.style.display=cross?'block':'none';
+    };
+    const srcEl=document.getElementById('faTxSrc');
+    const dstEl=document.getElementById('faTxDst');
+    if(srcEl) srcEl.addEventListener('change',checkCross);
+    if(dstEl) dstEl.addEventListener('change',checkCross);
+  }
+  _rebind();
+
+  $('#faTxCancel').onclick=closeModal;
+  if(id) $('#faTxDelete').onclick=async()=>{
+    if(!confirm('Bu işlemi silmek istiyor musunuz?')) return;
+    const rec={...(finTransactions.find(x=>x.id===id)||{}),status:'archived',updatedAtClient:Date.now()};
+    try { await finSaveRecord(uid,'finTransactions',FIN.COL.TRANSACTIONS,rec); } catch(e){ return; }
+    finTransactions=finTransactions.filter(x=>x.id!==id);
+    closeModal(); render(); toast('Silindi');
+  };
+  $('#faTxSave').onclick=async()=>{
+    const dateVal=($('#faTxDate')||{}).value;
+    const amountVal=parseFloat(($('#faTxAmount')||{}).value)||0;
+    if(!dateVal){ toast('Tarih gerekli'); return; }
+    if(amountVal<=0){ toast('Tutar 0\'dan büyük olmalı'); return; }
+
+    let rec;
+    if(txType==='TRANSFER'){
+      const srcId=($('#faTxSrc')||{}).value;
+      const dstId=($('#faTxDst')||{}).value;
+      if(!srcId||!dstId){ toast('Kaynak ve hedef hesap gerekli'); return; }
+      const srcAcct=finAccounts.find(a=>a.id===srcId);
+      const dstAcct=finAccounts.find(a=>a.id===dstId);
+      const srcCur=(srcAcct?srcAcct.currency:null)||'TRY';
+      const dstCur=(dstAcct?dstAcct.currency:null)||'TRY';
+      if(srcCur!==dstCur){ toast('Farklı para birimi — cross-currency transfer engellendi'); return; }
+      const purpose=($('#faTxPurpose')||{}).value||'INTERNAL';
+      // SETTLEMENT validation
+      if(purpose==='SETTLEMENT'){
+        const srcOwner=srcAcct?srcAcct.entityId:null;
+        const dstOwner=dstAcct?dstAcct.entityId:null;
+        const cariList=finComputeCari();
+        const correctCari=cariList.find(c=>c.debtorId===srcOwner&&c.creditorId===dstOwner&&c.currency===srcCur);
+        const reverseCari=cariList.find(c=>c.debtorId===dstOwner&&c.creditorId===srcOwner&&c.currency===srcCur);
+        if(reverseCari&&!correctCari){
+          if(!confirm('Uyarı: Bu ödeme carinin ters yönündedir ve mevcut cariyi artıracaktır. Devam?')) return;
+        } else if(correctCari&&amountVal>correctCari.balance+0.01){
+          toast('Ödeme tutarı mevcut cari bakiyeden ('+finFmtCurrency(correctCari.balance,srcCur)+') yüksek'); return;
+        }
+      }
+      rec={
+        id: t?t.id:(Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
+        transactionType:'TRANSFER', date:dateVal, amount:amountVal, currency:srcCur,
+        sourceAccountId:srcId, destinationAccountId:dstId, transferPurpose:purpose,
+        description:(($('#faTxDesc')||{}).value||'').trim()||null,
+        status:'active', createdAt:t?t.createdAt:Date.now(), updatedAtClient:Date.now(),
+      };
+    } else {
+      const acctId=($('#faTxAcct')||{}).value;
+      if(!acctId){ toast('Hesap gerekli'); return; }
+      const acct=finAccounts.find(a=>a.id===acctId);
+      const txCur=(acct?acct.currency:null)||'TRY';
+      const entityId=($('#faTxEntity')||{}).value||null;
+      const catId=($('#faTxCat')||{}).value||null;
+      rec={
+        id: t?t.id:(Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
+        transactionType:txType, date:dateVal, amount:amountVal, currency:txCur,
+        accountId:acctId, entityId, categoryId:catId,
+        merchant:(($('#faTxDesc')||{}).value||'').trim()||null,
+        status:'active', createdAt:t?t.createdAt:Date.now(), updatedAtClient:Date.now(),
+      };
+    }
+    let saved;
+    try { saved=await finSaveRecord(uid,'finTransactions',FIN.COL.TRANSACTIONS,rec); } catch(e){ return; }
+    if(!finTransactions.find(x=>x.id===saved.id)) finTransactions.push(saved);
+    else { const i=finTransactions.findIndex(x=>x.id===saved.id); finTransactions[i]=saved; }
+    finTransactions.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    closeModal(); render(); toast(id?'Güncellendi':'İşlem eklendi');
+  };
+}
+
+/* ---- Category modal ---- */
+function _finOpenCategoryModal(id){
+  if(!currentUser) return;
+  const uid = currentUser.uid;
+  const c = id ? finCategories.find(x=>x.id===id) : null;
+  modal.innerHTML=`
+    <div class="modal-head"><div class="eyebrow">${id?'Düzenle':'Yeni Kategori'}</div><h3>Kategori</h3></div>
+    <div class="modal-body">
+      <div class="field"><label>Ad</label><input type="text" id="fcName" value="${esc(c?c.name:'')}" placeholder="Örn. Kira, Maaş..."></div>
+      <div class="field"><label>Tür</label>
+        <div class="seg" id="fcType">
+          <button data-v="EXPENSE" class="${!c||c.type==='EXPENSE'?'on':''}">Gider</button>
+          <button data-v="INCOME"  class="${c&&c.type==='INCOME'?'on':''}">Gelir</button>
+          <button data-v="GENERAL" class="${c&&c.type==='GENERAL'?'on':''}">Genel</button>
+        </div>
+      </div>
+      <div class="modal-foot">
+        ${id?`<button class="btn-ghost" id="fcDelete" style="color:#c0392b;margin-right:auto">Sil</button>`:''}
+        <button class="btn-ghost" id="fcCancel">İptal</button>
+        <button class="btn-prim" id="fcSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  let catType = c?c.type:'EXPENSE';
+  document.querySelectorAll('#fcType [data-v]').forEach(b=>b.addEventListener('click',()=>{
+    catType=b.dataset.v;
+    document.querySelectorAll('#fcType [data-v]').forEach(x=>x.classList.toggle('on',x===b));
+  }));
+  $('#fcCancel').onclick=closeModal;
+  if(id) $('#fcDelete').onclick=async()=>{
+    const rec={...(finCategories.find(x=>x.id===id)||{}),status:'archived',updatedAtClient:Date.now()};
+    try { await finSaveRecord(uid,'finCategories',FIN.COL.CATEGORIES,rec); } catch(e){ return; }
+    finCategories=finCategories.filter(x=>x.id!==id);
+    closeModal(); render(); toast('Silindi');
+  };
+  $('#fcSave').onclick=async()=>{
+    const name=($('#fcName').value||'').trim();
+    if(!name){ toast('Ad gerekli'); return; }
+    const rec={
+      id: c?c.id:(Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
+      name, type:catType, status:'active',
+      createdAt:c?c.createdAt:Date.now(), updatedAtClient:Date.now(),
+    };
+    let saved;
+    try { saved=await finSaveRecord(uid,'finCategories',FIN.COL.CATEGORIES,rec); } catch(e){ return; }
+    if(!finCategories.find(x=>x.id===saved.id)) finCategories.push(saved);
+    else { const i=finCategories.findIndex(x=>x.id===saved.id); finCategories[i]=saved; }
+    closeModal(); render(); toast(id?'Güncellendi':'Kategori eklendi');
+  };
+}
+
+/* ---- Cari detail modal ---- */
+function _finOpenCariDetail(debtorId, creditorId, currency){
+  const d  = companies.find(c=>c.id===debtorId);
+  const cr = companies.find(c=>c.id===creditorId);
+  const title = `${d?d.name:'?'} → ${cr?cr.name:'?'}`;
+
+  const items = [];
+  finTransactions.forEach(t => {
+    let impact=0, label='';
+    if(t.transactionType==='EXPENSE'){
+      const acct=finAccounts.find(a=>a.id===t.accountId);
+      if(!acct||!acct.entityId||!t.entityId||acct.entityId===t.entityId) return;
+      const cur=t.currency||acct.currency||'TRY';
+      if(cur!==currency) return;
+      if(t.entityId===debtorId&&acct.entityId===creditorId){ impact=(t.amount||0); label='Gider'; }
+      else if(t.entityId===creditorId&&acct.entityId===debtorId){ impact=-(t.amount||0); label='Gider (ters)'; }
+      else return;
+    } else if(t.transactionType==='INCOME'){
+      const acct=finAccounts.find(a=>a.id===t.accountId);
+      if(!acct||!acct.entityId||!t.entityId||acct.entityId===t.entityId) return;
+      const cur=t.currency||acct.currency||'TRY';
+      if(cur!==currency) return;
+      if(acct.entityId===debtorId&&t.entityId===creditorId){ impact=(t.amount||0); label='Gelir'; }
+      else if(acct.entityId===creditorId&&t.entityId===debtorId){ impact=-(t.amount||0); label='Gelir (ters)'; }
+      else return;
+    } else if(t.transactionType==='TRANSFER'){
+      const srcAcct=finAccounts.find(a=>a.id===t.sourceAccountId);
+      const dstAcct=finAccounts.find(a=>a.id===t.destinationAccountId);
+      if(!srcAcct||!dstAcct) return;
+      const srcOwner=srcAcct.entityId,dstOwner=dstAcct.entityId;
+      if(!srcOwner||!dstOwner||srcOwner===dstOwner) return;
+      const purpose=t.transferPurpose;
+      if(purpose!=='INTERCOMPANY'&&purpose!=='SETTLEMENT') return;
+      const cur=t.currency||srcAcct.currency||'TRY';
+      if(cur!==currency) return;
+      const pl=FIN_TRANSFER_LABELS[purpose]||purpose;
+      if(dstOwner===debtorId&&srcOwner===creditorId){ impact=(t.amount||0); label=pl; }
+      else if(dstOwner===creditorId&&srcOwner===debtorId){ impact=-(t.amount||0); label=pl; }
+      else return;
+    } else return;
+    if(impact!==0) items.push({t,impact,label});
+  });
+  items.sort((a,b)=>(a.t.date||'').localeCompare(b.t.date||''));
+
+  const bodyHTML = items.length===0
+    ? `<p style="color:var(--muted);text-align:center;padding:20px 0">Bu cariye katkıda bulunan işlem bulunamadı.</p>`
+    : `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:1px solid var(--line)">
+          <th style="text-align:left;padding:6px 8px;font-weight:500">Tarih</th>
+          <th style="text-align:left;padding:6px 8px;font-weight:500">Tip</th>
+          <th style="text-align:left;padding:6px 8px;font-weight:500">Açıklama</th>
+          <th style="text-align:right;padding:6px 8px;font-weight:500">Etki (${esc(currency)})</th>
+        </tr></thead>
+        <tbody>${items.map(item => {
+          const sign=item.impact>0?'+':'−';
+          const cls=item.impact>0?'color:#A4453B':'color:var(--good)';
+          return `<tr style="border-bottom:1px solid var(--line)">
+            <td style="padding:6px 8px;white-space:nowrap">${finFmtDate(item.t.date)}</td>
+            <td style="padding:6px 8px"><span class="btag genel">${esc(item.label)}</span></td>
+            <td style="padding:6px 8px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.t.merchant||item.t.description||'—')}</td>
+            <td style="padding:6px 8px;text-align:right;${cls};font-weight:600">${sign}${finFmtCurrency(Math.abs(item.impact),currency)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px">+ = ${esc(d?d.name:'?')}'nın borcu artar · − = borcu azalır</p>`;
+
+  modal.innerHTML=`
+    <div class="modal-head"><div class="eyebrow">Cari Detay · ${esc(currency)}</div><h3>${title}</h3></div>
+    <div class="modal-body">${bodyHTML}
+      <div class="modal-foot"><button class="btn-ghost" id="fcariClose">Kapat</button></div>
+    </div>`;
+  overlay.classList.add('show');
+  $('#fcariClose').onclick=closeModal;
+}
+
+/* --- Firestore rules file hint --- */
+// Apply the following rules in Firebase Console → Firestore Database → Rules:
+// See firestore.rules file in project root.
+
 (async function init(){
   try{
     await openDB();
     await loadSettings();
-    setupLock();
-    const remUntil=Number(localStorage.getItem(REM_KEY)||0);
-    if(Date.now()<remUntil){ /* token geçerli, kilitleme */ }
-    else lockApp();
-
-    const localCompanies = await getAll('companies');
-    const isNewDevice = localCompanies.length === 0;
-
-    if(isNewDevice && cloudCfg.enabled && cloudCfg.config){
-      // Yeni cihaz + bulut aktif: önce buluttan çek, seed etme
-      try{
-        await cloudConnect();
-        startCloudLoop();
-      }catch(e){ console.error('Bulut bağlantısı:', e); }
-      // Bulut boşsa veya bağlanamadıysa yerel seed yap
-      await seedIfEmpty();
-    } else {
-      await seedIfEmpty();
-      if(cloudCfg.enabled && cloudCfg.config){
-        cloudConnect().then(()=>startCloudLoop()).catch(e=>console.error('Bulut bağlantısı:',e));
-      }
-    }
-
-    await loadAll();
-    await seedPastelyaRoutines();
-    await renameInsaat();
-    await seedInsaatLink();
-    await seedMetalCompany();
-    await seedPersonalCompany();
-    await loadAll();
-    render();
-    checkReminders();
-    reminderTimer=setInterval(checkReminders,5*60*1000);
+    showLoginScreen(); // show while firebase initializes
+    await bootstrapFirebase();
+    setupAuthStateListener(); // handles sign-in state; hides login on success
   }catch(e){
-    app.innerHTML=`<div class="empty" style="margin-top:60px"><div class="ico">⚠</div><div style="font-weight:500;color:var(--ink)">Veri tabanı açılamadı</div><div style="font-size:13px;margin-top:6px">Tarayıcının IndexedDB desteği gerekiyor. Dosyayı yerel olarak çift tıklayıp Chrome/Edge/Firefox ile açın.</div></div>`;
+    app.innerHTML=`<div class="empty" style="margin-top:60px"><div class="ico">⚠</div><div style="font-weight:500;color:var(--ink)">Başlatma hatası</div><div style="font-size:13px;margin-top:6px">${esc(e.message)}</div></div>`;
     console.error(e);
   }
 })();
