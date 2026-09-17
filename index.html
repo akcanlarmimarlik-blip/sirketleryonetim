@@ -380,6 +380,15 @@
   .entry-panel > svg{color:var(--faint);transition:transform .16s ease;flex:none}
   .entry-panel:hover > svg{transform:translateX(4px);color:var(--accent)}
 
+  /* 4'lü ızgara — Anlık Harcamalar hariç diğer paneller */
+  .entry-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  .entry-grid .entry-panel{margin-top:0;width:auto;flex-direction:column;align-items:flex-start;gap:10px;padding:16px 16px 14px}
+  .entry-grid .entry-ico{width:40px;height:40px;border-radius:10px}
+  .entry-grid .entry-title{font-size:15px}
+  .entry-grid .entry-sum{font-size:11px;line-height:1.4}
+  .entry-grid .entry-panel > svg{display:none}
+  @media(max-width:700px){.entry-grid{grid-template-columns:repeat(2,1fr);}}
+
   /* bills */
   .billlist{display:flex;flex-direction:column;gap:8px}
   .bill{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px 14px 13px 16px;transition:border-color .15s ease}
@@ -1000,10 +1009,12 @@ function renderHome(){
     </section>
     ${financeEntryHTML()}
     ${anlikEntryHTML()}
-    ${cardsEntryHTML()}
-    ${loansEntryHTML()}
-    ${banksEntryHTML()}
-    ${chequesEntryHTML()}`;
+    <div class="entry-grid">
+      ${cardsEntryHTML()}
+      ${loansEntryHTML()}
+      ${banksEntryHTML()}
+      ${chequesEntryHTML()}
+    </div>`;
 
   app.innerHTML=`
     <div class="masthead">
