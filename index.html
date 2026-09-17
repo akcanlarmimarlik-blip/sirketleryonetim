@@ -444,8 +444,13 @@
   .entry-grid-2 .entry-title{font-size:14px}
   .entry-grid-2 .entry-sum{font-size:11px;line-height:1.35}
   .entry-grid-2 .entry-panel > svg{flex:none;opacity:.4}
-  @media(max-width:400px){.entry-grid-2{grid-template-columns:1fr}}
-  @media(max-width:700px){.entry-grid{grid-template-columns:repeat(2,1fr);}}
+  /* Tablet (≤900px): entry-grid 2 kolon */
+  @media(max-width:900px){.entry-grid{grid-template-columns:repeat(2,1fr)}}
+  /* Mobil (≤500px): entry-grid-2 tek kolon */
+  @media(max-width:500px){.entry-grid-2{grid-template-columns:1fr}}
+  /* Tablet için home-body max-width ortala */
+  @media(min-width:600px){.home-body{max-width:720px;margin-left:auto;margin-right:auto}}
+  @media(min-width:900px){.home-body{max-width:860px}}
 
   /* bills */
   .billlist{display:flex;flex-direction:column;gap:8px}
