@@ -3837,12 +3837,13 @@ async function onUserSignedIn(user){
   await seedMetalCompany();
   await seedPersonalCompany();
   await loadAll();
-  render();
-  if(new URLSearchParams(location.search).get('quick')==='1'){
+  const _quickMode = new URLSearchParams(location.search).get('quick')==='1'
+    || (window.navigator.standalone === true);
+  if(_quickMode){
     view={page:'anlik',companyId:null,section:null,cardId:null,bankId:null,homeTab:'overview'};
-    render();
-    setTimeout(()=>openAnlikHarcamaModal(),200);
   }
+  render();
+  if(_quickMode) setTimeout(()=>openAnlikHarcamaModal(),300);
   attachFinListeners(user.uid);
   checkReminders();
   reminderTimer = setInterval(checkReminders, 5*60*1000);
