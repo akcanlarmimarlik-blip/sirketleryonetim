@@ -671,7 +671,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 11);
+    const r = indexedDB.open('rutinMerkezi', 12);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -694,6 +694,9 @@ function openDB(){
       if(!d.objectStoreNames.contains('finTransactions')) d.createObjectStore('finTransactions',{keyPath:'id'});
       if(!d.objectStoreNames.contains('finCategories'))   d.createObjectStore('finCategories',{keyPath:'id'});
       if(!d.objectStoreNames.contains('finProjects'))     d.createObjectStore('finProjects',{keyPath:'id'});
+      // Finance Mutabakat (v12)
+      if(!d.objectStoreNames.contains('finStmtImports')) d.createObjectStore('finStmtImports',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('finStmtItems'))   d.createObjectStore('finStmtItems',  {keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -3565,10 +3568,11 @@ function openReminderModal(){
 /* ---------- Sabitler ---------- */
 const FIN = {
   COL: {
-    TRANSACTIONS: 'financeTransactions',
-    ACCOUNTS:     'financeAccounts',
-    CATEGORIES:   'financeCategories',
-    PROJECTS:     'financeProjects',
+    TRANSACTIONS:  'financeTransactions',
+    ACCOUNTS:      'financeAccounts',
+    CATEGORIES:    'financeCategories',
+    PROJECTS:      'financeProjects',
+    STMT_IMPORTS:  'financeStatementImports',
   },
   userPath: uid => `users/${uid}`,
 };
@@ -3616,6 +3620,8 @@ async function loadAllFinance(){
                      .sort((a,b) => (b.date||'').localeCompare(a.date||''));
   finCategories   = (await getAll('finCategories')).filter(c => c.status !== 'archived');
   finProjects     = (await getAll('finProjects')).filter(p => p.status !== 'archived');
+  finStmtImports  = (await getAll('finStmtImports')).filter(i => i.status !== 'deleted')
+                     .sort((a,b) => (b.importedAt||0) - (a.importedAt||0));
 }
 
 /* ---------- Cloud sync helpers (online-only) ---------- */
@@ -3645,14 +3651,19 @@ async function finSaveRecord(uid, idbStore, fsCollection, rec){
   return rec;
 }
 
-async function _finApplyRemote(idbStore, inMemArray, remoteDoc){
+async function _finApplyRemote(idbStore, inMemArray, remoteDoc, activeFilter){
   const local = inMemArray.find(r => r.id === remoteDoc.id);
   const localUpdated = local ? (local.updatedAtClient || 0) : 0;
   const remoteUpdated = remoteDoc.updatedAtClient || 0;
   if(!local || remoteUpdated > localUpdated){
     await put(idbStore, remoteDoc);
     const idx = inMemArray.findIndex(r => r.id === remoteDoc.id);
-    if(idx >= 0) inMemArray[idx] = remoteDoc; else inMemArray.push(remoteDoc);
+    if(activeFilter && !activeFilter(remoteDoc)){
+      // Archived/filtered-out: remove from in-memory array
+      if(idx >= 0) inMemArray.splice(idx, 1);
+    } else {
+      if(idx >= 0) inMemArray[idx] = remoteDoc; else inMemArray.push(remoteDoc);
+    }
     return true;
   }
   return false;
@@ -3677,7 +3688,7 @@ function attachFinListeners(uid){
         // Remove server timestamps (not serializable in IDB)
         if(data.serverUpdatedAt && typeof data.serverUpdatedAt.toDate === 'function')
           data.serverUpdatedAt = data.serverUpdatedAt.toDate().getTime();
-        _finApplyRemote(idbStore, inMemArray, data).then(c => { if(c) changed = true; });
+        _finApplyRemote(idbStore, inMemArray, data, activeFilter).then(c => { if(c) changed = true; });
         // Note: async in loop is fine here — render called below
       });
       // Re-filter and re-sort after batch
@@ -3771,6 +3782,9 @@ function financeEntryHTML(){
   const summary = acctCount
     ? `${acctCount} hesap · ${txCount} işlem`
     : 'Hesap ekleyerek başla';
+  // FİNANS PANELİ GEÇİCİ PASİF — aktif etmek için: return ile başlayan satırı sil, alttaki bloğu aç
+  return '';
+  /* PASIF BLOK — aktif etmek için bu satırı ve kapayan */ /* i kaldır:
   return `
   <button class="entry-panel" data-finance style="--accent:#2F6E57;--accent-tint:#DCEBE2">
     <span class="entry-ico">${svgBank()}</span>
@@ -3780,6 +3794,7 @@ function financeEntryHTML(){
     </span>
     ${svgArrow()}
   </button>`;
+  */
 }
 
 /* ============================================================
@@ -3789,11 +3804,12 @@ function financeEntryHTML(){
 function renderFinancePage(){
   const tab = view.finTab || 'dashboard';
   const tabs = [
-    {key:'dashboard',  label:'Genel'},
-    {key:'accounts',   label:'Hesaplar'},
+    {key:'dashboard',   label:'Genel'},
+    {key:'accounts',    label:'Hesaplar'},
     {key:'transactions',label:'İşlemler'},
-    {key:'cari',       label:'Cari'},
-    {key:'categories', label:'Kategoriler'},
+    {key:'cari',        label:'Cari'},
+    {key:'categories',  label:'Kategoriler'},
+    {key:'reconcile',   label:'Mutabakat'},
   ];
   const tabBar = tabs.map(t =>
     `<button class="tab ${t.key===tab?'active':''}" data-fintab="${t.key}">${t.label}</button>`
@@ -3805,6 +3821,7 @@ function renderFinancePage(){
   else if(tab==='transactions') body = _finTransactionsHTML();
   else if(tab==='cari')    body = _finCariHTML();
   else if(tab==='categories') body = _finCategoriesHTML();
+  else if(tab==='reconcile')  body = _finReconcileHTML();
 
   app.innerHTML = `
     <div class="wrap" style="padding-bottom:80px">
@@ -4126,6 +4143,7 @@ function _finBindActions(tab){
     document.querySelectorAll('[data-fincatedit]').forEach(el =>
       el.addEventListener('click', () => _finOpenCategoryModal(el.dataset.fincatedit)));
   }
+  if(tab==='reconcile') _finBindReconcile();
 }
 
 /* ---- Account modal ---- */
@@ -4520,6 +4538,668 @@ function _finOpenCariDetail(debtorId, creditorId, currency){
     </div>`;
   overlay.classList.add('show');
   $('#fcariClose').onclick=closeModal;
+}
+
+/* ============================================================
+   MUTABAKAT / BANKA EKSTRESİ
+   ============================================================ */
+
+/* ---------- State ---------- */
+let finStmtImports = [], finStmtItems = [];
+
+/* ---------- PDF.js demand loader ---------- */
+async function _loadPdfJs(){
+  if(window.pdfjsLib) return window.pdfjsLib;
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  return window.pdfjsLib;
+}
+
+/* ---------- PDF metin çıkarma — koordinat tabanlı satır gruplama ---------- */
+async function _parsePDF(file){
+  const lib = await _loadPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await lib.getDocument({data: buf}).promise;
+  const numPages = pdf.numPages;
+  let totalItems = 0;
+  const allRows = []; // logical rows across all pages
+
+  for(let p = 1; p <= numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const items = content.items.filter(it => it.str && it.str.trim());
+    totalItems += items.length;
+    console.log(`PDF page ${p}/${numPages}: ${items.length} text items`);
+
+    // Group text items by Y coordinate (transform[5]), tolerance 4px
+    const Y_TOL = 4;
+    const groups = []; // {y, items:[{x,str}]}
+    for(const it of items){
+      const x = it.transform[4];
+      const y = it.transform[5];
+      let grp = groups.find(g => Math.abs(g.y - y) <= Y_TOL);
+      if(!grp){ grp = {y, items:[]}; groups.push(grp); }
+      grp.items.push({x, str: it.str});
+    }
+
+    // Sort groups top-to-bottom (PDF Y=0 is bottom → descending Y = top-first)
+    groups.sort((a, b) => b.y - a.y);
+
+    for(const grp of groups){
+      grp.items.sort((a, b) => a.x - b.x); // left to right
+      const rowText = grp.items.map(it => it.str).join(' ').trim();
+      if(rowText) allRows.push(rowText);
+    }
+  }
+
+  console.log(`PDF parse complete: ${numPages} pages, ${totalItems} items, ${allRows.length} logical rows`);
+  return { numPages, totalItems, rows: allRows };
+}
+
+/* ---------- Banka hareketi parser — satır dizisi alır ---------- */
+// rows: string[] — each entry is one logical PDF row (Y-grouped, X-sorted)
+// Returns { items, candidateCount, fmt }
+// NO minimum amount filter here — filtering is UI-only
+function _parseBankLines(rows){
+  const items = [];
+  let candidateCount = 0;
+  const dateRe = /\b(\d{2})[.\/-](\d{2})[.\/-](20\d{2})\b/;
+
+  // Auto-detect amount format per PDF
+  // Turkish: 1.234,56   English: 1,234.56
+  let engCount = 0, turCount = 0;
+  for(const row of rows){
+    engCount += (row.match(/\d{1,3}(?:,\d{3})+\.\d{2}/g)||[]).length;
+    turCount += (row.match(/\d{1,3}(?:\.\d{3})+,\d{2}/g)||[]).length;
+  }
+  const fmt = engCount >= turCount ? 'EN' : 'TR';
+  console.log(`Amount format detected: ${fmt} (EN=${engCount} TR=${turCount})`);
+
+  // EN: requires .XX decimal → avoids matching bare integers / years
+  // TR: requires ,XX decimal
+  const amtRe = fmt === 'EN'
+    ? /[+-]?\d{1,3}(?:,\d{3})*\.\d{2}/g
+    : /[+-]?\d{1,3}(?:\.\d{3})*,\d{2}/g;
+
+  const parseAmt = (s) => fmt === 'EN'
+    ? parseFloat(s.replace(/,/g,''))
+    : parseFloat(s.replace(/\./g,'').replace(',','.'));
+
+  for(const line of rows){
+    if(!line || line.length <= 2) continue;
+    const dm = line.match(dateRe);
+    if(!dm) continue;
+    candidateCount++;
+
+    const amts = [...line.matchAll(amtRe)].map(m => parseAmt(m[0])).filter(n => !isNaN(n));
+    if(amts.length === 0) continue;
+
+    const txAmt  = amts.length >= 2 ? amts[amts.length - 2] : amts[0];
+    const absAmt = Math.abs(txAmt);
+    if(absAmt < 0.01) continue;
+
+    const lu = line.toUpperCase();
+    let dir;
+    if(txAmt < 0 || lu.includes('BORÇ') || lu.includes('DEBIT') || lu.includes('ÇIKIŞ')) dir = 'OUT';
+    else if(txAmt > 0 || lu.includes('ALACAK') || lu.includes('CREDIT') || lu.includes('GİRİŞ')) dir = 'IN';
+    else dir = 'OUT';
+
+    const dateStr = `${dm[3]}-${dm[2]}-${dm[1]}`;
+    const balanceAfter = amts.length >= 2 ? Math.abs(amts[amts.length - 1]) : null;
+
+    // Strip dates and amounts from description (same amtRe so no leftover number fragments)
+    let desc = line
+      .replace(new RegExp(dateRe.source,'g'),'')
+      .replace(amtRe,'')
+      .replace(/\s{2,}/g,' ').trim();
+    if(!desc) desc = '—';
+
+    items.push({
+      date: dateStr,
+      description: desc.substring(0,200),
+      amount: absAmt,
+      direction: dir,
+      balanceAfter,
+      rawText: line.substring(0,300),
+    });
+  }
+  return { items, candidateCount, fmt };
+}
+
+/* ---------- Duplicate matcher ---------- */
+function _finFindMatch(item){
+  const dirType = item.direction === 'OUT' ? 'EXPENSE' : 'INCOME';
+  for(const t of finTransactions){
+    if(Math.abs((t.amount||0) - item.amount) > 0.01) continue;
+    const acctMatch =
+      (t.transactionType === dirType  && t.accountId === item.accountId) ||
+      (t.transactionType === 'TRANSFER' && item.direction === 'OUT' && t.sourceAccountId === item.accountId) ||
+      (t.transactionType === 'TRANSFER' && item.direction === 'IN'  && t.destinationAccountId === item.accountId);
+    if(!acctMatch) continue;
+    const d1 = new Date((t.date||'')+'T12:00:00');
+    const d2 = new Date((item.date||'')+'T12:00:00');
+    if(isNaN(d1)||isNaN(d2)) continue;
+    if(Math.abs(d1-d2) <= 86400000) return t;
+  }
+  return null;
+}
+
+/* ---------- Import oluştur ---------- */
+async function _finCreateStmtImport(uid, accountId, fileName, rawItems){
+  const importId = generateId();
+  const now = Date.now();
+  const stmtItems = rawItems.map(ri => {
+    const match = _finFindMatch({...ri, accountId});
+    return {
+      id: generateId(),
+      importId,
+      accountId,
+      date: ri.date,
+      description: ri.description,
+      amount: ri.amount,
+      direction: ri.direction,
+      balanceAfter: ri.balanceAfter||null,
+      rawText: ri.rawText||'',
+      status: match ? 'MATCHED' : 'REVIEW',
+      matchedTransactionId: match ? match.id : null,
+      proposedType: null, entityId: null, categoryId: null, projectId: null,
+      notes: null, createdTransactionId: null,
+    };
+  });
+
+  const dates = rawItems.map(r=>r.date).filter(Boolean).sort();
+  const importRec = {
+    id: importId, accountId, fileName,
+    statementStartDate: dates[0]||null,
+    statementEndDate: dates[dates.length-1]||null,
+    importedAt: now, status:'ACTIVE',
+    itemCount: stmtItems.length, reviewedCount: 0,
+    updatedAtClient: now, createdAt: now,
+  };
+
+  await finSaveRecord(uid, 'finStmtImports', FIN.COL.STMT_IMPORTS, importRec);
+  finStmtImports.unshift(importRec);
+
+  for(const item of stmtItems) await put('finStmtItems', item);
+  finStmtItems = stmtItems;
+  view.stmtImportId = importId;
+}
+
+/* ---------- Stmt items IDB'den yükle ---------- */
+async function _loadStmtItemsForView(){
+  if(!view.stmtImportId) return;
+  const all = await getAll('finStmtItems');
+  finStmtItems = all.filter(i => i.importId === view.stmtImportId);
+  if(view.page === 'finance' && view.finTab === 'reconcile') render();
+}
+
+/* ---------- Item IDB güncelle (in-memory + IDB) ---------- */
+async function _saveStmtItem(item){
+  await put('finStmtItems', item);
+  const idx = finStmtItems.findIndex(x=>x.id===item.id);
+  if(idx>=0) finStmtItems[idx]=item; else finStmtItems.push(item);
+}
+
+/* ---------- Import reviewedCount güncelle ---------- */
+async function _updateImportProgress(uid, importId){
+  const imp = finStmtImports.find(x=>x.id===importId);
+  if(!imp) return;
+  const all = await getAll('finStmtItems');
+  const reviewed = all.filter(i=>i.importId===importId&&(i.status==='APPROVED'||i.status==='IGNORED'||i.status==='MATCHED')).length;
+  const updated = {...imp, reviewedCount: reviewed, updatedAtClient: Date.now()};
+  try { await finSaveRecord(uid, 'finStmtImports', FIN.COL.STMT_IMPORTS, updated); } catch(e){}
+  const idx = finStmtImports.findIndex(x=>x.id===importId);
+  if(idx>=0) finStmtImports[idx]=updated;
+}
+
+/* ---------- Onay: staging → gerçek transaction ---------- */
+async function _finApproveStmtItem(uid, itemId, txData){
+  const item = finStmtItems.find(x=>x.id===itemId);
+  if(!item) return;
+  const rec = {...txData, source:'BANK_STATEMENT', statementImportId:item.importId, statementItemId:item.id};
+  let saved;
+  try { saved = await finSaveRecord(uid, 'finTransactions', FIN.COL.TRANSACTIONS, rec); } catch(e){ return; }
+  finTransactions.push(saved);
+  finTransactions.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  await _saveStmtItem({...item, status:'APPROVED', createdTransactionId: saved.id});
+  await _updateImportProgress(uid, item.importId);
+}
+
+/* ---------- Yok say / toplu yok say / geri al ---------- */
+async function _finIgnoreStmtItem(itemId){
+  const item = finStmtItems.find(x=>x.id===itemId);
+  if(item) await _saveStmtItem({...item, status:'IGNORED'});
+}
+/* ---------- Import sil ---------- */
+async function _finDeleteStmtImport(uid, importId){
+  const imp = finStmtImports.find(x=>x.id===importId);
+  if(!imp) return;
+  try {
+    await finSaveRecord(uid, 'finStmtImports', FIN.COL.STMT_IMPORTS,
+      {...imp, status:'deleted', updatedAtClient:Date.now()});
+  } catch(e){ return; }
+  const allItems = await getAll('finStmtItems');
+  for(const item of allItems.filter(i=>i.importId===importId))
+    await del('finStmtItems', item.id);
+  finStmtImports = finStmtImports.filter(x=>x.id!==importId);
+  if(view.stmtImportId === importId){ view.stmtImportId = null; finStmtItems = []; }
+}
+
+async function _finBulkIgnoreItems(itemIds){
+  for(const id of itemIds) await _finIgnoreStmtItem(id);
+}
+async function _finUnmatchStmtItem(itemId){
+  const item = finStmtItems.find(x=>x.id===itemId);
+  if(item) await _saveStmtItem({...item, status:'REVIEW', matchedTransactionId:null});
+}
+async function _finReopenStmtItem(itemId){
+  const item = finStmtItems.find(x=>x.id===itemId);
+  if(!item) return;
+  if(item.status==='APPROVED' && item.createdTransactionId && currentUser){
+    const tx = finTransactions.find(t=>t.id===item.createdTransactionId);
+    if(tx){
+      try {
+        await finSaveRecord(currentUser.uid,'finTransactions',FIN.COL.TRANSACTIONS,
+          {...tx, status:'archived', updatedAtClient:Date.now()});
+        finTransactions = finTransactions.filter(t=>t.id!==item.createdTransactionId);
+      } catch(e){ toast('Transaction arşivlenemedi'); return; }
+    }
+  }
+  await _saveStmtItem({...item, status:'REVIEW', matchedTransactionId:null, createdTransactionId:null});
+}
+
+/* ============================================================
+   MUTABAKAT UI
+   ============================================================ */
+
+function _finReconcileHTML(){
+  if(view.stmtImportId){
+    const loaded = finStmtItems.length > 0 && finStmtItems[0] && finStmtItems[0].importId === view.stmtImportId;
+    if(!loaded){ _loadStmtItemsForView(); return `<div style="text-align:center;padding:40px;color:var(--muted)">Yükleniyor…</div>`; }
+    return _finReconcileReviewHTML(view.stmtImportId);
+  }
+  return _finReconcileImportHTML();
+}
+
+function _finReconcileImportHTML(){
+  const bankAccts = finAccounts.filter(a => a.type === 'BANK');
+  const acctOpts = bankAccts.map(a => {
+    const c = companies.find(x=>x.id===a.entityId);
+    return `<option value="${a.id}">${esc((c?c.name+' / ':'')+a.name)}</option>`;
+  }).join('');
+  const pastImports = finStmtImports.slice(0,5);
+
+  return `
+    <div class="card" style="margin-bottom:16px;padding:18px 16px;">
+      <div class="eyebrow" style="margin-bottom:10px;">Yeni Ekstre Yükle</div>
+      ${bankAccts.length === 0
+        ? `<div style="color:var(--muted);font-size:13px">Önce Hesaplar sekmesinde BANK tipinde hesap ekleyin.</div>`
+        : `<div class="field"><label>Hesap</label>
+             <select id="stmtAcctSel">${acctOpts}</select>
+           </div>
+           <div class="field"><label>Minimum tutar filtresi (TRY)</label>
+             <input type="number" id="stmtMinAmt" value="${view.stmtMinAmount||50}" min="0" step="10" style="width:120px">
+           </div>
+           <div style="margin-top:8px">
+             <button class="btn-prim" id="stmtUploadBtn" style="font-size:13px;padding:9px 18px;">PDF Seç &amp; Analiz Et</button>
+             <input type="file" id="stmtFileInput" accept=".pdf" style="display:none">
+           </div>
+           <div id="stmtProgress" style="margin-top:10px;font-size:13px;color:var(--muted);display:none"></div>`
+      }
+    </div>
+    ${pastImports.length ? `
+      <div class="eyebrow" style="margin-bottom:8px;">Önceki İmportlar</div>
+      <div class="card">
+        ${pastImports.map(imp => {
+          const acct = finAccounts.find(a=>a.id===imp.accountId);
+          const c    = acct ? companies.find(x=>x.id===acct.entityId) : null;
+          const prog = imp.itemCount ? Math.round((imp.reviewedCount||0)/imp.itemCount*100) : 0;
+          return `<div class="bill" style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;cursor:pointer" data-stmtopen="${imp.id}">
+              <div class="bbody">
+                <div class="bname">${esc(imp.fileName||'Ekstre')}</div>
+                <div class="bmeta">
+                  <span class="bday">${finFmtDate(imp.statementStartDate||'')} – ${finFmtDate(imp.statementEndDate||'')}</span>
+                  ${acct?`<span class="btag genel">${esc((c?c.name+' / ':'')+acct.name)}</span>`:''}
+                </div>
+              </div>
+              <div style="text-align:right;font-size:12px;color:var(--muted)">${imp.itemCount} hareket · ${prog}% incelendi</div>
+            </div>
+            <button class="btn-ghost" data-stmtdelete="${imp.id}" style="font-size:11px;padding:4px 10px;color:#c0392b;flex-shrink:0">Sil</button>
+          </div>`;
+        }).join('')}
+      </div>` : ''}`;
+}
+
+function _finReconcileReviewHTML(importId){
+  const imp = finStmtImports.find(x=>x.id===importId);
+  if(!imp) return `<div class="empty">Import bulunamadı.</div>`;
+
+  const acct = finAccounts.find(a=>a.id===imp.accountId);
+  const c    = acct ? companies.find(x=>x.id===acct.entityId) : null;
+  const acctName = acct ? (c?c.name+' / ':'')+acct.name : '?';
+  const minAmt = view.stmtMinAmount || 50;
+  const showAll = view.stmtShowAll || false;
+
+  const total    = finStmtItems.length;
+  const above    = finStmtItems.filter(i=>i.amount >= minAmt).length;
+  const nReview  = finStmtItems.filter(i=>i.status==='REVIEW').length;
+  const nMatched = finStmtItems.filter(i=>i.status==='MATCHED').length;
+  const nApproved= finStmtItems.filter(i=>i.status==='APPROVED').length;
+  const nIgnored = finStmtItems.filter(i=>i.status==='IGNORED').length;
+
+  let items = showAll ? finStmtItems : finStmtItems.filter(i=>i.amount >= minAmt);
+  items = [...items].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+
+  const statsHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;text-align:center;font-size:12px;">
+      <div class="card" style="padding:10px 6px"><div style="font-size:18px;font-weight:700">${total}</div><div style="color:var(--muted)">Toplam</div></div>
+      <div class="card" style="padding:10px 6px"><div style="font-size:18px;font-weight:700;color:#c0392b">${nReview}</div><div style="color:var(--muted)">İncelenecek</div></div>
+      <div class="card" style="padding:10px 6px"><div style="font-size:18px;font-weight:700;color:var(--good)">${nApproved}</div><div style="color:var(--muted)">Onaylanan</div></div>
+      <div class="card" style="padding:10px 6px"><div style="font-size:18px;font-weight:700;color:#7C3AED">${nMatched}</div><div style="color:var(--muted)">Eşleşen</div></div>
+      <div class="card" style="padding:10px 6px"><div style="font-size:18px;font-weight:700">${above}</div><div style="color:var(--muted)">${minAmt}₺ üzeri</div></div>
+      <div class="card" style="padding:10px 6px"><div style="font-size:18px;font-weight:700;color:var(--faint)">${nIgnored}</div><div style="color:var(--muted)">Yok Sayılan</div></div>
+    </div>`;
+
+  const filterHTML = `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:13px;">
+      <button class="btn-ghost" id="stmtBack" style="padding:6px 12px;font-size:12px;">← Geri</button>
+      <span style="color:var(--muted);font-size:12px">${esc(acctName)} · ${esc(imp.fileName||'Ekstre')}</span>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px;">
+        Min:<input type="number" id="stmtMinAmtFilter" value="${minAmt}" min="0" step="10"
+          style="width:64px;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);margin-left:4px">
+        <button class="btn-ghost" id="stmtToggleAll" style="font-size:12px;padding:4px 10px">${showAll?'Filtrele':'Tümünü Göster'}</button>
+      </div>
+    </div>`;
+
+  const pendingItems = items.filter(i=>i.status==='REVIEW'||i.status==='MATCHED');
+  const bulkHTML = pendingItems.length > 0 ? `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;font-size:12px;">
+      <input type="checkbox" id="stmtSelectAll" style="width:16px;height:16px">
+      <label for="stmtSelectAll" style="cursor:pointer">Tümünü seç</label>
+      <button class="btn-ghost" id="stmtBulkIgnore" style="font-size:12px;padding:4px 10px;color:#c0392b">Seçilenleri Yok Say</button>
+    </div>` : '';
+
+  const rowsHTML = items.length === 0
+    ? `<div class="empty" style="padding:30px 0"><div style="font-weight:500">Görüntülenecek hareket yok</div></div>`
+    : items.map(item => {
+        const dirIcon = item.direction==='OUT' ? '−' : '+';
+        const dirCls  = item.direction==='OUT' ? 'color:#A4453B' : 'color:var(--good)';
+        const matchTx = item.matchedTransactionId ? finTransactions.find(t=>t.id===item.matchedTransactionId) : null;
+
+        let badge = '';
+        if(item.status==='MATCHED')  badge = `<span class="btag" style="background:#EDE9FE;color:#7C3AED">Eşleşti</span>`;
+        if(item.status==='APPROVED') badge = `<span class="btag" style="background:#D1FAE5;color:#065F46">Onaylandı</span>`;
+        if(item.status==='IGNORED')  badge = `<span class="btag" style="background:var(--paper-2);color:var(--muted)">Yok Sayıldı</span>`;
+
+        let actions = '';
+        if(item.status==='REVIEW'){
+          actions = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">
+            <button class="btn-prim" data-classify="${item.id}" data-ctype="EXPENSE" style="font-size:11px;padding:4px 10px">Gider</button>
+            <button class="btn-prim" data-classify="${item.id}" data-ctype="INCOME"  style="font-size:11px;padding:4px 10px;background:#2F6E57">Gelir</button>
+            <button class="btn-prim" data-classify="${item.id}" data-ctype="TRANSFER" style="font-size:11px;padding:4px 10px;background:#7C3AED">Transfer</button>
+            <button class="btn-ghost" data-ignorestmt="${item.id}" style="font-size:11px;padding:4px 10px">Yok Say</button>
+          </div>`;
+        } else if(item.status==='MATCHED'){
+          const mName = matchTx?(matchTx.merchant||matchTx.description||matchTx.transactionType):'?';
+          actions = `
+            <div style="margin-top:5px;font-size:11px;color:#7C3AED">Mevcut: ${esc(mName)} · ${finFmtDate(matchTx?matchTx.date:'')}</div>
+            <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">
+              <button class="btn-ghost" data-confirmmatch="${item.id}" style="font-size:11px;padding:4px 10px;color:#7C3AED">Eşleştir (Yeni Kayıt Açma)</button>
+              <button class="btn-ghost" data-unmatch="${item.id}" style="font-size:11px;padding:4px 10px">Eşleşmeyi Kaldır</button>
+              <button class="btn-ghost" data-ignorestmt="${item.id}" style="font-size:11px;padding:4px 10px">Yok Say</button>
+            </div>`;
+        } else {
+          actions = `<div style="margin-top:5px"><button class="btn-ghost" data-reopenstmt="${item.id}" style="font-size:11px;padding:4px 10px">Geri Al</button></div>`;
+        }
+
+        const checkable = item.status==='REVIEW'||item.status==='MATCHED';
+        return `<div class="card" style="margin-bottom:8px;padding:12px 14px;${item.status==='IGNORED'?'opacity:.5':''}">
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            ${checkable?`<input type="checkbox" class="stmt-row-cb" data-itemid="${item.id}" style="width:16px;height:16px;margin-top:3px;flex-shrink:0">`:'<div style="width:16px;flex-shrink:0"></div>'}
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div style="min-width:0">
+                  <div style="font-weight:500;font-size:13px;word-break:break-word">${esc(item.description)}</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">${finFmtDate(item.date)} ${badge}</div>
+                </div>
+                <div style="${dirCls};font-weight:700;font-size:15px;white-space:nowrap;flex-shrink:0">${dirIcon}${finFmtCurrency(item.amount,'TRY')}</div>
+              </div>
+              ${actions}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+  return `${filterHTML}${statsHTML}${bulkHTML}<div id="stmtReviewList">${rowsHTML}</div>`;
+}
+
+/* ---------- Classify modal ---------- */
+function _finOpenClassifyModal(itemId, ctype){
+  if(!currentUser) return;
+  const uid = currentUser.uid;
+  const item = finStmtItems.find(x=>x.id===itemId);
+  if(!item) return;
+
+  const acctOpts = finAccounts.map(a => {
+    const co = companies.find(x=>x.id===a.entityId);
+    return `<option value="${a.id}" ${a.id===item.accountId?'selected':''}>${esc((co?co.name+' / ':'')+a.name)}</option>`;
+  }).join('');
+  const entityOpts = companies.map(co =>
+    `<option value="${co.id}" ${co.id===item.entityId?'selected':''}>${esc(co.name)}</option>`
+  ).join('');
+  const catOpts = finCategories
+    .filter(cat=>!cat.type||cat.type===(ctype==='INCOME'?'INCOME':'EXPENSE')||cat.type==='GENERAL')
+    .map(cat=>`<option value="${cat.id}">${esc(cat.name)}</option>`).join('');
+  const otherAcctOpts = finAccounts.filter(a=>a.id!==item.accountId).map(a => {
+    const co = companies.find(x=>x.id===a.entityId);
+    return `<option value="${a.id}">${esc((co?co.name+' / ':'')+a.name)}</option>`;
+  }).join('');
+  const purposeOpts = Object.entries(FIN_TRANSFER_LABELS).filter(([k])=>k!=='UNCLASSIFIED')
+    .map(([k,v])=>`<option value="${k}" ${k==='INTERNAL'?'selected':''}>${v}</option>`).join('');
+
+  const typeLabel = ctype==='EXPENSE'?'Gider':ctype==='INCOME'?'Gelir':'Transfer';
+  modal.innerHTML = `
+    <div class="modal-head">
+      <div class="eyebrow">${esc(typeLabel)} — Ekstre Onayı</div>
+      <h3 style="font-size:13px;font-weight:400;color:var(--muted);margin-top:2px">${esc(item.description.substring(0,60))} · ${finFmtCurrency(item.amount,'TRY')}</h3>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Tarih</label><input type="date" id="clDate" value="${item.date}"></div>
+      <div class="field"><label>Tutar</label><input type="number" id="clAmt" step="0.01" value="${item.amount}"></div>
+      ${ctype==='TRANSFER'?`
+        ${item.direction==='OUT'?`
+          <div class="field"><label>Kaynak Hesap</label><select id="clSrc">${acctOpts}</select></div>
+          <div class="field"><label>Hedef Hesap</label><select id="clDst">${otherAcctOpts}</select></div>
+        `:`
+          <div class="field"><label>Kaynak Hesap</label><select id="clSrc">${otherAcctOpts}</select></div>
+          <div class="field"><label>Hedef Hesap</label><select id="clDst">${acctOpts}</select></div>
+        `}
+        <div class="field"><label>Transfer Amacı</label><select id="clPurpose">${purposeOpts}</select></div>
+      `:`
+        <div class="field"><label>Hesap</label><select id="clAcct">${acctOpts}</select></div>
+        <div class="field"><label>Şirket</label><select id="clEntity"><option value="">— seç —</option>${entityOpts}</select></div>
+        <div class="field"><label>Kategori</label><select id="clCat"><option value="">— seç —</option>${catOpts}</select></div>
+      `}
+      <div class="field"><label>Not / Açıklama</label><input type="text" id="clNote" value="${esc(item.description||'')}" placeholder="Opsiyonel"></div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="clCancel">İptal</button>
+        <button class="btn-prim" id="clApprove">Onayla</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+
+  $('#clCancel').onclick = closeModal;
+  $('#clApprove').onclick = async () => {
+    const dateVal = $('#clDate').value;
+    const amtVal  = parseFloat(($('#clAmt')||{}).value)||0;
+    if(!dateVal||amtVal<=0){ toast('Tarih ve tutar gerekli'); return; }
+
+    let txData;
+    if(ctype==='TRANSFER'){
+      const srcId = ($('#clSrc')||{}).value;
+      const dstId = ($('#clDst')||{}).value;
+      if(!srcId||!dstId){ toast('Kaynak ve hedef hesap gerekli'); return; }
+      const srcA = finAccounts.find(a=>a.id===srcId);
+      const dstA = finAccounts.find(a=>a.id===dstId);
+      if((srcA?srcA.currency:'TRY') !== (dstA?dstA.currency:'TRY')){ toast('Farklı para birimi — transfer engellendi'); return; }
+      txData = {
+        id: generateId(), transactionType:'TRANSFER', date:dateVal, amount:amtVal,
+        currency:(srcA?srcA.currency:null)||'TRY',
+        sourceAccountId:srcId, destinationAccountId:dstId,
+        transferPurpose:($('#clPurpose')||{}).value||'INTERNAL',
+        description:($('#clNote').value||'').trim()||null,
+        status:'active', createdAt:Date.now(), updatedAtClient:Date.now(),
+      };
+    } else {
+      const acctId = ($('#clAcct')||{}).value;
+      if(!acctId){ toast('Hesap gerekli'); return; }
+      const acct = finAccounts.find(a=>a.id===acctId);
+      txData = {
+        id: generateId(), transactionType:ctype, date:dateVal, amount:amtVal,
+        currency:(acct?acct.currency:null)||'TRY',
+        accountId:acctId,
+        entityId:($('#clEntity').value)||null,
+        categoryId:($('#clCat').value)||null,
+        merchant:($('#clNote').value||'').trim()||item.description||null,
+        status:'active', createdAt:Date.now(), updatedAtClient:Date.now(),
+      };
+    }
+    await _finApproveStmtItem(uid, itemId, txData);
+    closeModal(); render(); toast('Onaylandı — işlem oluşturuldu');
+  };
+}
+
+/* ---------- Reconcile bindings ---------- */
+function _finBindReconcile(){
+  // Upload flow (import screen)
+  const uploadBtn = document.getElementById('stmtUploadBtn');
+  const fileInput = document.getElementById('stmtFileInput');
+  if(uploadBtn && fileInput){
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if(!file) return;
+      if(file.type !== 'application/pdf'){ toast('Lütfen PDF dosyası seçin'); return; }
+      if(!currentUser){ toast('Giriş yapmanız gerekli'); return; }
+      const accountId = ($('#stmtAcctSel')||{}).value;
+      if(!accountId){ toast('Önce hesap seçin'); return; }
+      view.stmtMinAmount = parseInt(($('#stmtMinAmt')||{}).value)||50;
+      const prog = document.getElementById('stmtProgress');
+      if(prog){ prog.style.display='block'; prog.textContent='PDF analiz ediliyor…'; }
+      if(uploadBtn) uploadBtn.disabled = true;
+      try {
+        const { numPages, totalItems, rows } = await _parsePDF(file);
+        const { items: rawItems, candidateCount, fmt } = _parseBankLines(rows);
+        const debugMsg = `Sayfa: ${numPages} · Item: ${totalItems} · Satır: ${rows.length} · Aday: ${candidateCount} · Bulunan: ${rawItems.length} · Format: ${fmt}`;
+        console.log('PDF debug:', debugMsg);
+        if(prog){ prog.style.display='block'; prog.textContent = debugMsg; }
+        if(rawItems.length === 0){
+          toast('PDF\'den hareket çıkarılamadı. Dijital/metin PDF olduğundan emin olun. Konsolu kontrol et.');
+          return;
+        }
+        if(prog) prog.textContent = debugMsg + ' — kaydediliyor…';
+        await _finCreateStmtImport(currentUser.uid, accountId, file.name, rawItems);
+        render();
+      } catch(e){
+        console.error('PDF parse:', e);
+        toast('PDF işleme hatası: ' + (e.message||'bilinmeyen hata'));
+        if(prog) prog.style.display='none';
+      } finally {
+        if(uploadBtn) uploadBtn.disabled = false;
+        if(fileInput) fileInput.value = '';
+      }
+    });
+  }
+
+  // Open past import
+  document.querySelectorAll('[data-stmtopen]').forEach(el =>
+    el.addEventListener('click', async () => {
+      view.stmtImportId = el.dataset.stmtopen;
+      finStmtItems = [];
+      render();
+    })
+  );
+
+  // Delete import
+  document.querySelectorAll('[data-stmtdelete]').forEach(btn =>
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if(!currentUser) return;
+      if(!confirm('Bu import silinsin mi? Onaylanan işlemler silinmez.')) return;
+      await _finDeleteStmtImport(currentUser.uid, btn.dataset.stmtdelete);
+      render(); toast('Import silindi');
+    })
+  );
+
+  // Back to import screen
+  const stmtBack = document.getElementById('stmtBack');
+  if(stmtBack) stmtBack.addEventListener('click', () => {
+    view.stmtImportId = null; finStmtItems = []; render();
+  });
+
+  // Min amount filter
+  const minFilter = document.getElementById('stmtMinAmtFilter');
+  if(minFilter) minFilter.addEventListener('change', () => {
+    view.stmtMinAmount = parseInt(minFilter.value)||0; render();
+  });
+
+  // Toggle show-all
+  const toggleAll = document.getElementById('stmtToggleAll');
+  if(toggleAll) toggleAll.addEventListener('click', () => {
+    view.stmtShowAll = !view.stmtShowAll; render();
+  });
+
+  // Select all checkbox
+  const selAll = document.getElementById('stmtSelectAll');
+  if(selAll) selAll.addEventListener('change', () => {
+    document.querySelectorAll('.stmt-row-cb').forEach(cb => cb.checked = selAll.checked);
+  });
+
+  // Bulk ignore
+  const bulkIgnore = document.getElementById('stmtBulkIgnore');
+  if(bulkIgnore) bulkIgnore.addEventListener('click', async () => {
+    const ids = [...document.querySelectorAll('.stmt-row-cb:checked')].map(cb => cb.dataset.itemid);
+    if(ids.length===0){ toast('Hiç seçili yok'); return; }
+    await _finBulkIgnoreItems(ids);
+    render(); toast(`${ids.length} hareket yok sayıldı`);
+  });
+
+  // Classify buttons
+  document.querySelectorAll('[data-classify]').forEach(btn =>
+    btn.addEventListener('click', () => _finOpenClassifyModal(btn.dataset.classify, btn.dataset.ctype))
+  );
+
+  // Individual ignore
+  document.querySelectorAll('[data-ignorestmt]').forEach(btn =>
+    btn.addEventListener('click', async () => { await _finIgnoreStmtItem(btn.dataset.ignorestmt); render(); })
+  );
+
+  // Confirm match (already matched — mark IGNORED, no new tx)
+  document.querySelectorAll('[data-confirmmatch]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      const item = finStmtItems.find(x=>x.id===btn.dataset.confirmmatch);
+      if(!item) return;
+      await _saveStmtItem({...item, status:'IGNORED'});
+      render(); toast('Mevcut işlemle eşleştirildi');
+    })
+  );
+
+  // Unmatch
+  document.querySelectorAll('[data-unmatch]').forEach(btn =>
+    btn.addEventListener('click', async () => { await _finUnmatchStmtItem(btn.dataset.unmatch); render(); })
+  );
+
+  // Reopen
+  document.querySelectorAll('[data-reopenstmt]').forEach(btn =>
+    btn.addEventListener('click', async () => { await _finReopenStmtItem(btn.dataset.reopenstmt); render(); })
+  );
 }
 
 /* --- Firestore rules file hint --- */
