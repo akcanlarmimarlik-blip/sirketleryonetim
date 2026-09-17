@@ -299,15 +299,16 @@
   .cal-hint{margin-top:14px;color:var(--muted);text-align:center}
   .firm-link{
     --accent:#1C1A17;--accent-tint:#EFEADD;
-    display:flex;align-items:center;gap:15px;text-decoration:none;
-    margin-top:22px;padding:16px 18px;border-radius:14px;
+    display:flex;align-items:center;gap:12px;text-decoration:none;
+    margin-top:0;padding:14px 14px;border-radius:14px;
     background:var(--accent-tint);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);
     transition:transform .15s ease, box-shadow .15s ease;
+    min-width:0;overflow:hidden;
   }
   .firm-link:hover{transform:translateY(-2px);box-shadow:0 10px 26px color-mix(in srgb,var(--accent) 20%,transparent)}
   .fl-ico{width:44px;height:44px;flex:none;border-radius:11px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center}
   .fl-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-  .fl-title{font-family:'Fraunces',serif;font-size:17px;font-weight:500;color:var(--ink)}
+  .fl-title{font-family:'Fraunces',serif;font-size:15px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fl-url{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fl-go{flex:none;color:var(--accent)}
 
@@ -1079,7 +1080,7 @@ function renderHome(){
         ${banksEntryHTML()}
         ${chequesEntryHTML()}
       </div>
-      ${realCompanies.some(c=>c.link) ? `<div class="entry-grid">${
+      ${realCompanies.some(c=>c.link) ? `<div class="entry-grid-2">${
         realCompanies.filter(c=>c.link).map(c=>`
           <a class="firm-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer"
              style="--accent:${c.accent};--accent-tint:${c.tint};margin-top:0">
