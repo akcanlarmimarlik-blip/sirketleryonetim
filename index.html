@@ -7,6 +7,11 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <title>Rutin Komuta Merkezi</title>
+<link rel="manifest" href="./manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Harcama" />
+<meta name="theme-color" content="#3B6E35" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -380,6 +385,49 @@
   .entry-panel > svg{color:var(--faint);transition:transform .16s ease;flex:none}
   .entry-panel:hover > svg{transform:translateX(4px);color:var(--accent)}
 
+  /* Görev sayfası */
+  .task-item{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;position:relative}
+  .task-item.done{opacity:.45}
+  .task-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:none;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;color:transparent;transition:border-color .15s,background .15s,color .15s;margin-top:1px}
+  .task-item.done .task-check{background:var(--good);border-color:var(--good);color:#fff}
+  .task-body-row{flex:1;min-width:0}
+  .task-title{font-size:14px;font-weight:500;color:var(--ink);line-height:1.3;word-break:break-word}
+  .task-item.done .task-title{text-decoration:line-through;color:var(--muted)}
+  .task-co{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:var(--paper-2);color:var(--muted);margin-top:4px}
+  .task-del{background:none;border:none;cursor:pointer;color:var(--faint);padding:3px 6px;border-radius:6px;font-size:15px;line-height:1;flex:none}
+  .task-del:hover{background:var(--paper-2);color:#c0392b}
+  .task-add-row{display:flex;gap:8px;margin-top:16px}
+  .task-add-row input{flex:1;font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+  .task-add-row select{font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+  .task-add-row button{font-size:13px;padding:9px 16px;border-radius:10px;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-weight:600;white-space:nowrap}
+
+  /* Ana ekran eşit boşluk */
+  .home-body{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+  .home-body .home-sec,.home-body .entry-panel,.home-body .entry-grid,.home-body .grid,.home-body .firm-link{margin-top:0}
+
+  /* LLC Şirketi sayfası — ikiye bölünmüş layout */
+  .llc-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;align-items:start}
+  @media(max-width:640px){.llc-split{grid-template-columns:1fr}}
+  .llc-panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;min-height:300px}
+  .llc-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .llc-panel-title{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .llc-note-item{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer}
+  .llc-note-item:hover{border-color:var(--line-strong)}
+  .llc-note-title{font-size:13px;font-weight:600;color:var(--ink)}
+  .llc-note-preview{font-size:12px;color:var(--muted);margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .llc-note-date{font-size:11px;color:var(--faint);margin-top:5px}
+  .llc-task-item{display:flex;align-items:flex-start;gap:9px;padding:9px 10px;background:var(--paper);border:1px solid var(--line);border-radius:10px;margin-bottom:7px}
+  .llc-task-item.done{opacity:.45}
+  .llc-task-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);background:none;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;color:transparent;transition:border-color .15s,background .15s,color .15s;margin-top:1px}
+  .llc-task-item.done .llc-task-check{background:#2563EB;border-color:#2563EB;color:#fff}
+  .llc-task-title{flex:1;font-size:13px;font-weight:500;color:var(--ink);line-height:1.3}
+  .llc-task-item.done .llc-task-title{text-decoration:line-through;color:var(--muted)}
+  .llc-task-del{background:none;border:none;cursor:pointer;color:var(--faint);padding:2px 5px;border-radius:5px;font-size:14px;line-height:1;flex:none}
+  .llc-task-del:hover{color:#c0392b}
+  .llc-add-row{display:flex;gap:6px;margin-top:10px}
+  .llc-add-row input{flex:1;font-size:12px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);min-width:0}
+  .llc-add-row button{font-size:12px;padding:7px 12px;border-radius:8px;background:#1D4ED8;color:#fff;border:none;cursor:pointer;font-weight:600;white-space:nowrap}
+
   /* 4'lü ızgara — Anlık Harcamalar hariç diğer paneller */
   .entry-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
   .entry-grid .entry-panel{margin-top:0;width:auto;flex-direction:column;align-items:flex-start;gap:10px;padding:16px 16px 14px}
@@ -748,8 +796,8 @@ function periodKeyFor(freq,d=new Date()){
 /* ---------- State ---------- */
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
-let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[];
-let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview'};
+let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
+let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview', taskOpen:{daily:false,weekly:false,monthly:false}};
 let calMonth=new Date(); // aylık takvimde gösterilen ay
 let personalBillMonth=new Date(); // şahsi faturalar ay seçici
 
@@ -954,6 +1002,7 @@ const app=document.getElementById('app');
 const $ = s=>document.querySelector(s);
 
 function svgCheck(){return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
+function svgNote(){return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="10" y1="9" x2="8" y2="9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
 function svgArrow(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 function svgBack(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 function svgGear(){return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>'}
@@ -990,6 +1039,10 @@ function render(){
   else if(view.page==='bank') renderBankDetail();
   else if(view.page==='reminders') renderRemindersPage();
   else if(view.page==='anlik') renderAnlikPage();
+  else if(view.page==='tasks') renderTaskPage();
+  else if(view.page==='notlarim') renderNotlarimPage();
+  else if(view.page==='llc') renderLLCPage();
+  else if(view.page==='fedex') renderFedexPage();
   else if(view.page==='finance') renderFinancePage();
   else if(view.section) renderSection();
   else renderCompany();
@@ -1003,17 +1056,32 @@ function renderHome(){
   const upCount=upcomingItems().filter(i=>i.days!==null && i.days<=7).length;
 
   const body = tab==='dashboard' ? dashboardHTML() : `
-    <section class="home-sec">
-      <div class="home-sec-head"><span class="eyebrow">İşletme Rutinleri</span><button class="sec-add" data-addcompany>${svgPlus()} Firma ekle</button></div>
-      <div class="grid">${realCompanies.map(firmCard).join('')}</div>
-    </section>
-    ${financeEntryHTML()}
-    ${anlikEntryHTML()}
-    <div class="entry-grid">
-      ${cardsEntryHTML()}
-      ${loansEntryHTML()}
-      ${banksEntryHTML()}
-      ${chequesEntryHTML()}
+    <div class="home-body">
+      ${_homeTaskHTML()}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${_llcEntryHTML()}
+        ${_fedexEntryHTML()}
+      </div>
+      ${financeEntryHTML()}
+      ${anlikEntryHTML()}
+      <div class="entry-grid">
+        ${cardsEntryHTML()}
+        ${loansEntryHTML()}
+        ${banksEntryHTML()}
+        ${chequesEntryHTML()}
+      </div>
+      ${realCompanies.some(c=>c.link) ? `<div class="entry-grid">${
+        realCompanies.filter(c=>c.link).map(c=>`
+          <a class="firm-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer"
+             style="--accent:${c.accent};--accent-tint:${c.tint};margin-top:0">
+            <span class="fl-ico">${svgLink()}</span>
+            <span class="fl-body">
+              <span class="fl-title">${esc(c.linkLabel||c.name)}</span>
+              <span class="fl-url">${esc(c.name)}</span>
+            </span>
+            <span class="fl-go">${svgExternal()}</span>
+          </a>`).join('')
+      }</div>` : ''}
     </div>`;
 
   app.innerHTML=`
@@ -1331,13 +1399,11 @@ function anlikEntryHTML(){
     ? `${anlikHarcamalar.length} kayıt${monthTotal?` · bu ay ${fmtMoney(monthTotal,'TRY')}`:''}`
     : 'Henüz harcama yok — eklemek için gir';
   return `
-  <button class="entry-panel" data-anlik style="--accent:#C27C3E;--accent-tint:#F5EAD8">
-    <span class="entry-ico">${svgCash()}</span>
-    <span class="entry-body">
-      <span class="entry-title">Anlık Harcamalar</span>
-      <span class="entry-sum">${summary}</span>
+  <button class="entry-panel" data-anlik style="--accent:#5C7A52;--accent-tint:#E6ECE2;background:#D4EDCE;border-color:#B8DAAF;justify-content:center">
+    <span class="entry-body" style="text-align:center;flex:none">
+      <span class="entry-title" style="color:#2F5426">Anlık Harcamalar</span>
+      <span class="entry-sum" style="color:#5C7A52">${summary}</span>
     </span>
-    ${svgArrow()}
   </button>`;
 }
 
@@ -1415,12 +1481,14 @@ function renderAnlikPage(){
         <h2>Anlık Harcamalar</h2>
       </div>
       <span class="spacer"></span>
+      <button class="btn-ghost" id="anlikBankAyar" style="font-size:13px;margin-right:6px">⚙ Hesaplar</button>
       <button class="sec-add" data-addanlik>${svgPlus()} Ekle</button>
     </div>
     <div class="anlik-list" style="margin-top:24px">${rows}</div>
   </div>
   ${renderFooter()}`;
   $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  $('#anlikBankAyar').addEventListener('click',openAnlikBankAyarModal);
   const eah=$('[data-addanlik]');if(eah)eah.addEventListener('click',()=>openAnlikHarcamaModal());
   document.querySelectorAll('[data-anlikdots]').forEach(btn=>{
     btn.addEventListener('click',e=>{e.stopPropagation();openAnlikHarcamaMenu(btn.dataset.anlikdots,btn)});
@@ -1428,6 +1496,416 @@ function renderAnlikPage(){
   document.querySelectorAll('[data-anlikislendi]').forEach(btn=>{
     btn.addEventListener('click',e=>{e.stopPropagation();toggleAnlikIslendi(btn.dataset.anlikislendi)});
   });
+  bindFooter();
+}
+
+/* ============================================================
+   LLC ŞİRKETİ
+   ============================================================ */
+function _llcEntryHTML(){
+  const llcNotes = Object.values(notes).filter(n=>n.companyId==='__llc__');
+  const llcTasks = routines.filter(r=>r.freq==='llc');
+  const doneTasks = llcTasks.filter(r=>r.done).length;
+  const summary = `${llcNotes.length} not · ${doneTasks}/${llcTasks.length} görev`;
+  return `<button class="entry-panel" data-llc style="--accent:#1D4ED8;--accent-tint:#DBEAFE">
+    <span class="entry-ico" style="font-size:22px;font-weight:700;font-family:'Fraunces',serif">🇺🇸</span>
+    <span class="entry-body">
+      <span class="entry-title">LLC Şirketi</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+function _fedexEntryHTML(){
+  const fedexNotes = Object.values(notes).filter(n=>n.companyId==='__fedex__');
+  const summary = fedexNotes.length ? `${fedexNotes.length} not` : 'Henüz not yok';
+  return `<button class="entry-panel" data-fedex style="--accent:#4D1979;--accent-tint:#EDE0F7">
+    <span class="entry-ico" style="font-size:22px">📦</span>
+    <span class="entry-body">
+      <span class="entry-title">FedEx Notlarım</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+function renderFedexPage(){
+  document.documentElement.style.setProperty('--accent','#4D1979');
+  const fedexNotes = Object.values(notes)
+    .filter(n=>n.companyId==='__fedex__')
+    .sort((a,b)=>(b.updatedAt||b.date||'').localeCompare(a.updatedAt||a.date||''));
+
+  const rows = fedexNotes.length === 0
+    ? `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz not yok</div><div style="font-size:13px;margin-top:4px">Sağ üstten yeni not ekle.</div></div>`
+    : fedexNotes.map(n=>`
+        <div class="bill" style="cursor:pointer;display:block;padding:14px 16px" data-fedexnoteopen="${n.id}">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc((n.title||'Not').substring(0,60))}</div>
+          <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;overflow:hidden;max-height:48px">${esc((n.text||'').substring(0,120))}</div>
+          <div style="font-size:11px;color:var(--faint);margin-top:6px">${n.date||''}</div>
+        </div>`).join('');
+
+  app.innerHTML=`
+  <div class="cv" style="--accent:#4D1979;--accent-tint:#EDE0F7">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:#EDE0F7;color:#4D1979;width:56px;height:56px;font-size:26px">📦</span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:#4D1979">${fedexNotes.length} not</div>
+        <h2>FedEx Notlarım</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="sec-add" id="addFedexNoteBtn">${svgPlus()} Yeni Not</button>
+    </div>
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px">${rows}</div>
+  </div>
+  ${renderFooter()}`;
+
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  $('#addFedexNoteBtn').addEventListener('click',()=>openFedexModal(null));
+  document.querySelectorAll('[data-fedexnoteopen]').forEach(el=>
+    el.addEventListener('click',()=>openFedexModal(el.dataset.fedexnoteopen))
+  );
+  bindFooter();
+}
+
+function openFedexModal(id){
+  const existing = id ? notes[id] : null;
+  const today = dailyKey(new Date());
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="eyebrow">${existing?'Notu Düzenle':'Yeni Not'}</div>
+      <h3>FedEx Notlarım</h3>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Başlık</label>
+        <input type="text" id="fxTitle" placeholder="Başlık (opsiyonel)" value="${esc(existing?.title||'')}">
+      </div>
+      <div class="field"><label>Not</label>
+        <textarea id="fxText" rows="8" placeholder="Notunuzu buraya yazın…" style="width:100%;resize:vertical;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-family:inherit">${esc(existing?.text||'')}</textarea>
+      </div>
+      <div class="modal-foot">
+        ${existing?`<button class="btn-ghost" id="fxDel" style="color:#c0392b">Sil</button>`:''}
+        <button class="btn-ghost" id="fxCancel">İptal</button>
+        <button class="btn-prim" id="fxSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+
+  $('#fxCancel').onclick = closeModal;
+  $('#fxSave').onclick = async () => {
+    const title = ($('#fxTitle').value||'').trim();
+    const text  = ($('#fxText').value||'').trim();
+    if(!text){ toast('Not boş olamaz'); return; }
+    const nid = id || generateId();
+    const rec = {id:nid, companyId:'__fedex__', title:title||null, text, date:today, updatedAt:dailyKey(new Date())};
+    notes[nid] = rec;
+    await put('notes', rec);
+    closeModal(); render(); toast('Not kaydedildi');
+  };
+  if(existing){
+    $('#fxDel').onclick = async () => {
+      delete notes[id];
+      await del('notes', id);
+      closeModal(); render(); toast('Not silindi');
+    };
+  }
+}
+
+function renderLLCPage(){
+  document.documentElement.style.setProperty('--accent','#1D4ED8');
+
+  const llcNotes = Object.values(notes)
+    .filter(n=>n.companyId==='__llc__')
+    .sort((a,b)=>(b.updatedAt||b.date||'').localeCompare(a.updatedAt||a.date||''));
+  const llcTasks = routines
+    .filter(r=>r.freq==='llc')
+    .sort((a,b)=>(a.order??0)-(b.order??0));
+
+  const notesHTML = llcNotes.length === 0
+    ? `<div style="font-size:13px;color:var(--faint);text-align:center;padding:20px 0">Henüz not yok</div>`
+    : llcNotes.map(n=>`
+        <div class="llc-note-item" data-llcnote="${n.id}">
+          <div class="llc-note-title">${esc((n.title||'Not').substring(0,50))}</div>
+          <div class="llc-note-preview">${esc((n.text||'').substring(0,100))}</div>
+          <div class="llc-note-date">${n.date||''}</div>
+        </div>`).join('');
+
+  const tasksHTML = llcTasks.length === 0
+    ? `<div style="font-size:13px;color:var(--faint);text-align:center;padding:20px 0">Henüz görev yok</div>`
+    : llcTasks.map(r=>`
+        <div class="llc-task-item${r.done?' done':''}">
+          <button class="llc-task-check" data-llctcheck="${r.id}">${r.done?svgCheck():''}</button>
+          <span class="llc-task-title">${esc(r.title)}</span>
+          <button class="llc-task-del" data-llctdel="${r.id}">×</button>
+        </div>`).join('');
+
+  app.innerHTML=`
+  <div class="cv" style="--accent:#1D4ED8;--accent-tint:#DBEAFE">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:#DBEAFE;color:#1D4ED8;width:56px;height:56px;font-size:26px">🇺🇸</span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:#1D4ED8">Amerika · LLC</div>
+        <h2>LLC Şirketi</h2>
+      </div>
+    </div>
+
+    <div class="llc-split">
+      <!-- NOTLAR -->
+      <div class="llc-panel">
+        <div class="llc-panel-head">
+          <span class="llc-panel-title">Notlar</span>
+          <button class="sec-add" id="llcAddNote">${svgPlus()} Not Ekle</button>
+        </div>
+        ${notesHTML}
+      </div>
+
+      <!-- GÖREVLER -->
+      <div class="llc-panel">
+        <div class="llc-panel-head">
+          <span class="llc-panel-title">Görevler</span>
+        </div>
+        ${tasksHTML}
+        <div class="llc-add-row">
+          <input type="text" id="llcTaskInp" placeholder="Yeni görev…">
+          <button id="llcTaskAdd">+ Ekle</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  ${renderFooter()}`;
+
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+
+  $('#llcAddNote').addEventListener('click',()=>openLLCNoteModal(null));
+  document.querySelectorAll('[data-llcnote]').forEach(el=>
+    el.addEventListener('click',()=>openLLCNoteModal(el.dataset.llcnote))
+  );
+
+  // Görev tamamla toggle
+  document.querySelectorAll('[data-llctcheck]').forEach(btn=>
+    btn.addEventListener('click',async()=>{
+      const r=routines.find(x=>x.id===btn.dataset.llctcheck);
+      if(!r) return;
+      r.done=!r.done; r.updatedAt=Date.now();
+      await put('routines',r); render();
+    })
+  );
+
+  // Görev sil
+  document.querySelectorAll('[data-llctdel]').forEach(btn=>
+    btn.addEventListener('click',async()=>{
+      const id=btn.dataset.llctdel;
+      await del('routines',id);
+      routines=routines.filter(x=>x.id!==id);
+      render();
+    })
+  );
+
+  // Görev ekle
+  const addLLCTask = async()=>{
+    const inp=$('#llcTaskInp');
+    const title=(inp?.value||'').trim(); if(!title){inp?.focus();return;}
+    const order=routines.filter(r=>r.freq==='llc').length;
+    const nr={id:generateId(),companyId:'__llc__',freq:'llc',title,note:'',order,done:false,createdAt:Date.now()};
+    await put('routines',nr); routines.push(nr); render();
+  };
+  $('#llcTaskAdd').addEventListener('click',addLLCTask);
+  $('#llcTaskInp').addEventListener('keydown',e=>{if(e.key==='Enter')addLLCTask();});
+
+  bindFooter();
+}
+
+function openLLCNoteModal(id){
+  const existing = id ? notes[id] : null;
+  const today = dailyKey(new Date());
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="eyebrow">${existing?'Notu Düzenle':'Yeni Not'} — LLC</div>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Başlık</label>
+        <input type="text" id="llcNTitle" placeholder="Başlık (opsiyonel)" value="${esc(existing?.title||'')}">
+      </div>
+      <div class="field"><label>Not</label>
+        <textarea id="llcNText" rows="9" placeholder="Notunuzu buraya yazın…" style="width:100%;resize:vertical;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-family:inherit">${esc(existing?.text||'')}</textarea>
+      </div>
+      <div class="modal-foot">
+        ${existing?`<button class="btn-ghost" id="llcNDel" style="color:#c0392b">Sil</button>`:''}
+        <button class="btn-ghost" id="llcNCancel">İptal</button>
+        <button class="btn-prim" id="llcNSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  $('#llcNCancel').onclick=closeModal;
+  $('#llcNSave').onclick=async()=>{
+    const title=($('#llcNTitle').value||'').trim();
+    const text=($('#llcNText').value||'').trim();
+    if(!text){toast('Not boş olamaz');return;}
+    const nid=id||generateId();
+    const rec={id:nid,companyId:'__llc__',title:title||null,text,date:today,updatedAt:dailyKey(new Date())};
+    notes[nid]=rec; await put('notes',rec);
+    closeModal(); render(); toast('Not kaydedildi');
+  };
+  if(existing){
+    $('#llcNDel').onclick=async()=>{
+      delete notes[id]; await del('notes',id);
+      closeModal(); render(); toast('Not silindi');
+    };
+  }
+}
+
+function renderNotlarimPage(){
+  document.documentElement.style.setProperty('--accent','#7C5C9F');
+  const myNotes = Object.values(notes)
+    .filter(n=>n.companyId==='__notlarim__')
+    .sort((a,b)=>(b.updatedAt||b.date||'').localeCompare(a.updatedAt||a.date||''));
+
+  const rows = myNotes.length === 0
+    ? `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz not yok</div><div style="font-size:13px;margin-top:4px">Sağ üstten yeni not ekle.</div></div>`
+    : myNotes.map(n=>`
+        <div class="bill" style="cursor:pointer;display:block;padding:14px 16px" data-noteopen="${n.id}">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc((n.title||'Not').substring(0,60))}</div>
+          <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;overflow:hidden;max-height:48px">${esc((n.text||'').substring(0,120))}</div>
+          <div style="font-size:11px;color:var(--faint);margin-top:6px">${n.date||''}</div>
+        </div>`).join('');
+
+  app.innerHTML=`
+  <div class="cv" style="--accent:#7C5C9F;--accent-tint:#EDE8F5">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:#EDE8F5;color:#7C5C9F;width:56px;height:56px">${svgNote()}</span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:#7C5C9F">${myNotes.length} not</div>
+        <h2>Notlarım</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="sec-add" id="addNoteBtn">${svgPlus()} Yeni Not</button>
+    </div>
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px">${rows}</div>
+  </div>
+  ${renderFooter()}`;
+
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  $('#addNoteBtn').addEventListener('click',()=>openNotlarimModal(null));
+  document.querySelectorAll('[data-noteopen]').forEach(el=>
+    el.addEventListener('click',()=>openNotlarimModal(el.dataset.noteopen))
+  );
+  bindFooter();
+}
+
+function openNotlarimModal(id){
+  const existing = id ? notes[id] : null;
+  const today = dailyKey(new Date());
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="eyebrow">${existing?'Notu Düzenle':'Yeni Not'}</div>
+      <h3>Notlarım</h3>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Başlık</label>
+        <input type="text" id="nmTitle" placeholder="Başlık (opsiyonel)" value="${esc(existing?.title||'')}">
+      </div>
+      <div class="field"><label>Not</label>
+        <textarea id="nmText" rows="8" placeholder="Notunuzu buraya yazın…" style="width:100%;resize:vertical;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-family:inherit">${esc(existing?.text||'')}</textarea>
+      </div>
+      <div class="modal-foot">
+        ${existing?`<button class="btn-ghost" id="nmDel" style="color:#c0392b">Sil</button>`:''}
+        <button class="btn-ghost" id="nmCancel">İptal</button>
+        <button class="btn-prim" id="nmSave">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+
+  $('#nmCancel').onclick = closeModal;
+  $('#nmSave').onclick = async () => {
+    const title = ($('#nmTitle').value||'').trim();
+    const text  = ($('#nmText').value||'').trim();
+    if(!text){ toast('Not boş olamaz'); return; }
+    const nid = id || generateId();
+    const rec = {id:nid, companyId:'__notlarim__', title:title||null, text, date:today, updatedAt:dailyKey(new Date())};
+    notes[nid] = rec;
+    await put('notes', rec);
+    closeModal(); render(); toast('Not kaydedildi');
+  };
+  if(existing){
+    $('#nmDel').onclick = async () => {
+      delete notes[id];
+      await del('notes', id);
+      closeModal(); render(); toast('Not silindi');
+    };
+  }
+}
+
+function renderTaskPage(){
+  const freq = view.taskFreq || 'daily';
+  const f = FREQ.find(x=>x.key===freq) || FREQ[0];
+  const accent = freq==='daily'?'#5C7A52':freq==='weekly'?'#3E4C7A':'#A45D4E';
+  const tint   = freq==='daily'?'#E6ECE2':freq==='weekly'?'#E3E6F1':'#F1E2DD';
+  document.documentElement.style.setProperty('--accent', accent);
+
+  const tasks = routines.filter(r=>r.freq===freq).sort((a,b)=>(a.order??0)-(b.order??0));
+  const coName = id => { const c=companies.find(x=>x.id===id); return c?c.name:''; };
+  const coOpts = `<option value="">Genel</option>`+companies.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+
+  const rows = tasks.length === 0
+    ? `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz görev yok</div><div style="font-size:13px;margin-top:4px">Aşağıdan yeni görev ekle.</div></div>`
+    : tasks.map(r => {
+        const done = isDone(r);
+        const cn = coName(r.companyId);
+        return `<div class="task-item${done?' done':''}">
+          <button class="task-check" data-tcheck="${r.id}">${done?svgCheck():''}</button>
+          <div class="task-body-row">
+            <div class="task-title">${esc(r.title)}</div>
+            ${cn?`<span class="task-co">${esc(cn)}</span>`:''}
+          </div>
+          <button class="task-del" data-tdel="${r.id}" title="Sil">×</button>
+        </div>`;
+      }).join('');
+
+  app.innerHTML=`
+  <div class="cv" style="--accent:${accent};--accent-tint:${tint}">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:${tint};color:${accent};width:56px;height:56px">${svgCheck()}</span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:${accent}">${tasks.filter(r=>isDone(r)).length}/${tasks.length} tamamlandı</div>
+        <h2>${f.label} Görevler</h2>
+      </div>
+    </div>
+    <div style="margin-top:20px">${rows}</div>
+    <div class="task-add-row">
+      <input type="text" id="tpInp" placeholder="Yeni görev…">
+      <select id="tpSel">${coOpts}</select>
+      <button id="tpAdd">+ Ekle</button>
+    </div>
+  </div>
+  ${renderFooter()}`;
+
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+
+  document.querySelectorAll('[data-tcheck]').forEach(btn=>
+    btn.addEventListener('click',()=>{ const r=routines.find(x=>x.id===btn.dataset.tcheck); if(r) toggleRoutine(r); })
+  );
+  document.querySelectorAll('[data-tdel]').forEach(btn=>
+    btn.addEventListener('click',async()=>{
+      const id=btn.dataset.tdel;
+      await del('routines',id);
+      routines=routines.filter(x=>x.id!==id);
+      render();
+    })
+  );
+
+  const addTask = async () => {
+    const inp=$('#tpInp'); const sel=$('#tpSel');
+    const title=(inp?.value||'').trim(); if(!title){inp?.focus();return;}
+    const order=routines.filter(r=>r.freq===freq).length;
+    const nr={id:generateId(),companyId:sel?.value||'',freq,title,note:'',order,createdAt:Date.now()};
+    await put('routines',nr); routines.push(nr); render();
+  };
+  $('#tpAdd').addEventListener('click', addTask);
+  $('#tpInp').addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
   bindFooter();
 }
 
@@ -1987,6 +2465,37 @@ function openAccountMenu(id,anchor){
   };
 }
 
+function _homeTaskHTML(){
+  const taskCards = FREQ.map(f => {
+    const tasks = routines.filter(r=>r.freq===f.key);
+    const done  = tasks.filter(r=>isDone(r)).length;
+    const total = tasks.length;
+    const summary = total ? `${done}/${total} tamamlandı` : 'Görev yok';
+    return `<button class="entry-panel" data-taskfreq="${f.key}" style="--accent:#5C7A52;--accent-tint:#E6ECE2">
+      <span class="entry-ico">${svgCheck()}</span>
+      <span class="entry-body">
+        <span class="entry-title">${f.label}</span>
+        <span class="entry-sum">${summary}</span>
+      </span>
+      ${svgArrow()}
+    </button>`;
+  });
+
+  const myNotes = Object.values(notes).filter(n=>n.companyId==='__notlarim__')
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const noteSummary = myNotes.length ? `${myNotes.length} not` : 'Henüz not yok';
+  const noteCard = `<button class="entry-panel" data-notlarim style="--accent:#7C5C9F;--accent-tint:#EDE8F5">
+    <span class="entry-ico">${svgNote()}</span>
+    <span class="entry-body">
+      <span class="entry-title">Notlarım</span>
+      <span class="entry-sum">${noteSummary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+
+  return `<section class="home-sec"><div class="entry-grid">${taskCards.join('')}${noteCard}</div></section>`;
+}
+
 function firmCard(c){
   const rows=FREQ.map(f=>{
     const p=freqProgress(c.id,f.key);
@@ -2013,17 +2522,29 @@ function firmCard(c){
 }
 
 function bindHome(){
-  document.querySelectorAll('[data-enter]').forEach(el=>{
-    el.addEventListener('click',e=>{
-      if(e.target.closest('[data-gear]')) return;
-      view={page:'company',companyId:el.dataset.enter,section:null};render();
-    });
+  // Görev frekans kartları → sayfa geçişi
+  document.querySelectorAll('[data-taskfreq]').forEach(btn=>
+    btn.addEventListener('click',()=>{
+      view={page:'tasks',taskFreq:btn.dataset.taskfreq,companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};
+      render();
+    })
+  );
+
+  // Notlarım kartı
+  const enot=$('[data-notlarim]');if(enot)enot.addEventListener('click',()=>{
+    view={page:'notlarim',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render();
   });
-  document.querySelectorAll('[data-gear]').forEach(el=>{
-    const open=e=>{e.stopPropagation();e.preventDefault();openCompanyModal(el.dataset.gear)};
-    el.addEventListener('click',open);
-    el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')open(e)});
+
+  // LLC kartı
+  const ellc=$('[data-llc]');if(ellc)ellc.addEventListener('click',()=>{
+    view={page:'llc',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render();
   });
+
+  // FedEx Notlarım kartı
+  const efedex=$('[data-fedex]');if(efedex)efedex.addEventListener('click',()=>{
+    view={page:'fedex',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render();
+  });
+
   const ac2=$('[data-addcompany]');if(ac2)ac2.addEventListener('click',()=>openCompanyModal(null));
 
   // Kredi kartları — tek girişle aç
@@ -2046,6 +2567,52 @@ function bindHome(){
   bindFooter();
 }
 
+function openAnlikBankAyarModal(){
+  const renderList=()=>{
+    const list=document.getElementById('ablList');
+    if(!list)return;
+    list.innerHTML=anlikBankLabels.length
+      ? anlikBankLabels.map((lbl,i)=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)">
+            <span style="flex:1;font-size:14px">${esc(lbl)}</span>
+            <button data-abldel="${i}" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:18px;line-height:1;padding:2px 6px">×</button>
+          </div>`).join('')
+      : `<div style="font-size:13px;color:var(--muted);padding:8px 0">Henüz hesap eklenmedi.</div>`;
+    list.querySelectorAll('[data-abldel]').forEach(btn=>btn.addEventListener('click',async()=>{
+      anlikBankLabels.splice(Number(btn.dataset.abldel),1);
+      await put('settings',{id:'anlikBankLabels',data:anlikBankLabels});
+      renderList();
+    }));
+  };
+  modal.innerHTML=`
+    <div class="modal-head"><div class="eyebrow">Ayarlar</div><h3>Hesap Etiketleri</h3></div>
+    <div class="modal-body">
+      <div id="ablList"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <input type="text" id="ablInp" placeholder="Örn. QNB - Ticari" style="flex:1;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)">
+        <button id="ablAdd" style="font-size:13px;padding:9px 16px;border-radius:10px;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-weight:600;white-space:nowrap">+ Ekle</button>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="ablClose">Kapat</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  renderList();
+  $('#ablClose').onclick=closeModal;
+  const addLabel=async()=>{
+    const val=($('#ablInp').value||'').trim();
+    if(!val)return;
+    if(!anlikBankLabels.includes(val)){
+      anlikBankLabels.push(val);
+      await put('settings',{id:'anlikBankLabels',data:anlikBankLabels});
+    }
+    $('#ablInp').value='';
+    renderList();
+  };
+  $('#ablAdd').onclick=addLabel;
+  $('#ablInp').addEventListener('keydown',e=>{if(e.key==='Enter')addLabel();});
+}
+
 function openAnlikHarcamaModal(editing=null){
   const today=new Date();
   const dateStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
@@ -2053,6 +2620,9 @@ function openAnlikHarcamaModal(editing=null){
     `<option value="sahsi" ${(!editing||editing.sirketId==='sahsi'||!editing.sirketId)?'selected':''}>Şahsi</option>`,
     ...companies.filter(c=>!c.isPersonal).map(c=>`<option value="${c.id}" ${editing&&editing.sirketId===c.id?'selected':''}>${esc(c.name)}</option>`)
   ].join('');
+  const bankOptions=`<option value="">— Hesap seçilmedi —</option>`+anlikBankLabels.map(lbl=>
+    `<option value="${esc(lbl)}" ${editing&&editing.bankLabel===lbl?'selected':''}>${esc(lbl)}</option>`
+  ).join('');
   modal.innerHTML=`
     <div class="modal-head"><div class="eyebrow">${editing?'Düzenle':'Yeni kayıt'}</div><h3>Anlık Harcama</h3></div>
     <div class="modal-body">
@@ -2066,6 +2636,8 @@ function openAnlikHarcamaModal(editing=null){
         <input type="text" id="ahReason" placeholder="Örn. Market, Benzin, Yemek…" value="${editing?esc(editing.reason||''):''}"></div>
       <div class="field"><label>Şirket / Kişi</label>
         <select id="ahSirket">${sirketOptions}</select></div>
+      <div class="field"><label>Ödenen Banka</label>
+        <select id="ahBank">${bankOptions}</select></div>
       <div class="modal-foot">
         ${editing?'<button class="btn-ghost" id="ahDelete" style="color:#c0392b;margin-right:auto">Sil</button>':''}
         <button class="btn-ghost" id="ahCancel">İptal</button>
@@ -2083,11 +2655,12 @@ function openAnlikHarcamaModal(editing=null){
     const reason=$('#ahReason').value.trim();
     if(!amount||amount<=0){$('#ahAmount').focus();return}
     const sirketId=$('#ahSirket').value||'sahsi';
+    const bankLabel=$('#ahBank').value||null;
     if(editing){
-      Object.assign(editing,{amount,currency:$('#ahCur').value,reason,sirketId});
+      Object.assign(editing,{amount,currency:$('#ahCur').value,reason,sirketId,bankLabel});
       await put('anlikHarcamalar',editing);
     } else {
-      const rec={id:generateId(),amount,currency:$('#ahCur').value,reason,sirketId,date:dateStr,islendi:false,createdAt:Date.now()};
+      const rec={id:generateId(),amount,currency:$('#ahCur').value,reason,sirketId,bankLabel,date:dateStr,islendi:false,createdAt:Date.now()};
       anlikHarcamalar.unshift(rec);
       await put('anlikHarcamalar',rec);
     }
@@ -2102,6 +2675,7 @@ function anlikSirketLabel(h){
 function anlikItemHTML(h){
   const sirket=anlikSirketLabel(h);
   const islendi=!!h.islendi;
+  const bankLabel=h.bankLabel||'';
   return `<div class="anlik-item${islendi?' islendi':''}">
     <div class="anlik-top">
       <span class="anlik-amount">${fmtMoney(h.amount,h.currency||'TRY')}</span>
@@ -2111,6 +2685,7 @@ function anlikItemHTML(h){
     </div>
     <div class="anlik-meta">
       <span class="anlik-sirket">${esc(sirket)}</span>
+      ${bankLabel?`<span class="anlik-sirket" style="color:#1D4ED8">${esc(bankLabel)}</span>`:''}
       <button class="anlik-islendi-btn${islendi?' on':''}" data-anlikislendi="${h.id}">${islendi?'✓ İşlendi':'İşlendi işaretle'}</button>
     </div>
   </div>`;
@@ -3263,6 +3838,11 @@ async function onUserSignedIn(user){
   await seedPersonalCompany();
   await loadAll();
   render();
+  if(new URLSearchParams(location.search).get('quick')==='1'){
+    view={page:'anlik',companyId:null,section:null,cardId:null,bankId:null,homeTab:'overview'};
+    render();
+    setTimeout(()=>openAnlikHarcamaModal(),200);
+  }
   attachFinListeners(user.uid);
   checkReminders();
   reminderTimer = setInterval(checkReminders, 5*60*1000);
@@ -3287,6 +3867,7 @@ let cloudCfg={enabled:true, config:EMBEDDED_FIREBASE_CONFIG};
 let fb=null, cloudReady=false, cloudTimer=null;
 
 async function loadSettings(){
+  const abl=await getOne('settings','anlikBankLabels');if(abl&&abl.data)anlikBankLabels=abl.data;
   const w=await getOne('settings','whatsapp');if(w&&w.data)waCfg={...waCfg,...w.data};
   const r=await getOne('settings','reminders');if(r&&r.data)remState=r.data;
   const cl=await getOne('settings','cloud');if(cl&&cl.data)cloudCfg={...cloudCfg,...cl.data};
