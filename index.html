@@ -35,6 +35,7 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
+  html{overflow-y:scroll}
   body{
     background:var(--paper);
     color:var(--ink);
@@ -435,6 +436,14 @@
   .entry-grid .entry-title{font-size:15px}
   .entry-grid .entry-sum{font-size:11px;line-height:1.4}
   .entry-grid .entry-panel > svg{display:none}
+  /* Alt 4 panel — 2 kolon, row style */
+  .entry-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .entry-grid-2 .entry-panel{margin-top:0;width:auto;padding:14px 14px;gap:12px}
+  .entry-grid-2 .entry-ico{width:38px;height:38px;border-radius:10px;flex:none}
+  .entry-grid-2 .entry-title{font-size:14px}
+  .entry-grid-2 .entry-sum{font-size:11px;line-height:1.35}
+  .entry-grid-2 .entry-panel > svg{flex:none;opacity:.4}
+  @media(max-width:400px){.entry-grid-2{grid-template-columns:1fr}}
   @media(max-width:700px){.entry-grid{grid-template-columns:repeat(2,1fr);}}
 
   /* bills */
@@ -1064,7 +1073,7 @@ function renderHome(){
       </div>
       ${financeEntryHTML()}
       ${anlikEntryHTML()}
-      <div class="entry-grid">
+      <div class="entry-grid-2">
         ${cardsEntryHTML()}
         ${loansEntryHTML()}
         ${banksEntryHTML()}
