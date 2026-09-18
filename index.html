@@ -1817,7 +1817,6 @@ async function _parseFedexPDF(file){
   // Sayısal sıraya koy
   const rowList=[...rowNoMap.values()].sort((a,b)=>+a.str-+b.str);
 
-  console.log('[FedEx] Bulunan sıra no\'ları:',rowList.map(r=>r.str+' (s.'+r.page+' y='+Math.round(r.y)+')').join(', '));
   if(!rowList.length) return {invoiceDate, invoiceNo, shipments:[]};
 
   const SKIP=/GOLDEN|AKIN AKCAN|TURGUTLU|MANISA|SEHITLER|ANKARA|45400|FEDEX|INTL|PRIORITY|PAK|REFERANS|ISTANBUL|TURKEY/i;
@@ -1841,15 +1840,18 @@ async function _parseFedexPDF(file){
     const blockText=block.map(it=>it.str).join(' ');
     const up=blockText.toUpperCase();
 
-    // Tutar: blok içindeki en sağdaki ondalıklı sayı
-    const amtInBlock=block.filter(it=>amtRe.test(it.str)&&it.x>maxX-80)
+    // Tutar: blok içinde geçerli aralıktaki (50-15000 TL) en sağdaki değer
+    const amtInBlock=block
+      .filter(it=>amtRe.test(it.str)&&it.x>maxX-80)
+      .map(it=>{
+        const r=it.str.replace(/\s*TL$/i,'').trim();
+        const v=/,\d{2}$/.test(r)?parseFloat(r.replace(/\./g,'').replace(',','.')):parseFloat(r.replace(/,/g,''));
+        return{...it,parsedTL:v};
+      })
+      .filter(it=>it.parsedTL>=50&&it.parsedTL<=15000)
       .sort((a,b)=>b.x-a.x);
     if(!amtInBlock.length) continue;
-    const raw=amtInBlock[0].str.replace(/\s*TL$/i,'').trim();
-    let amountTL=/,\d{2}$/.test(raw)
-      ? parseFloat(raw.replace(/\./g,'').replace(',','.'))
-      : parseFloat(raw.replace(/,/g,''));
-    if(!amountTL||amountTL<50||amountTL>15000) continue;
+    const amountTL=amtInBlock[0].parsedTL;
 
     // Ağırlık: blok içinde "X,X KG" veya "X,X" ağırlık değeri
     let weightKg=0;
