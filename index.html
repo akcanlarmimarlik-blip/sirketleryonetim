@@ -817,9 +817,9 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
-let fedexSettings={rate:32, rules:[
-  {region:'Amerika', minKg:0, maxKg:1, minUsd:10, maxUsd:13},
-  {region:'Avrupa',  minKg:0, maxKg:1, minUsd:10, maxUsd:13},
+let fedexSettings={rules:[
+  {region:'Amerika', minKg:0, maxKg:1, minTL:300, maxTL:450},
+  {region:'Avrupa',  minKg:0, maxKg:1, minTL:300, maxTL:450},
 ]};
 let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments}
 
@@ -1653,7 +1653,6 @@ function _fedexInvoiceTabHTML(){
       <td style="padding:7px 5px;font-size:11px;color:var(--muted);text-align:center">${s.region}</td>
       <td style="padding:7px 5px;font-size:12px;text-align:right;white-space:nowrap">${s.weightKg} KG</td>
       <td style="padding:7px 5px;font-size:12px;text-align:right;white-space:nowrap">${fmtMoney(s.amountTL,'TRY')}</td>
-      <td style="padding:7px 5px;font-size:12px;font-weight:600;text-align:right;white-space:nowrap">${s.usd} $</td>
       <td style="padding:7px 5px;font-size:11px;color:var(--muted);text-align:center;white-space:nowrap">${s.expected}</td>
       <td style="padding:7px 5px;font-size:12px;font-weight:700;color:${sc};text-align:center;white-space:nowrap">${sl}</td>
     </tr>`;
@@ -1682,7 +1681,6 @@ function _fedexInvoiceTabHTML(){
             <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BÖLGE</th>
             <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">AĞIRLIK</th>
             <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR TL</th>
-            <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR $</th>
             <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BEKLENEN</th>
             <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">DURUM</th>
           </tr>
@@ -1694,19 +1692,17 @@ function _fedexInvoiceTabHTML(){
 }
 
 function _fedexAnalyzeShipments(shipments){
-  const rate=fedexSettings.rate||32;
   return shipments.map(s=>{
-    const usd=Math.round((s.amountTL/rate)*100)/100;
     const region=FX_REGION[s.country.toUpperCase().trim()]||'Diğer';
     const rule=(fedexSettings.rules||[]).find(r=>
       r.region===region && s.weightKg>=r.minKg && s.weightKg<=r.maxKg
     );
     let status='noRule', expected='—';
     if(rule){
-      expected=`${rule.minUsd}–${rule.maxUsd} $`;
-      status=usd>rule.maxUsd?'error':'ok';
+      expected=`${fmtMoney(rule.minTL,'TRY')}–${fmtMoney(rule.maxTL,'TRY')}`;
+      status=s.amountTL>rule.maxTL?'error':'ok';
     }
-    return {...s, usd, region, status, expected};
+    return {...s, region, status, expected};
   });
 }
 
@@ -1840,10 +1836,10 @@ function openFedexPricingModal(){
         <span style="font-size:11px">–</span>
         <input type="number" id="fxR1${i}" value="${r.maxKg}" step="0.1" min="0" style="width:52px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
         <span style="font-size:11px;color:var(--muted)">KG · OK aralığı:</span>
-        <input type="number" id="fxRA${i}" value="${r.minUsd}" step="1" min="0" style="width:48px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+        <input type="number" id="fxRA${i}" value="${r.minTL}" step="1" min="0" style="width:60px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
         <span style="font-size:11px">–</span>
-        <input type="number" id="fxRB${i}" value="${r.maxUsd}" step="1" min="0" style="width:48px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
-        <span style="font-size:11px;color:var(--muted)">$</span>
+        <input type="number" id="fxRB${i}" value="${r.maxTL}" step="1" min="0" style="width:60px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+        <span style="font-size:11px;color:var(--muted)">₺</span>
         <button data-fxrdel="${i}" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:18px;line-height:1;padding:0 4px">×</button>
       </div>`).join('')
       ||`<div style="font-size:13px;color:var(--muted);padding:8px 0">Henüz kural yok — + Kural Ekle ile başla.</div>`;
@@ -1858,13 +1854,8 @@ function openFedexPricingModal(){
     <div class="modal-head"><div class="eyebrow">FedEx</div><h3>Fiyatlama Ayarları</h3></div>
     <div class="modal-body">
       <div class="field">
-        <label>USD/TL Kuru</label>
-        <input type="number" id="fxRate" step="0.01" value="${fedexSettings.rate||32}" style="font-size:16px;font-weight:600">
-        <div style="font-size:11px;color:var(--muted);margin-top:3px">Fatura TL tutarını USD'a çevirir</div>
-      </div>
-      <div class="field">
         <label style="display:block;margin-bottom:8px">Kural Tablosu</label>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Bölge · Ağırlık aralığı KG · Kabul edilebilir $ aralığı · Üstü hata</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Bölge · Ağırlık aralığı KG · Kabul edilebilir ₺ aralığı · Üstü hata</div>
         <div id="fxRuleList"></div>
         <button id="fxRuleAdd" style="margin-top:10px;font-size:12px;padding:7px 14px;border-radius:8px;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-weight:600">+ Kural Ekle</button>
       </div>
@@ -1878,17 +1869,16 @@ function openFedexPricingModal(){
   $('#fxPC').onclick=closeModal;
   $('#fxRuleAdd').onclick=()=>{
     if(!fedexSettings.rules) fedexSettings.rules=[];
-    fedexSettings.rules.push({region:'Amerika',minKg:0,maxKg:1,minUsd:10,maxUsd:13});
+    fedexSettings.rules.push({region:'Amerika',minKg:0,maxKg:1,minTL:300,maxTL:450});
     renderRules();
   };
   $('#fxPS').onclick=async()=>{
-    fedexSettings.rate=parseFloat($('#fxRate').value)||32;
     fedexSettings.rules=(fedexSettings.rules||[]).map((_,i)=>({
       region:document.getElementById(`fxRR${i}`)?.value||'Amerika',
       minKg:parseFloat(document.getElementById(`fxR0${i}`)?.value)||0,
       maxKg:parseFloat(document.getElementById(`fxR1${i}`)?.value)||1,
-      minUsd:parseFloat(document.getElementById(`fxRA${i}`)?.value)||10,
-      maxUsd:parseFloat(document.getElementById(`fxRB${i}`)?.value)||13,
+      minTL:parseFloat(document.getElementById(`fxRA${i}`)?.value)||300,
+      maxTL:parseFloat(document.getElementById(`fxRB${i}`)?.value)||450,
     }));
     await put('settings',{id:'fedexSettings',data:fedexSettings});
     closeModal(); toast('Ayarlar kaydedildi');
