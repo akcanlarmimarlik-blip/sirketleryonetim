@@ -2865,20 +2865,10 @@ async function _parseFedexPDF(file){
             if(it.str.length>(referans?.length||0)) referans=it.str;
           }
         }
-        // Alıcı ismi
-        const recipItems=block.filter(it=>{
-          if(SKIP.test(it.str)) return false;
-          if(LABEL_RE.test(it.str.trim())) return false;
-          if(/^(?:Alıcı|Alici|Adres|Ülke|Ulke|Gönderen|Gonderen|Teslimat|İsim|Isim)[:\s]/i.test(it.str)) return false;
-          if(/^\d+$/.test(it.str)||/\d{2}-\d{2}-\d{4}/.test(it.str)) return false;
-          if(it.str.length<3) return false;
-          if(CLIST.some(c=>it.str.toUpperCase()===c)) return false;
-          if(amtRe.test(it.str)||/Hizmet|Gümrük|Vergisi|Ücreti/i.test(it.str)) return false;
-          if(/\bKG\b|\bTL\b/i.test(it.str)) return false;
-          return true;
-        });
-        recipItems.sort((a,b)=>b.y-a.y);
-        const recipient=recipItems.slice(0,2).map(it=>it.str.replace(/^(?:Alıcı|Alici|İsim|Isim)[:\s]*/i,'').trim()).filter(s=>s.length>=2).join(' ').substring(0,50)||'';
+        // Alıcı ismi — blockText'te "Alıcı:" veya "İsim:" sonrasındaki metin
+        const recipM=blockText.match(/(?:Alıcı|Alici)[:\s]+([^\n\r]+?)(?:\s+(?:Adres|Ülke|Ulke|Teslimat|Gönderen|Gonderen)|$)/i)
+          ||blockText.match(/(?:İsim|Isim)[:\s]+([^\n\r]+?)(?:\s+(?:Adres|Ülke|Ulke|Teslimat)|$)/i);
+        const recipient=recipM?recipM[1].trim().replace(/\s+/g,' ').substring(0,50):'';
         extraCharges.push({
           type:hizmetM?'HIZMET':'GUMRUK',
           label:hizmetM?'Hizmet Ücreti':'Gümrük Vergisi',
