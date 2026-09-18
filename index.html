@@ -1752,8 +1752,8 @@ async function _parseFedexPDF(file){
     if(invoiceDate && invoiceNo) break;
   }
 
-  // Tutar kolonunu bul: en sağdaki ondalıklı sayılar
-  const amtRe=/^(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})$/;
+  // Tutar kolonunu bul: en sağdaki ondalıklı sayılar (TL eki opsiyonel)
+  const amtRe=/^(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s*TL)?$/;
   const amtCandidates=allItems.filter(it=>amtRe.test(it.str));
   if(!amtCandidates.length) return {invoiceDate, invoiceNo, shipments:[]};
 
@@ -1774,15 +1774,15 @@ async function _parseFedexPDF(file){
   for(const amtItem of amountItems){
     const {x:ax, y:ay, page:ap}=amtItem;
 
-    // Tutarı parse et
-    const raw=amtItem.str;
+    // Tutarı parse et (TL ekini temizle)
+    const raw=amtItem.str.replace(/\s*TL$/i,'').trim();
     let amountTL=/,\d{2}$/.test(raw)
       ? parseFloat(raw.replace(/\./g,'').replace(',','.'))
       : parseFloat(raw.replace(/,/g,''));
-    if(!amountTL||amountTL<50||amountTL>9999) continue; // toplam satırlarını atla
+    if(!amountTL||amountTL<50||amountTL>99999) continue; // toplam satırlarını atla
 
-    // Aynı Y'deki öğeler (±8px, aynı sayfa)
-    const sameRow=allItems.filter(it=>it.page===ap && Math.abs(it.y-ay)<=8 && it.x<ax-5);
+    // Aynı Y'deki öğeler (±15px, aynı sayfa) — PDF'de satır yüksekliği değişken olabilir
+    const sameRow=allItems.filter(it=>it.page===ap && Math.abs(it.y-ay)<=15 && it.x<ax-5);
 
     // Ağırlık: aynı satırda "X.XX" veya "X.X KG"
     let weightKg=0;
@@ -1809,20 +1809,24 @@ async function _parseFedexPDF(file){
 
     // Alıcı adı: gönderici ve sistem kelimelerini çıkar
     const SKIP=/GOLDEN|AKIN AKCAN|TURGUTLU|MANISA|SEHITLER|ANKARA|45400|FEDEX|INTL|PRIORITY|PAK|REFERANS|ISTANBUL|TURKEY/i;
+    const LABEL_RE=/^(?:Alıcı|Alici|İsim|Isim|Gönderen|Gonderen|Adres|Ülke|Ulke|Teslimat)[:\s]*$/i;
     const recipItems=block.filter(it=>{
       if(SKIP.test(it.str)) return false;
+      if(LABEL_RE.test(it.str.trim())) return false; // saf etiket satırları
       if(/^\d+$/.test(it.str)||/\d{2}-\d{2}-\d{4}/.test(it.str)) return false;
       if(it.str.length<3) return false;
       if(CLIST.some(c=>it.str.toUpperCase()===c)) return false;
       if(amtRe.test(it.str)) return false;
-      // KG veya TL içeren (ağırlık/tutar) öğeleri çıkar
       if(/\bKG\b|\bTL\b/i.test(it.str)) return false;
-      // Tek ondalıklı sayılar (1,6 gibi ağırlık değerleri)
       if(/^\d+[.,]\d{1,2}$/.test(it.str)) return false;
       return true;
     });
     recipItems.sort((a,b)=>b.y-a.y);
-    const recipient=recipItems.slice(0,2).map(it=>it.str).join(' ').substring(0,60)||'—';
+    // "Alıcı: MELISSA SCHILLING" → "MELISSA SCHILLING" prefix temizle
+    const recipStr=recipItems.slice(0,3)
+      .map(it=>it.str.replace(/^(?:Alıcı|Alici|İsim|Isim)[:\s]*/i,'').trim())
+      .filter(s=>s.length>=2).slice(0,2).join(' ').substring(0,60);
+    const recipient=recipStr||'—';
 
     // Servis tipi: blokta PAK geçiyorsa PAK, yoksa PRIORITY
     const service=up.includes(' PAK')||/\bPAK\b/.test(blockText.toUpperCase())?'PAK':'PRIORITY';
