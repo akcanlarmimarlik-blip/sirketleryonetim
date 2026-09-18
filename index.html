@@ -1909,7 +1909,6 @@ function renderFedexPage(){
       </div>`).join('');
 
   const invoiceHTML=tab!=='invoice'?'':_fedexInvoiceTabHTML();
-  const hizmetHTML=tab!=='hizmet'?'':_fedexHizmetTabHTML();
   const tarifeHTML=tab!=='tarife'?'':_fedexTarifeTabHTML();
 
   const archiveHTML=tab!=='archive'?'':fedexArchives.length===0
@@ -1953,11 +1952,10 @@ function renderFedexPage(){
     <div class="tabs" style="margin:16px 0 14px">
       <button class="tab ${tab==='notes'?'active':''}" data-ftab="notes">Notlar (${fedexNotes.length})</button>
       <button class="tab ${tab==='invoice'?'active':''}" data-ftab="invoice">Fatura Analizi</button>
-      ${(()=>{const cnt=fedexBulkResults.reduce((s,r)=>s+(r.extraCharges?.length||0),0);return`<button class="tab ${tab==='hizmet'?'active':''}" data-ftab="hizmet">Hizmet${cnt?` <span style="background:#B45309;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px">${cnt}</span>`:''}</button>`;})()}
       <button class="tab ${tab==='archive'?'active':''}" data-ftab="archive">Arşiv (${fedexArchives.length})</button>
       <button class="tab ${tab==='tarife'?'active':''}" data-ftab="tarife">Tarife Yönetimi</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px">${notesHTML}${invoiceHTML}${hizmetHTML}${archiveHTML}${tarifeHTML}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">${notesHTML}${invoiceHTML}${archiveHTML}${tarifeHTML}</div>
   </div>
   ${renderFooter()}`;
 
@@ -1970,6 +1968,9 @@ function renderFedexPage(){
   }
   if(tab==='invoice'){
     $('#fxInvSettings')?.addEventListener('click',openFedexPricingModal);
+
+    // Alt sekme (Gönderi Analizi / Hizmet)
+    document.querySelectorAll('[data-fxsubtab]').forEach(btn=>btn.addEventListener('click',()=>{view.fedexSubTab=btn.dataset.fxsubtab;renderFedexPage();}));
 
     // PDF yükle (bulk, max 10)
     $('#fxBulkUploadBtn')?.addEventListener('click',()=>$('#fxBulkFileInput')?.click());
@@ -2081,9 +2082,20 @@ function renderFedexPage(){
 }
 
 function _fedexInvoiceTabHTML(){
-  // Empty state
+  const subTab=view.fedexSubTab||'gonderiler';
+  const hizmetCnt=fedexBulkResults.reduce((s,r)=>s+(r.extraCharges?.length||0),0);
+
+  // Alt sekme çubuğu
+  const subTabBar=`<div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:2px solid var(--line);padding-bottom:0">
+    <button data-fxsubtab="gonderiler" style="font-size:13px;font-weight:600;padding:8px 16px;border:none;background:none;cursor:pointer;border-bottom:${subTab==='gonderiler'?'3px solid #4D1979':'3px solid transparent'};color:${subTab==='gonderiler'?'#4D1979':'var(--muted)'};margin-bottom:-2px">Gönderi Analizi</button>
+    <button data-fxsubtab="hizmet" style="font-size:13px;font-weight:600;padding:8px 16px;border:none;background:none;cursor:pointer;border-bottom:${subTab==='hizmet'?'3px solid #B45309':'3px solid transparent'};color:${subTab==='hizmet'?'#B45309':'var(--muted)'};margin-bottom:-2px">Hizmet${hizmetCnt?` <span style="background:#B45309;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px">${hizmetCnt}</span>`:''}</button>
+  </div>`;
+
+  if(subTab==='hizmet') return subTabBar+_fedexHizmetTabHTML();
+
+  // Empty state (Gönderi Analizi)
   if(!fedexBulkResults.length){
-    return `<div style="text-align:center;padding:40px 20px">
+    return subTabBar+`<div style="text-align:center;padding:40px 20px">
       <div style="font-size:48px;margin-bottom:12px">📄</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:6px">FedEx Fatura PDF Yükle</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Maksimum 10 fatura aynı anda analiz edilebilir.</div>
@@ -2132,7 +2144,7 @@ function _fedexInvoiceTabHTML(){
 
   const canAddMore=fedexBulkResults.length<10;
 
-  return `<div>
+  return subTabBar+`<div>
     <!-- üst kontroller -->
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:0">
       <input type="file" id="fxBulkFileInput" accept=".pdf" multiple style="display:none">
