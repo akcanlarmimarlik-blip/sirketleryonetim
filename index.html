@@ -2243,7 +2243,7 @@ function _fedexHizmetTabHTML(){
   const rows=charges.map(c=>`<tr style="border-bottom:1px solid var(--line)">
     <td style="padding:7px 6px;font-size:11px;color:var(--muted);text-align:center">${c.rowNo}</td>
     <td style="padding:7px 6px;font-size:11px;color:var(--muted)">${esc(c.referans||'—')}</td>
-    <td style="padding:7px 6px;font-size:12px;font-weight:600;color:${c.type==='GUMRUK'?'#B45309':'#4D1979'}">${esc(c.label)}</td>
+    <td style="padding:7px 6px;font-size:12px"><span style="font-weight:600;color:${c.type==='GUMRUK'?'#B45309':'#4D1979'}">${esc(c.label)}</span>${c.recipient?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(c.recipient)}</div>`:''}</td>
     <td style="padding:7px 6px;text-align:center"><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:${c.service==='PAK'?'#EDE9FE':'#DBEAFE'};color:${c.service==='PAK'?'#6D28D9':'#1D4ED8'}">${c.service}</span></td>
     <td style="padding:7px 6px;font-size:12px;text-align:right;white-space:nowrap">${c.weightKg?c.weightKg+' KG':'—'}</td>
     <td style="padding:7px 6px;font-size:13px;font-weight:700;text-align:right;white-space:nowrap">${fmtMoney(c.amountTL,'TRY')}</td>
@@ -2865,15 +2865,28 @@ async function _parseFedexPDF(file){
             if(it.str.length>(referans?.length||0)) referans=it.str;
           }
         }
-        // Faturadaki gerçek etiket metni
-        const rawLabel=(hizmetM?'Hizmet Ücreti':'Gümrük Vergisi');
+        // Alıcı ismi
+        const recipItems=block.filter(it=>{
+          if(SKIP.test(it.str)) return false;
+          if(LABEL_RE.test(it.str.trim())) return false;
+          if(/^(?:Alıcı|Alici|Adres|Ülke|Ulke|Gönderen|Gonderen|Teslimat|İsim|Isim)[:\s]/i.test(it.str)) return false;
+          if(/^\d+$/.test(it.str)||/\d{2}-\d{2}-\d{4}/.test(it.str)) return false;
+          if(it.str.length<3) return false;
+          if(CLIST.some(c=>it.str.toUpperCase()===c)) return false;
+          if(amtRe.test(it.str)||/Hizmet|Gümrük|Vergisi|Ücreti/i.test(it.str)) return false;
+          if(/\bKG\b|\bTL\b/i.test(it.str)) return false;
+          return true;
+        });
+        recipItems.sort((a,b)=>b.y-a.y);
+        const recipient=recipItems.slice(0,2).map(it=>it.str.replace(/^(?:Alıcı|Alici|İsim|Isim)[:\s]*/i,'').trim()).filter(s=>s.length>=2).join(' ').substring(0,50)||'';
         extraCharges.push({
           type:hizmetM?'HIZMET':'GUMRUK',
-          label:rawLabel,
+          label:hizmetM?'Hizmet Ücreti':'Gümrük Vergisi',
           amountTL:amtTL,
           weightKg:wKg,
           service:/\bPAK\b/.test(up)?'PAK':'PRIORITY',
           referans:referans||'',
+          recipient,
           rowNo
         });
       }
