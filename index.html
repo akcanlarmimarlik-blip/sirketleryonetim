@@ -1591,10 +1591,19 @@ function renderFedexPage(){
       let parsed=null;try{parsed=JSON.parse(a.text||'');}catch(e){}
       const analyzed=parsed?_fedexAnalyzeShipments(parsed.shipments||[]):[];
       const errCnt=analyzed.filter(s=>s.status==='error').length;
-      return `<div class="bill" style="cursor:pointer;display:block;padding:14px 16px" data-fxarchload="${a.id}">
-        <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(a.title||'Fatura')}</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${parsed?parsed.shipments.length+' gönderi':''} ${errCnt?`· <span style="color:#DC2626;font-weight:600">${errCnt} hatalı</span>`:''}</div>
-        <div style="font-size:11px;color:var(--faint)">${new Date(a.createdAt).toLocaleDateString('tr-TR')}</div>
+      const totalStr=parsed?.totalTL?fmtMoney(parsed.totalTL,'TRY'):'';
+      return `<div class="bill" style="padding:14px 16px">
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <div style="flex:1;cursor:pointer" data-fxarchload="${a.id}">
+            <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(a.title||'Fatura')}</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">
+              ${parsed?parsed.shipments.length+' gönderi':''} ${errCnt?`· <span style="color:#DC2626;font-weight:600">${errCnt} hatalı</span>`:''}
+              ${totalStr?`· <span style="font-weight:600">${totalStr}</span>`:''}
+            </div>
+            <div style="font-size:11px;color:var(--faint)">${new Date(a.createdAt).toLocaleDateString('tr-TR')}</div>
+          </div>
+          <button data-fxarchdel="${a.id}" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:20px;line-height:1;padding:4px 6px;flex:none">×</button>
+        </div>
       </div>`;
     }).join('');
 
@@ -1650,11 +1659,24 @@ function renderFedexPage(){
       await _runFedexAnalysis(f);
     });
     document.querySelectorAll('[data-fxfilter]').forEach(btn=>btn.addEventListener('click',()=>{view.fedexFilter=btn.dataset.fxfilter;renderFedexPage();}));
+    $('#fxCopyErrors')?.addEventListener('click',()=>{
+      const errs=_fedexAnalyzeShipments(fedexScanResult.shipments).filter(s=>s.status==='error');
+      if(!errs.length){toast('Hatalı kayıt yok');return;}
+      const lines=errs.map(s=>`#${s.rowNo} ${s.date} | ${s.recipient} | ${s.country} | ${s.service} | ${s.weightKg} KG | ${fmtMoney(s.amountTL,'TRY')} | Beklenen: ${s.expected}`);
+      navigator.clipboard.writeText(lines.join('\n')).then(()=>toast(`${errs.length} hatalı kayıt kopyalandı`));
+    });
   }
   if(tab==='archive'){
     document.querySelectorAll('[data-fxarchload]').forEach(el=>el.addEventListener('click',()=>{
       const arch=notes[el.dataset.fxarchload]; if(!arch)return;
       try{fedexScanResult=JSON.parse(arch.text);view.fedexTab='invoice';renderFedexPage();}catch(e){toast('Arşiv yüklenemedi');}
+    }));
+    document.querySelectorAll('[data-fxarchdel]').forEach(el=>el.addEventListener('click',async()=>{
+      const id=el.dataset.fxarchdel;
+      await del('notes',id);
+      delete notes[id];
+      toast('Arşivden silindi');
+      renderFedexPage();
     }));
   }
   bindFooter();
@@ -1704,10 +1726,11 @@ function _fedexInvoiceTabHTML(){
       <button id="fxArchiveBtn" style="font-size:12px;padding:5px 12px;background:#4D1979;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">📁 Arşive Gönder</button>
       <button id="fxNewPdf" style="font-size:12px;padding:5px 12px;background:var(--paper-2);border:1px solid var(--line);border-radius:8px;cursor:pointer">Yeni PDF</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
       <button data-fxfilter="all" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='all'?'#4D1979':'var(--card)'};color:${filter==='all'?'#fff':'var(--ink)'}">Tümü (${analyzed.length})</button>
       <button data-fxfilter="errors" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='errors'?'#DC2626':'var(--card)'};color:${filter==='errors'?'#fff':'var(--ink)'}">Hatalı (${errors.length})</button>
       ${noRule.length?`<button data-fxfilter="norule" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='norule'?'#6B7280':'var(--card)'};color:${filter==='norule'?'#fff':'var(--ink)'}">Kural yok (${noRule.length})</button>`:''}
+      ${errors.length?`<button id="fxCopyErrors" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #DC2626;cursor:pointer;background:var(--card);color:#DC2626;margin-left:auto">📋 Hatalıları Kopyala</button>`:''}
     </div>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
       <table style="width:100%;border-collapse:collapse;min-width:600px">
@@ -1784,10 +1807,25 @@ async function _parseFedexPDF(file){
   }
 
   // Header bilgisi
+  let totalTL=0;
   for(const it of allItems){
     if(!invoiceNo && /FXA\d{10,}/.test(it.str)) invoiceNo=it.str.match(/FXA\d+/)[0];
     if(!invoiceDate && /^\d{2}-\d{2}-\d{4}$/.test(it.str)) invoiceDate=it.str;
-    if(invoiceDate && invoiceNo) break;
+  }
+
+  // Vergiler Dahil Toplam Tutar: sonrasındaki sayıyı bul
+  for(let i=0;i<allItems.length;i++){
+    if(/Vergiler\s+Dahil\s+Toplam/i.test(allItems[i].str)||/Toplam\s+Tutar/i.test(allItems[i].str)){
+      // Aynı Y ±15px'teki en sağdaki sayı
+      const refY=allItems[i].y;
+      const candidates=allItems.filter(it=>Math.abs(it.y-refY)<=15&&/^[\d.,]+(?:\s*TL)?$/.test(it.str));
+      candidates.sort((a,b)=>b.x-a.x);
+      if(candidates.length){
+        const r=candidates[0].str.replace(/\s*TL$/i,'').trim();
+        const v=/,\d{2}$/.test(r)?parseFloat(r.replace(/\./g,'').replace(',','.')):parseFloat(r.replace(/,/g,''));
+        if(v>totalTL) totalTL=v;
+      }
+    }
   }
 
   // Ülke listesi
@@ -1902,7 +1940,7 @@ async function _parseFedexPDF(file){
   }
 
   shipments.sort((a,b)=>a.rowNo-b.rowNo);
-  return {invoiceDate, invoiceNo, shipments};
+  return {invoiceDate, invoiceNo, totalTL, shipments};
 }
 
 function openFedexPricingModal(){
