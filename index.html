@@ -711,7 +711,8 @@
     <input class="login-input" id="loginEmail" type="email" placeholder="E-posta" autocomplete="username"
       onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
     <input class="login-input" id="loginPassword" type="password" placeholder="Şifre" autocomplete="current-password"
-      onkeydown="if(event.key==='Enter')doLogin()">
+      onkeydown="if(event.key==='Enter')doLogin()"
+      oninput="_autoLoginIfReady()">
     <div class="login-error" id="loginError"></div>
     <button class="login-btn" id="loginBtn" onclick="doLogin()">Giriş Yap</button>
   </div>
@@ -3769,6 +3770,11 @@ function toast(msg){
 /* ---------- Auth state ---------- */
 let currentUser = null;
 
+function _autoLoginIfReady(){
+  const e = document.getElementById('loginEmail');
+  const p = document.getElementById('loginPassword');
+  if(e && p && e.value.trim() && p.value.length >= 6) doLogin();
+}
 function showLoginScreen(){
   const ls = document.getElementById('loginScreen');
   if(ls) ls.style.display = 'flex';
