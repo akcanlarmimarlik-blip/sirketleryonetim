@@ -816,43 +816,7 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
-let fedexSettings={version:5,rules:[
-  {region:'Asya-Pasifik',service:'PAK',minKg:0,  maxKg:0.5,minTL:1270, maxTL:1825},
-  {region:'Asya-Pasifik',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1450, maxTL:2084},
-  {region:'Asya-Pasifik',service:'PAK',minKg:1.0,maxKg:1.5,minTL:1629, maxTL:2342},
-  {region:'Asya-Pasifik',service:'PAK',minKg:1.5,maxKg:2.0,minTL:1809, maxTL:2600},
-  {region:'Asya-Pasifik',service:'PAK',minKg:2.0,maxKg:2.5,minTL:1989, maxTL:2858},
-  {region:'Avrupa', service:'PAK',     minKg:0,  maxKg:0.5,minTL:622,  maxTL:894},
-  {region:'Avrupa', service:'PAK',     minKg:0.5,maxKg:1.0,minTL:668,  maxTL:960},
-  {region:'Avrupa', service:'PAK',     minKg:1.0,maxKg:1.5,minTL:714,  maxTL:1026},
-  {region:'Avrupa', service:'PAK',     minKg:1.5,maxKg:2.0,minTL:760,  maxTL:1093},
-  {region:'Avrupa', service:'PAK',     minKg:2.0,maxKg:2.5,minTL:806,  maxTL:1159},
-  {region:'Amerika',service:'PAK',     minKg:0,  maxKg:0.5,minTL:714,  maxTL:821},
-  {region:'Amerika',service:'PAK',     minKg:0.5,maxKg:1.0,minTL:768,  maxTL:883},
-  {region:'Amerika',service:'PAK',     minKg:1.0,maxKg:1.5,minTL:822,  maxTL:945},
-  {region:'Amerika',service:'PAK',     minKg:1.5,maxKg:2.0,minTL:877,  maxTL:1008},
-  {region:'Amerika',service:'PAK',     minKg:2.0,maxKg:2.5,minTL:931,  maxTL:1071},
-  {region:'Amerika',service:'PRIORITY',minKg:0,  maxKg:0.5,minTL:744,  maxTL:1070},
-  {region:'Amerika',service:'PRIORITY',minKg:0.5,maxKg:1.0,minTL:765,  maxTL:1100},
-  {region:'Amerika',service:'PRIORITY',minKg:1.0,maxKg:1.5,minTL:786,  maxTL:1129},
-  {region:'Amerika',service:'PRIORITY',minKg:1.5,maxKg:2.0,minTL:807,  maxTL:1160},
-  {region:'Amerika',service:'PRIORITY',minKg:2.0,maxKg:2.5,minTL:827,  maxTL:1189},
-  {region:'Amerika',service:'PRIORITY',minKg:2.5,maxKg:3.0,minTL:975,  maxTL:1401},
-  {region:'Amerika',service:'PRIORITY',minKg:3.0,maxKg:3.5,minTL:999,  maxTL:1435},
-  {region:'Amerika',service:'PRIORITY',minKg:3.5,maxKg:4.0,minTL:1023, maxTL:1470},
-  {region:'Amerika',service:'PRIORITY',minKg:4.0,maxKg:4.5,minTL:1047, maxTL:1504},
-  {region:'Amerika',service:'PRIORITY',minKg:4.5,maxKg:5.0,minTL:1070, maxTL:1539},
-  {region:'Amerika',service:'PRIORITY',minKg:5.0,maxKg:5.5,minTL:1151, maxTL:1654},
-  {region:'Amerika',service:'PRIORITY',minKg:5.5,maxKg:6.0,minTL:1230, maxTL:1768},
-  {region:'Amerika',service:'PRIORITY',minKg:6.0,maxKg:6.5,minTL:1310, maxTL:1883},
-  {region:'Amerika',service:'PRIORITY',minKg:6.5,maxKg:7.0,minTL:1390, maxTL:1998},
-  {region:'Amerika',service:'PRIORITY',minKg:7.0,maxKg:7.5,minTL:1469, maxTL:2112},
-  {region:'Amerika',service:'PRIORITY',minKg:7.5,maxKg:8.0,minTL:1549, maxTL:2227},
-  {region:'Amerika',service:'PRIORITY',minKg:8.0,maxKg:8.5,minTL:1629, maxTL:2342},
-  {region:'Amerika',service:'PRIORITY',minKg:8.5,maxKg:9.0,minTL:1709, maxTL:2456},
-  {region:'Amerika',service:'PRIORITY',minKg:9.0,maxKg:9.5,minTL:1788, maxTL:2570},
-  {region:'Amerika',service:'PRIORITY',minKg:9.5,maxKg:10, minTL:1868, maxTL:2686},
-]};
+let fedexSettings={version:7,rules:[]};
 let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments}
 
 const FX_REGION={
@@ -4392,11 +4356,11 @@ async function onUserSignedIn(user){
     }
   }
   const _fxs=await getOne('settings','fedexSettings');
-  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=5){
-    // Güncel format — kullan
+  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=7){
     fedexSettings={...fedexSettings,..._fxs.data};
+  } else {
+    await put('settings',{id:'fedexSettings',data:fedexSettings});
   }
-  // Eski/versiyon eksik kayıt → default 25 kural, bir sonraki Kaydet'te yazılır
   await loadAll();
   await loadAllFinance();
   await seedPastelyaRoutines();
