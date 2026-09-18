@@ -1109,6 +1109,7 @@ let fedexSettings={version:16,rules:[
 let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments} — legacy, kept for archive compat
 let fedexBulkResults=[]; // array of parsed invoices (max 10)
 let fedexBulkActiveIdx=0;
+let fedexHizmetActiveIdx=0;
 let fedexGlobalSettings={
   USD_TRY_RATE:48.77,FUEL_SURCHARGE_PERCENT:20.0,EPH_PERCENT:2.35,HIGH_PRICE_PERCENT:15.0,
   USA_INBOUND_USD:0.66,EU_INBOUND_USD:2.65,UK_INBOUND_USD:0,CANADA_INBOUND_USD:0,
@@ -1971,6 +1972,8 @@ function renderFedexPage(){
 
     // Alt sekme (Gönderi Analizi / Hizmet)
     document.querySelectorAll('[data-fxsubtab]').forEach(btn=>btn.addEventListener('click',()=>{view.fedexSubTab=btn.dataset.fxsubtab;renderFedexPage();}));
+    // Hizmet fatura sekmeleri
+    document.querySelectorAll('[data-fxhizmetin]').forEach(btn=>btn.addEventListener('click',()=>{fedexHizmetActiveIdx=parseInt(btn.dataset.fxhizmetin);renderFedexPage();}));
 
     // PDF yükle (bulk, max 10)
     $('#fxBulkUploadBtn')?.addEventListener('click',()=>$('#fxBulkFileInput')?.click());
@@ -2194,65 +2197,65 @@ function _fedexInvoiceTabHTML(){
 }
 
 function _fedexHizmetTabHTML(){
-  // Tüm yüklü faturalardan extraCharges topla
-  const allCharges=fedexBulkResults.flatMap(r=>(r.extraCharges||[]).map(c=>({...c,invoiceNo:r.invoiceNo||'?'})));
+  // Sadece extraCharges olan faturalar
+  const hizmetInvoices=fedexBulkResults.filter(r=>r.extraCharges?.length);
 
-  if(!allCharges.length){
-    const hasInvoices=fedexBulkResults.length>0;
-    return `<div style="text-align:center;padding:40px 20px">
-      <div style="font-size:48px;margin-bottom:12px">🧾</div>
-      <div style="font-size:15px;font-weight:600;margin-bottom:6px">${hasInvoices?'Hizmet/Gümrük Satırı Bulunamadı':'Henüz Fatura Yüklenmedi'}</div>
-      <div style="font-size:13px;color:var(--muted)">${hasInvoices?'Yüklü faturalarda hizmet ücreti veya gümrük vergisi satırı yok.':'Fatura Analizi sekmesinden PDF yükleyin.'}</div>
+  if(!hizmetInvoices.length){
+    return `<div style="text-align:center;padding:32px 20px">
+      <div style="font-size:36px;margin-bottom:10px">🧾</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${fedexBulkResults.length?'Hizmet/Gümrük Satırı Bulunamadı':'Henüz Fatura Yüklenmedi'}</div>
+      <div style="font-size:12px;color:var(--muted)">${fedexBulkResults.length?'Yüklü faturalarda hizmet veya gümrük satırı yok.':'Gönderi Analizi bölümünden PDF yükleyin.'}</div>
     </div>`;
   }
 
-  const hizmetRows=allCharges.filter(c=>c.type==='HIZMET');
-  const gumrukRows=allCharges.filter(c=>c.type==='GUMRUK');
-  const hizmetTotal=hizmetRows.reduce((s,c)=>s+c.amountTL,0);
-  const gumrukTotal=gumrukRows.reduce((s,c)=>s+c.amountTL,0);
-  const grandTotal=hizmetTotal+gumrukTotal;
+  const hi=Math.min(fedexHizmetActiveIdx,hizmetInvoices.length-1);
+  const activeInv=hizmetInvoices[hi];
+  const charges=activeInv.extraCharges;
+  const total=charges.reduce((s,c)=>s+c.amountTL,0);
 
-  const rows=allCharges.map(c=>`<tr style="border-bottom:1px solid var(--line)">
+  const tabBtns=hizmetInvoices.map((r,i)=>{
+    const isAct=i===hi;
+    return `<button data-fxhizmetin="${i}" style="font-size:12px;padding:6px 12px;border-radius:8px 8px 0 0;border:1px solid var(--line);border-bottom:${isAct?'2px solid #B45309':'1px solid var(--line)'};cursor:pointer;background:${isAct?'#fff':'var(--paper-2)'};color:${isAct?'#B45309':'var(--ink)'};font-weight:${isAct?700:400};white-space:nowrap">${esc(r.invoiceNo||('Fatura '+(i+1)))} <span style="font-size:10px;color:${isAct?'#B45309':'var(--muted)'};">${r.extraCharges.length}</span></button>`;
+  }).join('');
+
+  const rows=charges.map(c=>`<tr style="border-bottom:1px solid var(--line)">
     <td style="padding:7px 6px;font-size:11px;color:var(--muted);text-align:center">${c.rowNo}</td>
-    <td style="padding:7px 6px;font-size:11px;color:var(--muted);white-space:nowrap">${esc(c.invoiceNo)}</td>
-    <td style="padding:7px 6px;font-size:12px"><span style="font-weight:600;color:${c.type==='GUMRUK'?'#B45309':'#4D1979'}">${esc(c.label)}</span></td>
+    <td style="padding:7px 6px;font-size:11px;color:var(--muted)">${esc(c.referans||'—')}</td>
+    <td style="padding:7px 6px;font-size:12px;font-weight:600;color:${c.type==='GUMRUK'?'#B45309':'#4D1979'}">${esc(c.label)}</td>
     <td style="padding:7px 6px;text-align:center"><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:${c.service==='PAK'?'#EDE9FE':'#DBEAFE'};color:${c.service==='PAK'?'#6D28D9':'#1D4ED8'}">${c.service}</span></td>
     <td style="padding:7px 6px;font-size:12px;text-align:right;white-space:nowrap">${c.weightKg?c.weightKg+' KG':'—'}</td>
-    <td style="padding:7px 6px;font-size:13px;font-weight:700;text-align:right;white-space:nowrap;color:${c.type==='GUMRUK'?'#B45309':'#4D1979'}">${fmtMoney(c.amountTL,'TRY')}</td>
+    <td style="padding:7px 6px;font-size:13px;font-weight:700;text-align:right;white-space:nowrap">${fmtMoney(c.amountTL,'TRY')}</td>
   </tr>`).join('');
 
   return `<div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-      <div style="background:#EDE0F7;border-radius:10px;padding:10px 16px;min-width:130px">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#4D1979;margin-bottom:4px">Hizmet Ücreti</div>
-        <div style="font-size:16px;font-weight:700;color:#4D1979">${fmtMoney(hizmetTotal,'TRY')}</div>
-        <div style="font-size:11px;color:#6D28D9;margin-top:2px">${hizmetRows.length} satır</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0;overflow-x:auto">${tabBtns}</div>
+    <div style="border:1px solid var(--line);border-top:2px solid #B45309;padding:12px;border-radius:0 0 8px 8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="font-size:12px;color:var(--muted)">${esc(activeInv.invoiceNo)} · ${activeInv.invoiceDate||''} · ${charges.length} satır</div>
+        <span style="flex:1"></span>
+        <div style="font-size:14px;font-weight:700">${fmtMoney(total,'TRY')}</div>
       </div>
-      <div style="background:#FEF3C7;border-radius:10px;padding:10px 16px;min-width:130px">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#B45309;margin-bottom:4px">Gümrük Vergisi</div>
-        <div style="font-size:16px;font-weight:700;color:#B45309">${fmtMoney(gumrukTotal,'TRY')}</div>
-        <div style="font-size:11px;color:#D97706;margin-top:2px">${gumrukRows.length} satır</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table style="width:100%;border-collapse:collapse;min-width:440px">
+          <thead>
+            <tr style="border-bottom:2px solid var(--line)">
+              <th style="padding:6px 6px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">NO</th>
+              <th style="padding:6px 6px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">REFERANS</th>
+              <th style="padding:6px 6px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">TÜR</th>
+              <th style="padding:6px 6px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">SERVİS</th>
+              <th style="padding:6px 6px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">AĞIRLIK</th>
+              <th style="padding:6px 6px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR TL</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--line)">
+              <td colspan="5" style="padding:8px 6px;font-size:12px;font-weight:700;text-align:right;color:var(--muted)">Toplam:</td>
+              <td style="padding:8px 6px;font-size:14px;font-weight:700;text-align:right;white-space:nowrap">${fmtMoney(total,'TRY')}</td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
-      <div style="background:var(--paper-2);border-radius:10px;padding:10px 16px;min-width:130px;border:1px solid var(--line)">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:4px">Toplam</div>
-        <div style="font-size:16px;font-weight:700">${fmtMoney(grandTotal,'TRY')}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">${allCharges.length} satır · ${fedexBulkResults.filter(r=>r.extraCharges?.length).length} fatura</div>
-      </div>
-    </div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <table style="width:100%;border-collapse:collapse;min-width:480px">
-        <thead>
-          <tr style="border-bottom:2px solid var(--line)">
-            <th style="padding:6px 6px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">NO</th>
-            <th style="padding:6px 6px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">FATURA</th>
-            <th style="padding:6px 6px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">TÜR</th>
-            <th style="padding:6px 6px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">SERVİS</th>
-            <th style="padding:6px 6px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">AĞIRLIK</th>
-            <th style="padding:6px 6px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR TL</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
     </div>
   </div>`;
 }
@@ -2832,12 +2835,22 @@ async function _parseFedexPDF(file){
           const mw=it.str.match(/^(\d+(?:[.,]\d+)?)\s*KG$/i)||it.str.match(/^(\d+[.,]\d{1,2})$/);
           if(mw&&!/TL/i.test(it.str)){const v=parseFloat(mw[1].replace(',','.'));if(v>0&&v<100){wKg=v;break;}}
         }
+        // Referans: blok içinde en uzun alfanumerik token (takip no veya sipariş no)
+        let referans='';
+        for(const it of block){
+          if(/^[A-Z0-9]{6,25}$/i.test(it.str)&&!/^(KG|TL|PAK|PRIORITY|INTL)$/i.test(it.str)&&+it.str!==rowNo&&!CLIST.some(c=>it.str.toUpperCase()===c)){
+            if(it.str.length>(referans?.length||0)) referans=it.str;
+          }
+        }
+        // Faturadaki gerçek etiket metni
+        const rawLabel=(hizmetM?'Hizmet Ücreti':'Gümrük Vergisi');
         extraCharges.push({
           type:hizmetM?'HIZMET':'GUMRUK',
-          label:hizmetM?'Hizmet Ücreti':'Gümrük Vergisi',
+          label:rawLabel,
           amountTL:amtTL,
           weightKg:wKg,
           service:/\bPAK\b/.test(up)?'PAK':'PRIORITY',
+          referans:referans||'',
           rowNo
         });
       }
