@@ -396,6 +396,10 @@
   .task-title{font-size:14px;font-weight:500;color:var(--ink);line-height:1.3;word-break:break-word}
   .task-item.done .task-title{text-decoration:line-through;color:var(--muted)}
   .task-co{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:var(--paper-2);color:var(--muted);margin-top:4px}
+  .task-drag{background:none;border:none;cursor:grab;color:var(--faint);padding:3px 6px;font-size:18px;line-height:1;flex:none;touch-action:none;user-select:none}
+  .task-drag:active{cursor:grabbing}
+  .task-item.dragging{opacity:.3}
+  .task-item.drag-over{border-color:var(--accent);background:var(--accent-tint,#E6ECE2)}
   .task-del{background:none;border:none;cursor:pointer;color:var(--faint);padding:3px 6px;border-radius:6px;font-size:15px;line-height:1;flex:none}
   .task-del:hover{background:var(--paper-2);color:#c0392b}
   .task-add-row{display:flex;gap:8px;margin-top:16px}
@@ -1854,6 +1858,88 @@ function openNotlarimModal(id){
   }
 }
 
+function _setupTaskDrag(freq){
+  const list = document.querySelector('.cv [style*="margin-top:20px"]');
+  if(!list) return;
+  const items = ()=>[...list.querySelectorAll('.task-item[data-rid]')];
+  let dragged = null;
+
+  items().forEach(item=>{
+    const handle = item.querySelector('.task-drag');
+    if(!handle) return;
+
+    // Desktop drag
+    item.setAttribute('draggable','true');
+    item.addEventListener('dragstart', e=>{
+      dragged = item;
+      setTimeout(()=>item.classList.add('dragging'),0);
+      e.dataTransfer.effectAllowed='move';
+    });
+    item.addEventListener('dragend', ()=>{
+      item.classList.remove('dragging');
+      items().forEach(i=>i.classList.remove('drag-over'));
+      dragged=null;
+    });
+    item.addEventListener('dragover', e=>{
+      e.preventDefault();
+      if(dragged && dragged!==item) item.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave', ()=>item.classList.remove('drag-over'));
+    item.addEventListener('drop', e=>{
+      e.preventDefault();
+      if(!dragged || dragged===item) return;
+      item.classList.remove('drag-over');
+      _saveTaskOrder(list, dragged, item, freq);
+    });
+
+    // Mobile touch drag
+    handle.addEventListener('touchstart', e=>{
+      e.preventDefault();
+      dragged = item;
+      item.classList.add('dragging');
+    },{passive:false});
+    handle.addEventListener('touchmove', e=>{
+      e.preventDefault();
+      const touch = e.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const target = el?.closest('.task-item[data-rid]');
+      items().forEach(i=>i.classList.remove('drag-over'));
+      if(target && target!==dragged) target.classList.add('drag-over');
+    },{passive:false});
+    handle.addEventListener('touchend', e=>{
+      e.preventDefault();
+      const touch = e.changedTouches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const target = el?.closest('.task-item[data-rid]');
+      item.classList.remove('dragging');
+      items().forEach(i=>i.classList.remove('drag-over'));
+      if(target && target!==dragged && dragged){
+        _saveTaskOrder(list, dragged, target, freq);
+      }
+      dragged=null;
+    },{passive:false});
+  });
+}
+
+async function _saveTaskOrder(list, draggedEl, targetEl, freq){
+  const allItems = [...list.querySelectorAll('.task-item[data-rid]')];
+  const fromIdx = allItems.indexOf(draggedEl);
+  const toIdx   = allItems.indexOf(targetEl);
+  if(fromIdx < 0 || toIdx < 0) return;
+
+  // Reorder in DOM
+  if(fromIdx < toIdx) targetEl.after(draggedEl);
+  else targetEl.before(draggedEl);
+
+  // Persist new order
+  const reordered = [...list.querySelectorAll('.task-item[data-rid]')];
+  const updates = reordered.map((el,i)=>{
+    const r = routines.find(x=>x.id===el.dataset.rid);
+    if(r){ r.order=i; return put('routines',r); }
+  }).filter(Boolean);
+  await Promise.all(updates);
+}
+
 function renderTaskPage(){
   const freq = view.taskFreq || 'daily';
   const f = FREQ.find(x=>x.key===freq) || FREQ[0];
@@ -1870,7 +1956,8 @@ function renderTaskPage(){
     : tasks.map(r => {
         const done = isDone(r);
         const cn = coName(r.companyId);
-        return `<div class="task-item${done?' done':''}">
+        return `<div class="task-item${done?' done':''}" data-rid="${r.id}">
+          <button class="task-drag" title="Sırala" touch-action="none">⠿</button>
           <button class="task-check" data-tcheck="${r.id}">${done?svgCheck():''}</button>
           <div class="task-body-row">
             <div class="task-title">${esc(r.title)}</div>
@@ -1922,6 +2009,7 @@ function renderTaskPage(){
   };
   $('#tpAdd').addEventListener('click', addTask);
   $('#tpInp').addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
+  _setupTaskDrag(freq);
   bindFooter();
 }
 
