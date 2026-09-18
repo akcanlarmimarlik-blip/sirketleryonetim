@@ -1864,6 +1864,7 @@ async function _parseFedexPDF(file){
     const recipItems=block.filter(it=>{
       if(SKIP.test(it.str)) return false;
       if(LABEL_RE.test(it.str.trim())) return false; // saf etiket satırları
+      if(/^(?:Ülke|Ulke|Adres|Gönderen|Gonderen)[:\s]/i.test(it.str)) return false; // "Ülke:US" gibi etiket+içerik
       if(/^\d+$/.test(it.str)||/\d{2}-\d{2}-\d{4}/.test(it.str)) return false;
       if(it.str.length<3) return false;
       if(CLIST.some(c=>it.str.toUpperCase()===c)) return false;
@@ -1879,7 +1880,7 @@ async function _parseFedexPDF(file){
     const recipStr=recipItems.slice(0,3)
       .map(it=>it.str
         .replace(/^(?:Alıcı|Alici|İsim|Isim)[:\s]*/i,'')  // "Alıcı: " prefix
-        .replace(/\s+(?:Adres|Adres\.|Ülke|Ulke)[:\s].*/i,'')  // "Adres: ..." suffix
+        .replace(/[\s]*(?:Adres|Ülke|Ulke)[:\s].*/i,'')  // "Adres:..." / "Ülke:..." suffix
         .trim())
       .filter(s=>s.length>=2).slice(0,2).join(' ').substring(0,60);
     const recipient=recipStr||'—';
