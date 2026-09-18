@@ -1969,10 +1969,7 @@ function renderFedexPage(){
     $('#addFedexNoteBtn')?.addEventListener('click',()=>openFedexModal(null));
     document.querySelectorAll('[data-fedexnoteopen]').forEach(el=>el.addEventListener('click',()=>openFedexModal(el.dataset.fedexnoteopen)));
   }
-  if(tab==='invoice'){
-    $('#fxInvSettings')?.addEventListener('click',openFedexPricingModal);
-
-    // Hizmet bölümü — fatura sekmeleri + kaldır
+  if(tab==='hizmet'){
     document.querySelectorAll('[data-fxhizmetin]').forEach(btn=>btn.addEventListener('click',()=>{fedexHizmetActiveIdx=parseInt(btn.dataset.fxhizmetin);renderFedexPage();}));
     $('#fxHizmetRemove')?.addEventListener('click',()=>{
       const hizmetInvs=fedexBulkResults.filter(r=>r.extraCharges?.length);
@@ -1986,6 +1983,9 @@ function renderFedexPage(){
       }
       renderFedexPage();
     });
+  }
+  if(tab==='invoice'){
+    $('#fxInvSettings')?.addEventListener('click',openFedexPricingModal);
 
     // PDF yükle (bulk, max 10)
     $('#fxBulkUploadBtn')?.addEventListener('click',()=>$('#fxBulkFileInput')?.click());
