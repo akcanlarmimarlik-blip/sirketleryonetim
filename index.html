@@ -4362,10 +4362,13 @@ async function onUserSignedIn(user){
   }
   const _fxs=await getOne('settings','fedexSettings');
   if(_fxs&&_fxs.data){
-    fedexSettings={...fedexSettings,..._fxs.data};
-    // Eski kayıtta service alanı yoksa default kuralları koru
-    const hasService=(_fxs.data.rules||[]).some(r=>r.service);
-    if(!hasService) fedexSettings.rules=[...fedexSettings.rules,...(_fxs.data.rules||[])];
+    const savedRules=_fxs.data.rules||[];
+    const hasValidRules=savedRules.length>0&&savedRules.some(r=>r.service);
+    if(hasValidRules){
+      // Yeni formatta kurallar var — kullan
+      fedexSettings={...fedexSettings,..._fxs.data};
+    }
+    // Eski/boş kurallar → default kuralları koru, bir sonraki Kaydet'te yazılır
   }
   await loadAll();
   await loadAllFinance();
