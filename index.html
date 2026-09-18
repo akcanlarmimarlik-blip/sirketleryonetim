@@ -1817,6 +1817,7 @@ async function _parseFedexPDF(file){
   // Sayısal sıraya koy
   const rowList=[...rowNoMap.values()].sort((a,b)=>+a.str-+b.str);
 
+  console.log('[FedEx] Bulunan sıra no\'ları:',rowList.map(r=>r.str+' (s.'+r.page+' y='+Math.round(r.y)+')').join(', '));
   if(!rowList.length) return {invoiceDate, invoiceNo, shipments:[]};
 
   const SKIP=/GOLDEN|AKIN AKCAN|TURGUTLU|MANISA|SEHITLER|ANKARA|45400|FEDEX|INTL|PRIORITY|PAK|REFERANS|ISTANBUL|TURKEY/i;
@@ -1832,8 +1833,8 @@ async function _parseFedexPDF(file){
     // Y sınırları: PDF'de Y=0 sayfa altıdır (Y büyüdükçe yukarı)
     // Bu satır rowItem.y'den başlar, bir sonraki aynı sayfadaki satıra kadar sürer
     const nextOnPage=rowList.find(r=>r.page===page&&+r.str===rowNo+1);
-    const yTop=rowItem.y+30;                          // satır numarasının biraz üstü
-    const yBot=nextOnPage?nextOnPage.y+10:rowItem.y-300; // sonraki satıra kadar (ya da ~300px)
+    const yTop=rowItem.y+30;                              // satır numarasının biraz üstü
+    const yBot=nextOnPage?nextOnPage.y+10:rowItem.y-600; // son satırda 600px fallback
 
     const block=allItems.filter(it=>it.page===page&&it.y<=yTop&&it.y>=yBot);
     if(!block.length) continue;
@@ -1841,7 +1842,7 @@ async function _parseFedexPDF(file){
     const up=blockText.toUpperCase();
 
     // Tutar: blok içindeki en sağdaki ondalıklı sayı
-    const amtInBlock=block.filter(it=>amtRe.test(it.str)&&it.x>maxX-50)
+    const amtInBlock=block.filter(it=>amtRe.test(it.str)&&it.x>maxX-80)
       .sort((a,b)=>b.x-a.x);
     if(!amtInBlock.length) continue;
     const raw=amtInBlock[0].str.replace(/\s*TL$/i,'').trim();
