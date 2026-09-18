@@ -2097,13 +2097,16 @@ function renderFedexPage(){
 }
 
 function _fedexInvoiceTabHTML(){
-  // Empty state
+  const canAddMore=fedexBulkResults.length<10;
+  const uploadBtn=`<input type="file" id="fxBulkFileInput" accept=".pdf" multiple style="display:none">`;
+
+  // Empty state — hiç fatura yok
   if(!fedexBulkResults.length){
     return `<div style="text-align:center;padding:40px 20px">
       <div style="font-size:48px;margin-bottom:12px">📄</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:6px">FedEx Fatura PDF Yükle</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Maksimum 10 fatura aynı anda analiz edilebilir.</div>
-      <input type="file" id="fxBulkFileInput" accept=".pdf" multiple style="display:none">
+      ${uploadBtn}
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button id="fxBulkUploadBtn" style="padding:12px 28px;background:#4D1979;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">PDF Yükle</button>
       </div>
@@ -2111,20 +2114,40 @@ function _fedexInvoiceTabHTML(){
     </div>`;
   }
 
-  // Active tab result
-  const ai=Math.min(fedexBulkActiveIdx,fedexBulkResults.length-1);
-  const activeResult=fedexBulkResults[ai];
+  // Kargo faturaları: sadece normal gönderi satırı olanlar
+  const kargoInvoices=fedexBulkResults.filter(r=>r.shipments.length>0);
+
+  // Tüm yüklüler hizmet faturasıysa
+  if(!kargoInvoices.length){
+    return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      ${uploadBtn}
+      ${canAddMore?`<button id="fxBulkUploadBtn" style="font-size:12px;padding:6px 12px;background:#4D1979;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ PDF Ekle</button>`:''}
+      <button id="fxBulkRecheck" style="font-size:12px;padding:6px 12px;background:var(--paper-2);border:1px solid var(--line);border-radius:8px;cursor:pointer">↻ Toplu Kontrol</button>
+    </div>
+    <div style="text-align:center;padding:32px 20px;border:1px dashed var(--line);border-radius:10px">
+      <div style="font-size:13px;color:var(--muted)">Yüklü faturalar sadece hizmet/gümrük satırı içeriyor.<br>Kargo faturaları için PDF yükleyin.</div>
+      <div id="fxBulkStatus" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
+    </div>`;
+  }
+
+  // Aktif kargo faturası (global active → kargo listesinde karşılık bul)
+  let kargoAi=kargoInvoices.findIndex(r=>r===fedexBulkResults[fedexBulkActiveIdx]);
+  if(kargoAi===-1)kargoAi=0;
+  const activeResult=kargoInvoices[kargoAi];
+  const globalAi=fedexBulkResults.indexOf(activeResult);
+
   const filter=view.fedexFilter||'all';
   const analyzed=_fedexAnalyzeShipments(activeResult.shipments);
   const errors=analyzed.filter(s=>s.status==='error');
   const noRule=analyzed.filter(s=>s.status==='noRule');
   const shown=filter==='errors'?errors:filter==='norule'?noRule:analyzed;
 
-  // Sekme başlıkları
-  const tabBtns=fedexBulkResults.map((r,i)=>{
+  // Sekme başlıkları — sadece kargo faturaları
+  const tabBtns=kargoInvoices.map((r,ki)=>{
+    const gi=fedexBulkResults.indexOf(r);
     const errCnt=_fedexAnalyzeShipments(r.shipments).filter(s=>s.status==='error').length;
-    const isAct=i===ai;
-    return `<button data-fxbulktab="${i}" style="font-size:12px;padding:6px 12px;border-radius:8px 8px 0 0;border:1px solid var(--line);border-bottom:${isAct?'2px solid #4D1979':'1px solid var(--line)'};cursor:pointer;background:${isAct?'#fff':'var(--paper-2)'};color:${isAct?'#4D1979':'var(--ink)'};font-weight:${isAct?700:400};white-space:nowrap">${esc(r.invoiceNo||('Fatura '+(i+1)))}${errCnt?` <span style="background:#DC2626;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px">${errCnt}</span>`:''}</button>`;
+    const isAct=ki===kargoAi;
+    return `<button data-fxbulktab="${gi}" style="font-size:12px;padding:6px 12px;border-radius:8px 8px 0 0;border:1px solid var(--line);border-bottom:${isAct?'2px solid #4D1979':'1px solid var(--line)'};cursor:pointer;background:${isAct?'#fff':'var(--paper-2)'};color:${isAct?'#4D1979':'var(--ink)'};font-weight:${isAct?700:400};white-space:nowrap">${esc(r.invoiceNo||('Fatura '+(ki+1)))}${errCnt?` <span style="background:#DC2626;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px">${errCnt}</span>`:''}</button>`;
   }).join('');
 
   // Satır tablosu
@@ -2146,12 +2169,10 @@ function _fedexInvoiceTabHTML(){
     </tr>`;
   }).join('');
 
-  const canAddMore=fedexBulkResults.length<10;
-
   return `<div>
     <!-- üst kontroller -->
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:0">
-      <input type="file" id="fxBulkFileInput" accept=".pdf" multiple style="display:none">
+      ${uploadBtn}
       ${canAddMore?`<button id="fxBulkUploadBtn" style="font-size:12px;padding:6px 12px;background:#4D1979;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ PDF Ekle</button>`:'<span style="font-size:12px;color:var(--muted)">Maksimum 10 fatura yüklendi</span>'}
       <button id="fxBulkRecheck" style="font-size:12px;padding:6px 12px;background:var(--paper-2);border:1px solid var(--line);border-radius:8px;cursor:pointer">↻ Toplu Kontrol</button>
       <span style="flex:1"></span>
@@ -2165,7 +2186,7 @@ function _fedexInvoiceTabHTML(){
         <div style="font-size:12px;color:var(--muted)">${esc(activeResult.invoiceNo)} · ${activeResult.invoiceDate} · ${analyzed.length} gönderi</div>
         <span style="flex:1"></span>
         ${errors.length?`<span style="font-size:12px;font-weight:700;color:#DC2626">${errors.length} hatalı</span>`:''}
-        <button data-fxbulkarchive="${ai}" style="font-size:12px;padding:5px 12px;background:#4D1979;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">📁 Arşive Gönder</button>
+        <button data-fxbulkarchive="${globalAi}" style="font-size:12px;padding:5px 12px;background:#4D1979;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">📁 Arşive Gönder</button>
         <button id="fxBulkRemove" style="font-size:12px;padding:5px 12px;background:var(--paper-2);border:1px solid #DC2626;border-radius:8px;cursor:pointer;color:#DC2626">✕ Kaldır</button>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
