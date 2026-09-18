@@ -817,6 +817,22 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
+let fedexSettings={rate:32, rules:[
+  {region:'Amerika', minKg:0, maxKg:1, minUsd:10, maxUsd:13},
+  {region:'Avrupa',  minKg:0, maxKg:1, minUsd:10, maxUsd:13},
+]};
+let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments}
+
+const FX_REGION={
+  'UNITED STATES':'Amerika','UNITED STATES OF AMERICA':'Amerika','USA':'Amerika','CANADA':'Amerika','MEXICO':'Amerika',
+  'UNITED KINGDOM':'Avrupa','GREAT BRITAIN':'Avrupa','GERMANY':'Avrupa','FRANCE':'Avrupa','SPAIN':'Avrupa',
+  'ITALY':'Avrupa','SWEDEN':'Avrupa','NETHERLANDS':'Avrupa','SWITZERLAND':'Avrupa','LUXEMBOURG':'Avrupa',
+  'BELGIUM':'Avrupa','AUSTRIA':'Avrupa','DENMARK':'Avrupa','NORWAY':'Avrupa','FINLAND':'Avrupa',
+  'PORTUGAL':'Avrupa','IRELAND':'Avrupa','POLAND':'Avrupa','GREECE':'Avrupa','CZECH REPUBLIC':'Avrupa',
+  'AUSTRALIA':'Asya-Pasifik','NEW ZEALAND':'Asya-Pasifik','JAPAN':'Asya-Pasifik','SINGAPORE':'Asya-Pasifik',
+  'HONG KONG':'Asya-Pasifik','SOUTH KOREA':'Asya-Pasifik','CHINA':'Asya-Pasifik','INDIA':'Asya-Pasifik',
+  'UNITED ARAB EMIRATES':'Orta Doğu','UAE':'Orta Doğu','SAUDI ARABIA':'Orta Doğu','QATAR':'Orta Doğu','KUWAIT':'Orta Doğu',
+};
 let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview', taskOpen:{daily:false,weekly:false,monthly:false}};
 let calMonth=new Date(); // aylık takvimde gösterilen ay
 let personalBillMonth=new Date(); // şahsi faturalar ay seçici
@@ -1552,18 +1568,20 @@ function _fedexEntryHTML(){
 
 function renderFedexPage(){
   document.documentElement.style.setProperty('--accent','#4D1979');
-  const fedexNotes = Object.values(notes)
-    .filter(n=>n.companyId==='__fedex__')
+  const fedexNotes=Object.values(notes).filter(n=>n.companyId==='__fedex__')
     .sort((a,b)=>(b.updatedAt||b.date||'').localeCompare(a.updatedAt||a.date||''));
+  const tab=view.fedexTab||'notes';
 
-  const rows = fedexNotes.length === 0
-    ? `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz not yok</div><div style="font-size:13px;margin-top:4px">Sağ üstten yeni not ekle.</div></div>`
-    : fedexNotes.map(n=>`
-        <div class="bill" style="cursor:pointer;display:block;padding:14px 16px" data-fedexnoteopen="${n.id}">
-          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc((n.title||'Not').substring(0,60))}</div>
-          <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;overflow:hidden;max-height:48px">${esc((n.text||'').substring(0,120))}</div>
-          <div style="font-size:11px;color:var(--faint);margin-top:6px">${n.date||''}</div>
-        </div>`).join('');
+  const notesHTML=tab!=='notes'?'':fedexNotes.length===0
+    ?`<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz not yok</div></div>`
+    :fedexNotes.map(n=>`
+      <div class="bill" style="cursor:pointer;display:block;padding:14px 16px" data-fedexnoteopen="${n.id}">
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc((n.title||'Not').substring(0,60))}</div>
+        <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;overflow:hidden;max-height:48px">${esc((n.text||'').substring(0,120))}</div>
+        <div style="font-size:11px;color:var(--faint);margin-top:6px">${n.date||''}</div>
+      </div>`).join('');
+
+  const invoiceHTML=tab!=='invoice'?'':_fedexInvoiceTabHTML();
 
   app.innerHTML=`
   <div class="cv" style="--accent:#4D1979;--accent-tint:#EDE0F7">
@@ -1571,27 +1589,316 @@ function renderFedexPage(){
     <div class="cv-head">
       <span class="logo" style="background:#EDE0F7;color:#4D1979;width:56px;height:56px;font-size:26px">📦</span>
       <div class="cv-title">
-        <div class="eyebrow" style="color:#4D1979">${fedexNotes.length} not</div>
-        <h2>FedEx Notlarım</h2>
+        <div class="eyebrow" style="color:#4D1979">FedEx</div>
+        <h2>FedEx</h2>
       </div>
       <span class="spacer"></span>
-      <button class="sec-add" id="addFedexNoteBtn">${svgPlus()} Yeni Not</button>
+      ${tab==='notes'
+        ?`<button class="sec-add" id="addFedexNoteBtn">${svgPlus()} Yeni Not</button>`
+        :`<button class="btn-ghost" id="fxInvSettings" style="font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:9px">⚙ Fiyat Ayarları</button>`}
     </div>
-    <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px">${rows}</div>
+    <div class="tabs" style="margin:16px 0 14px">
+      <button class="tab ${tab==='notes'?'active':''}" data-ftab="notes">Notlar (${fedexNotes.length})</button>
+      <button class="tab ${tab==='invoice'?'active':''}" data-ftab="invoice">Fatura Analizi</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">${notesHTML}${invoiceHTML}</div>
   </div>
   ${renderFooter()}`;
 
   $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
-  $('#addFedexNoteBtn').addEventListener('click',()=>openFedexModal(null));
-  document.querySelectorAll('[data-fedexnoteopen]').forEach(el=>
-    el.addEventListener('click',()=>openFedexModal(el.dataset.fedexnoteopen))
-  );
+  document.querySelectorAll('[data-ftab]').forEach(btn=>btn.addEventListener('click',()=>{view.fedexTab=btn.dataset.ftab;renderFedexPage();}));
+
+  if(tab==='notes'){
+    $('#addFedexNoteBtn')?.addEventListener('click',()=>openFedexModal(null));
+    document.querySelectorAll('[data-fedexnoteopen]').forEach(el=>el.addEventListener('click',()=>openFedexModal(el.dataset.fedexnoteopen)));
+  }
+  if(tab==='invoice'){
+    $('#fxInvSettings')?.addEventListener('click',openFedexPricingModal);
+    $('#fxUploadBtn')?.addEventListener('click',()=>$('#fxFileInput')?.click());
+    $('#fxNewPdf')?.addEventListener('click',()=>$('#fxFileInput')?.click());
+    $('#fxFileInput')?.addEventListener('change',async e=>{
+      const f=e.target.files[0]; if(!f)return;
+      await _runFedexAnalysis(f);
+    });
+    document.querySelectorAll('[data-fxfilter]').forEach(btn=>btn.addEventListener('click',()=>{view.fedexFilter=btn.dataset.fxfilter;renderFedexPage();}));
+  }
   bindFooter();
 }
 
+function _fedexInvoiceTabHTML(){
+  if(!fedexScanResult){
+    return `<div style="text-align:center;padding:40px 20px">
+      <div style="font-size:48px;margin-bottom:12px">📄</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">FedEx Fatura PDF Yükle</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Fatura parse edilir, her gönderinin USD karşılığı hesaplanır, hatalı fiyatlar işaretlenir.</div>
+      <input type="file" id="fxFileInput" accept=".pdf" style="display:none">
+      <button id="fxUploadBtn" style="padding:12px 28px;background:#4D1979;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">PDF Seç</button>
+      <div id="fxStatus" style="margin-top:16px;font-size:13px;color:var(--muted)"></div>
+    </div>`;
+  }
+  const filter=view.fedexFilter||'all';
+  const analyzed=_fedexAnalyzeShipments(fedexScanResult.shipments);
+  const errors=analyzed.filter(s=>s.status==='error');
+  const noRule=analyzed.filter(s=>s.status==='noRule');
+  const shown=filter==='errors'?errors:filter==='norule'?noRule:analyzed;
+
+  const rows=shown.map(s=>{
+    const sc=s.status==='error'?'#DC2626':s.status==='ok'?'#16A34A':'#9CA3AF';
+    const sl=s.status==='error'?'⚠ Hata':s.status==='ok'?'✓ OK':'Kural yok';
+    const cshort=s.country.length>14?s.country.substring(0,14)+'…':s.country;
+    return `<tr style="border-bottom:1px solid var(--line)">
+      <td style="padding:7px 5px;font-size:11px;white-space:nowrap">${s.date}</td>
+      <td style="padding:7px 5px;font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(s.recipient)}">${esc(s.recipient)}</td>
+      <td style="padding:7px 5px;font-size:11px;color:var(--muted)">${esc(cshort)}</td>
+      <td style="padding:7px 5px;font-size:11px;color:var(--muted);text-align:center">${s.region}</td>
+      <td style="padding:7px 5px;font-size:12px;text-align:right;white-space:nowrap">${s.weightKg} KG</td>
+      <td style="padding:7px 5px;font-size:12px;text-align:right;white-space:nowrap">${fmtMoney(s.amountTL,'TRY')}</td>
+      <td style="padding:7px 5px;font-size:12px;font-weight:600;text-align:right;white-space:nowrap">${s.usd} $</td>
+      <td style="padding:7px 5px;font-size:11px;color:var(--muted);text-align:center;white-space:nowrap">${s.expected}</td>
+      <td style="padding:7px 5px;font-size:12px;font-weight:700;color:${sc};text-align:center;white-space:nowrap">${sl}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--muted)">${esc(fedexScanResult.invoiceNo)} · ${fedexScanResult.invoiceDate} · ${analyzed.length} gönderi</div>
+      <span style="flex:1"></span>
+      ${errors.length?`<span style="font-size:12px;font-weight:700;color:#DC2626">${errors.length} hatalı</span>`:''}
+      <input type="file" id="fxFileInput" accept=".pdf" style="display:none">
+      <button id="fxNewPdf" style="font-size:12px;padding:5px 12px;background:var(--paper-2);border:1px solid var(--line);border-radius:8px;cursor:pointer">Yeni PDF</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      <button data-fxfilter="all" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='all'?'#4D1979':'var(--card)'};color:${filter==='all'?'#fff':'var(--ink)'}">Tümü (${analyzed.length})</button>
+      <button data-fxfilter="errors" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='errors'?'#DC2626':'var(--card)'};color:${filter==='errors'?'#fff':'var(--ink)'}">Hatalı (${errors.length})</button>
+      ${noRule.length?`<button data-fxfilter="norule" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='norule'?'#6B7280':'var(--card)'};color:${filter==='norule'?'#fff':'var(--ink)'}">Kural yok (${noRule.length})</button>`:''}
+    </div>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead>
+          <tr style="border-bottom:2px solid var(--line)">
+            <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">TARİH</th>
+            <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">ALICI</th>
+            <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">ÜLKE</th>
+            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BÖLGE</th>
+            <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">AĞIRLIK</th>
+            <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR TL</th>
+            <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR $</th>
+            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BEKLENEN</th>
+            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">DURUM</th>
+          </tr>
+        </thead>
+        <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Gösterilecek kayıt yok</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function _fedexAnalyzeShipments(shipments){
+  const rate=fedexSettings.rate||32;
+  return shipments.map(s=>{
+    const usd=Math.round((s.amountTL/rate)*100)/100;
+    const region=FX_REGION[s.country.toUpperCase().trim()]||'Diğer';
+    const rule=(fedexSettings.rules||[]).find(r=>
+      r.region===region && s.weightKg>=r.minKg && s.weightKg<=r.maxKg
+    );
+    let status='noRule', expected='—';
+    if(rule){
+      expected=`${rule.minUsd}–${rule.maxUsd} $`;
+      status=usd>rule.maxUsd?'error':'ok';
+    }
+    return {...s, usd, region, status, expected};
+  });
+}
+
+async function _runFedexAnalysis(file){
+  const statusEl=document.getElementById('fxStatus');
+  const btn=document.getElementById('fxUploadBtn');
+  if(statusEl) statusEl.textContent='PDF işleniyor…';
+  if(btn){btn.disabled=true;btn.textContent='İşleniyor…';}
+  try{
+    fedexScanResult=await _parseFedexPDF(file);
+    toast(`${fedexScanResult.shipments.length} gönderi analiz edildi`);
+    renderFedexPage();
+  }catch(e){
+    if(statusEl) statusEl.textContent='Hata: '+e.message;
+    if(btn){btn.disabled=false;btn.textContent='PDF Seç';}
+    console.error(e);
+  }
+}
+
+async function _parseFedexPDF(file){
+  const lib=await _loadPdfJs();
+  const buf=await file.arrayBuffer();
+  const pdf=await lib.getDocument({data:buf}).promise;
+
+  const allItems=[];
+  let invoiceDate='', invoiceNo='';
+
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const content=await page.getTextContent();
+    for(const it of content.items){
+      const s=(it.str||'').trim(); if(!s) continue;
+      allItems.push({x:it.transform[4], y:it.transform[5], str:s, page:p});
+    }
+  }
+
+  // Header bilgisi
+  for(const it of allItems){
+    if(!invoiceNo && /FXA\d{10,}/.test(it.str)) invoiceNo=it.str.match(/FXA\d+/)[0];
+    if(!invoiceDate && /^\d{2}-\d{2}-\d{4}$/.test(it.str)) invoiceDate=it.str;
+    if(invoiceDate && invoiceNo) break;
+  }
+
+  // Tutar kolonunu bul: en sağdaki ondalıklı sayılar
+  const amtRe=/^(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})$/;
+  const amtCandidates=allItems.filter(it=>amtRe.test(it.str));
+  if(!amtCandidates.length) return {invoiceDate, invoiceNo, shipments:[]};
+
+  // En sağdaki X grubunu al (amount kolonu)
+  const maxX=Math.max(...amtCandidates.map(it=>it.x));
+  const amountItems=amtCandidates.filter(it=>it.x>maxX-40);
+
+  // Ülke listesi (uzun önce, kısa önce match yanlış yapmasın)
+  const CLIST=['UNITED STATES OF AMERICA','UNITED STATES','UNITED KINGDOM','UNITED ARAB EMIRATES',
+    'SAUDI ARABIA','NEW ZEALAND','SOUTH KOREA','HONG KONG','CZECH REPUBLIC',
+    'AUSTRALIA','CANADA','GERMANY','FRANCE','SPAIN','ITALY','SWEDEN','NETHERLANDS',
+    'SWITZERLAND','LUXEMBOURG','BELGIUM','AUSTRIA','DENMARK','NORWAY','FINLAND',
+    'PORTUGAL','IRELAND','POLAND','GREECE','JAPAN','SINGAPORE','INDIA','CHINA',
+    'BRAZIL','MEXICO','QATAR','KUWAIT'];
+
+  const shipments=[];
+
+  for(const amtItem of amountItems){
+    const {x:ax, y:ay, page:ap}=amtItem;
+
+    // Tutarı parse et
+    const raw=amtItem.str;
+    let amountTL=/,\d{2}$/.test(raw)
+      ? parseFloat(raw.replace(/\./g,'').replace(',','.'))
+      : parseFloat(raw.replace(/,/g,''));
+    if(!amountTL||amountTL<50||amountTL>9999) continue; // toplam satırlarını atla
+
+    // Aynı Y'deki öğeler (±8px, aynı sayfa)
+    const sameRow=allItems.filter(it=>it.page===ap && Math.abs(it.y-ay)<=8 && it.x<ax-5);
+
+    // Ağırlık: aynı satırda "X.XX" veya "X.X KG"
+    let weightKg=0;
+    for(const it of sameRow){
+      const mw=it.str.match(/^(\d+[.,]\d+)\s*(?:KG)?$/i);
+      if(mw){
+        const v=parseFloat(mw[1].replace(',','.'));
+        if(v>0&&v<100){weightKg=v;break;}
+      }
+    }
+
+    // Blok: bu Y'den 180px yukarısına kadar olan öğeler
+    const block=allItems.filter(it=>it.page===ap && it.y>=ay-10 && it.y<=ay+180);
+    const blockText=block.map(it=>it.str).join(' ');
+
+    // Tarih
+    const dm=blockText.match(/(\d{2}-\d{2}-\d{4})/);
+    const date=dm?dm[1]:'';
+
+    // Ülke
+    let country='';
+    const up=blockText.toUpperCase();
+    for(const c of CLIST){if(up.includes(c)){country=c;break;}}
+
+    // Alıcı adı: gönderici ve sistem kelimelerini çıkar
+    const SKIP=/GOLDEN|AKIN AKCAN|TURGUTLU|MANISA|SEHITLER|ANKARA|45400|FEDEX|INTL|PRIORITY|PAK|REFERANS|ISTANBUL|TURKEY/i;
+    const recipItems=block.filter(it=>{
+      if(SKIP.test(it.str)) return false;
+      if(/^\d+$/.test(it.str)||/\d{2}-\d{2}-\d{4}/.test(it.str)) return false;
+      if(it.str.length<3) return false;
+      if(CLIST.some(c=>it.str.toUpperCase()===c)) return false;
+      if(amtRe.test(it.str)) return false;
+      return true;
+    });
+    recipItems.sort((a,b)=>b.y-a.y);
+    const recipient=recipItems.slice(0,2).map(it=>it.str).join(' ').substring(0,60)||'—';
+
+    if(amountTL>0){
+      shipments.push({date, recipient, country, weightKg, amountTL});
+    }
+  }
+
+  return {invoiceDate, invoiceNo, shipments};
+}
+
+function openFedexPricingModal(){
+  const renderRules=()=>{
+    const list=document.getElementById('fxRuleList');
+    if(!list)return;
+    const REGIONS=['Amerika','Avrupa','Asya-Pasifik','Orta Doğu','Diğer'];
+    list.innerHTML=(fedexSettings.rules||[]).map((r,i)=>`
+      <div style="display:flex;gap:5px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
+        <select id="fxRR${i}" style="font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+          ${REGIONS.map(rg=>`<option value="${rg}" ${r.region===rg?'selected':''}>${rg}</option>`).join('')}
+        </select>
+        <input type="number" id="fxR0${i}" value="${r.minKg}" step="0.1" min="0" style="width:52px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+        <span style="font-size:11px">–</span>
+        <input type="number" id="fxR1${i}" value="${r.maxKg}" step="0.1" min="0" style="width:52px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+        <span style="font-size:11px;color:var(--muted)">KG · OK aralığı:</span>
+        <input type="number" id="fxRA${i}" value="${r.minUsd}" step="1" min="0" style="width:48px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+        <span style="font-size:11px">–</span>
+        <input type="number" id="fxRB${i}" value="${r.maxUsd}" step="1" min="0" style="width:48px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+        <span style="font-size:11px;color:var(--muted)">$</span>
+        <button data-fxrdel="${i}" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:18px;line-height:1;padding:0 4px">×</button>
+      </div>`).join('')
+      ||`<div style="font-size:13px;color:var(--muted);padding:8px 0">Henüz kural yok — + Kural Ekle ile başla.</div>`;
+    list.querySelectorAll('[data-fxrdel]').forEach(btn=>btn.addEventListener('click',async()=>{
+      fedexSettings.rules.splice(parseInt(btn.dataset.fxrdel),1);
+      await put('settings',{id:'fedexSettings',data:fedexSettings});
+      renderRules();
+    }));
+  };
+
+  modal.innerHTML=`
+    <div class="modal-head"><div class="eyebrow">FedEx</div><h3>Fiyatlama Ayarları</h3></div>
+    <div class="modal-body">
+      <div class="field">
+        <label>USD/TL Kuru</label>
+        <input type="number" id="fxRate" step="0.01" value="${fedexSettings.rate||32}" style="font-size:16px;font-weight:600">
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Fatura TL tutarını USD'a çevirir</div>
+      </div>
+      <div class="field">
+        <label style="display:block;margin-bottom:8px">Kural Tablosu</label>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Bölge · Ağırlık aralığı KG · Kabul edilebilir $ aralığı · Üstü hata</div>
+        <div id="fxRuleList"></div>
+        <button id="fxRuleAdd" style="margin-top:10px;font-size:12px;padding:7px 14px;border-radius:8px;background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-weight:600">+ Kural Ekle</button>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="fxPC">İptal</button>
+        <button class="btn-prim" id="fxPS">Kaydet</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  renderRules();
+  $('#fxPC').onclick=closeModal;
+  $('#fxRuleAdd').onclick=()=>{
+    if(!fedexSettings.rules) fedexSettings.rules=[];
+    fedexSettings.rules.push({region:'Amerika',minKg:0,maxKg:1,minUsd:10,maxUsd:13});
+    renderRules();
+  };
+  $('#fxPS').onclick=async()=>{
+    fedexSettings.rate=parseFloat($('#fxRate').value)||32;
+    fedexSettings.rules=(fedexSettings.rules||[]).map((_,i)=>({
+      region:document.getElementById(`fxRR${i}`)?.value||'Amerika',
+      minKg:parseFloat(document.getElementById(`fxR0${i}`)?.value)||0,
+      maxKg:parseFloat(document.getElementById(`fxR1${i}`)?.value)||1,
+      minUsd:parseFloat(document.getElementById(`fxRA${i}`)?.value)||10,
+      maxUsd:parseFloat(document.getElementById(`fxRB${i}`)?.value)||13,
+    }));
+    await put('settings',{id:'fedexSettings',data:fedexSettings});
+    closeModal(); toast('Ayarlar kaydedildi');
+    if(fedexScanResult) renderFedexPage();
+  };
+}
+
 function openFedexModal(id){
-  const existing = id ? notes[id] : null;
-  const today = dailyKey(new Date());
+  const existing=id?notes[id]:null;
+  const today=dailyKey(new Date());
   modal.innerHTML=`
     <div class="modal-head">
       <div class="eyebrow">${existing?'Notu Düzenle':'Yeni Not'}</div>
@@ -1611,23 +1918,20 @@ function openFedexModal(id){
       </div>
     </div>`;
   overlay.classList.add('show');
-
-  $('#fxCancel').onclick = closeModal;
-  $('#fxSave').onclick = async () => {
-    const title = ($('#fxTitle').value||'').trim();
-    const text  = ($('#fxText').value||'').trim();
-    if(!text){ toast('Not boş olamaz'); return; }
-    const nid = id || generateId();
-    const rec = {id:nid, companyId:'__fedex__', title:title||null, text, date:today, updatedAt:dailyKey(new Date())};
-    notes[nid] = rec;
-    await put('notes', rec);
-    closeModal(); render(); toast('Not kaydedildi');
+  $('#fxCancel').onclick=closeModal;
+  $('#fxSave').onclick=async()=>{
+    const title=($('#fxTitle').value||'').trim();
+    const text=($('#fxText').value||'').trim();
+    if(!text){toast('Not boş olamaz');return;}
+    const nid=id||generateId();
+    const rec={id:nid,companyId:'__fedex__',title:title||null,text,date:today,updatedAt:dailyKey(new Date())};
+    notes[nid]=rec; await put('notes',rec);
+    closeModal();render();toast('Not kaydedildi');
   };
   if(existing){
-    $('#fxDel').onclick = async () => {
-      delete notes[id];
-      await del('notes', id);
-      closeModal(); render(); toast('Not silindi');
+    $('#fxDel').onclick=async()=>{
+      delete notes[id]; await del('notes',id);
+      closeModal();render();toast('Not silindi');
     };
   }
 }
@@ -3938,6 +4242,7 @@ async function onUserSignedIn(user){
       cloudConnect_postAuth().then(()=>startCloudLoop()).catch(e=>console.error('Bulut:',e));
     }
   }
+  const _fxs=await getOne('settings','fedexSettings');if(_fxs&&_fxs.data)fedexSettings={...fedexSettings,..._fxs.data};
   await loadAll();
   await loadAllFinance();
   await seedPastelyaRoutines();
