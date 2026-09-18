@@ -410,7 +410,7 @@
   .home-body{display:flex;flex-direction:column;gap:12px;margin-top:4px}
   .home-body .home-sec,.home-body .entry-panel,.home-body .entry-grid,.home-body .grid,.home-body .firm-link{margin-top:0}
 
-  /* LLC Şirketi sayfası — ikiye bölünmüş layout */
+  /* LLC Miniden sayfası — ikiye bölünmüş layout */
   .llc-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;align-items:start}
   @media(max-width:640px){.llc-split{grid-template-columns:1fr}}
   .llc-panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;min-height:300px}
@@ -747,7 +747,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 12);
+    const r = indexedDB.open('rutinMerkezi', 14);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -773,6 +773,14 @@ function openDB(){
       // Finance Mutabakat (v12)
       if(!d.objectStoreNames.contains('finStmtImports')) d.createObjectStore('finStmtImports',{keyPath:'id'});
       if(!d.objectStoreNames.contains('finStmtItems'))   d.createObjectStore('finStmtItems',  {keyPath:'id'});
+      // FedEx Tarife Yönetimi (v13)
+      if(!d.objectStoreNames.contains('fedexRateVersions'))     d.createObjectStore('fedexRateVersions',    {keyPath:'id'});
+      if(!d.objectStoreNames.contains('fedexRateLines'))         d.createObjectStore('fedexRateLines',        {keyPath:'id'});
+      if(!d.objectStoreNames.contains('fedexAncillaryVersions')) d.createObjectStore('fedexAncillaryVersions',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('fedexAncillaryCharges'))  d.createObjectStore('fedexAncillaryCharges', {keyPath:'id'});
+      if(!d.objectStoreNames.contains('fedexParamHistory'))      d.createObjectStore('fedexParamHistory',     {keyPath:'id'});
+      // FedEx Kural Geçmişi / Snapshot (v14)
+      if(!d.objectStoreNames.contains('fedexRuleVersions'))      d.createObjectStore('fedexRuleVersions',     {keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -816,7 +824,252 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
-let fedexSettings={version:7,rules:[
+let fedexSettings={version:16,rules:[
+  {region:'Latin Amerika',service:'PAK',minKg:0,  maxKg:0.5,minTL:1304,maxTL:1500},
+  {region:'Latin Amerika',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1375,maxTL:1581},
+  {region:'Latin Amerika',service:'PAK',minKg:1.0,maxKg:1.5,minTL:1445,maxTL:1662},
+  {region:'Latin Amerika',service:'PAK',minKg:1.5,maxKg:2.0,minTL:1516,maxTL:1743},
+  {region:'Latin Amerika',service:'PAK',minKg:2.0,maxKg:2.5,minTL:1587,maxTL:1825},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:0,   maxKg:0.5, minTL:1441, maxTL:1657},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:0.5, maxKg:1.0, minTL:1480, maxTL:1702},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:1.0, maxKg:1.5, minTL:1519, maxTL:1747},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:1.5, maxKg:2.0, minTL:1559, maxTL:1793},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:2.0, maxKg:2.5, minTL:1597, maxTL:1837},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:2.5, maxKg:3.0, minTL:1892, maxTL:2176},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:3.0, maxKg:3.5, minTL:1937, maxTL:2228},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:3.5, maxKg:4.0, minTL:1983, maxTL:2280},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:4.0, maxKg:4.5, minTL:2028, maxTL:2332},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:4.5, maxKg:5.0, minTL:2073, maxTL:2384},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:5.0, maxKg:5.5, minTL:2093, maxTL:2407},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:5.5, maxKg:6.0, minTL:2160, maxTL:2484},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:6.0, maxKg:6.5, minTL:2226, maxTL:2560},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:6.5, maxKg:7.0, minTL:2293, maxTL:2637},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:7.0, maxKg:7.5, minTL:2359, maxTL:2713},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:7.5, maxKg:8.0, minTL:2425, maxTL:2789},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:8.0, maxKg:8.5, minTL:2492, maxTL:2865},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:8.5, maxKg:9.0, minTL:2558, maxTL:2942},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:9.0, maxKg:9.5, minTL:2624, maxTL:3018},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:9.5, maxKg:10.0,minTL:2690, maxTL:3094},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:10.0,maxKg:10.5,minTL:2932, maxTL:3372},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:10.5,maxKg:11.0,minTL:3286, maxTL:3779},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:11.0,maxKg:11.5,minTL:3641, maxTL:4187},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:11.5,maxKg:12.0,minTL:3996, maxTL:4595},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:12.0,maxKg:12.5,minTL:4351, maxTL:5004},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:12.5,maxKg:13.0,minTL:4706, maxTL:5412},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:13.0,maxKg:13.5,minTL:5060, maxTL:5819},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:13.5,maxKg:14.0,minTL:5415, maxTL:6228},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:14.0,maxKg:14.5,minTL:5770, maxTL:6636},
+  {region:'Latin Amerika',service:'PRIORITY',minKg:14.5,maxKg:15.0,minTL:6125, maxTL:7043},
+  {region:'Kanada',service:'PAK',minKg:0,  maxKg:0.5,minTL:688, maxTL:791},
+  {region:'Kanada',service:'PAK',minKg:0.5,maxKg:1.0,minTL:742, maxTL:853},
+  {region:'Kanada',service:'PAK',minKg:1.0,maxKg:1.5,minTL:795, maxTL:915},
+  {region:'Kanada',service:'PAK',minKg:1.5,maxKg:2.0,minTL:849, maxTL:977},
+  {region:'Kanada',service:'PAK',minKg:2.0,maxKg:2.5,minTL:903, maxTL:1039},
+  {region:'Kanada',service:'PRIORITY',minKg:0,   maxKg:0.5, minTL:945,  maxTL:1087},
+  {region:'Kanada',service:'PRIORITY',minKg:0.5, maxKg:1.0, minTL:972,  maxTL:1117},
+  {region:'Kanada',service:'PRIORITY',minKg:1.0, maxKg:1.5, minTL:997,  maxTL:1147},
+  {region:'Kanada',service:'PRIORITY',minKg:1.5, maxKg:2.0, minTL:1024, maxTL:1178},
+  {region:'Kanada',service:'PRIORITY',minKg:2.0, maxKg:2.5, minTL:1049, maxTL:1207},
+  {region:'Kanada',service:'PRIORITY',minKg:2.5, maxKg:3.0, minTL:1244, maxTL:1430},
+  {region:'Kanada',service:'PRIORITY',minKg:3.0, maxKg:3.5, minTL:1274, maxTL:1465},
+  {region:'Kanada',service:'PRIORITY',minKg:3.5, maxKg:4.0, minTL:1304, maxTL:1500},
+  {region:'Kanada',service:'PRIORITY',minKg:4.0, maxKg:4.5, minTL:1335, maxTL:1535},
+  {region:'Kanada',service:'PRIORITY',minKg:4.5, maxKg:5.0, minTL:1364, maxTL:1569},
+  {region:'Kanada',service:'PRIORITY',minKg:5.0, maxKg:5.5, minTL:1472, maxTL:1693},
+  {region:'Kanada',service:'PRIORITY',minKg:5.5, maxKg:6.0, minTL:1580, maxTL:1817},
+  {region:'Kanada',service:'PRIORITY',minKg:6.0, maxKg:6.5, minTL:1688, maxTL:1941},
+  {region:'Kanada',service:'PRIORITY',minKg:6.5, maxKg:7.0, minTL:1796, maxTL:2065},
+  {region:'Kanada',service:'PRIORITY',minKg:7.0, maxKg:7.5, minTL:1904, maxTL:2189},
+  {region:'Kanada',service:'PRIORITY',minKg:7.5, maxKg:8.0, minTL:2011, maxTL:2313},
+  {region:'Kanada',service:'PRIORITY',minKg:8.0, maxKg:8.5, minTL:2118, maxTL:2436},
+  {region:'Kanada',service:'PRIORITY',minKg:8.5, maxKg:9.0, minTL:2226, maxTL:2560},
+  {region:'Kanada',service:'PRIORITY',minKg:9.0, maxKg:9.5, minTL:2334, maxTL:2684},
+  {region:'Kanada',service:'PRIORITY',minKg:9.5, maxKg:10.0,minTL:2442, maxTL:2808},
+  {region:'Kanada',service:'PRIORITY',minKg:10.0,maxKg:10.5,minTL:2447, maxTL:2814},
+  {region:'Kanada',service:'PRIORITY',minKg:10.5,maxKg:11.0,minTL:2694, maxTL:3099},
+  {region:'Kanada',service:'PRIORITY',minKg:11.0,maxKg:11.5,minTL:2943, maxTL:3384},
+  {region:'Kanada',service:'PRIORITY',minKg:11.5,maxKg:12.0,minTL:3190, maxTL:3669},
+  {region:'Kanada',service:'PRIORITY',minKg:12.0,maxKg:12.5,minTL:3438, maxTL:3954},
+  {region:'Kanada',service:'PRIORITY',minKg:12.5,maxKg:13.0,minTL:3686, maxTL:4239},
+  {region:'Kanada',service:'PRIORITY',minKg:13.0,maxKg:13.5,minTL:3934, maxTL:4524},
+  {region:'Kanada',service:'PRIORITY',minKg:13.5,maxKg:14.0,minTL:4182, maxTL:4809},
+  {region:'Kanada',service:'PRIORITY',minKg:14.0,maxKg:14.5,minTL:4430, maxTL:5094},
+  {region:'Kanada',service:'PRIORITY',minKg:14.5,maxKg:15.0,minTL:4678, maxTL:5379},
+  {region:'İngiltere',service:'PAK',minKg:0,  maxKg:0.5,minTL:774, maxTL:891},
+  {region:'İngiltere',service:'PAK',minKg:0.5,maxKg:1.0,minTL:841, maxTL:967},
+  {region:'İngiltere',service:'PAK',minKg:1.0,maxKg:1.5,minTL:907, maxTL:1044},
+  {region:'İngiltere',service:'PAK',minKg:1.5,maxKg:2.0,minTL:975, maxTL:1121},
+  {region:'İngiltere',service:'PAK',minKg:2.0,maxKg:2.5,minTL:1041,maxTL:1197},
+  {region:'İngiltere',service:'PRIORITY',minKg:0,   maxKg:0.5, minTL:839,  maxTL:965},
+  {region:'İngiltere',service:'PRIORITY',minKg:0.5, maxKg:1.0, minTL:898,  maxTL:1033},
+  {region:'İngiltere',service:'PRIORITY',minKg:1.0, maxKg:1.5, minTL:957,  maxTL:1100},
+  {region:'İngiltere',service:'PRIORITY',minKg:1.5, maxKg:2.0, minTL:1015, maxTL:1167},
+  {region:'İngiltere',service:'PRIORITY',minKg:2.0, maxKg:2.5, minTL:1073, maxTL:1234},
+  {region:'İngiltere',service:'PRIORITY',minKg:2.5, maxKg:3.0, minTL:1306, maxTL:1502},
+  {region:'İngiltere',service:'PRIORITY',minKg:3.0, maxKg:3.5, minTL:1372, maxTL:1577},
+  {region:'İngiltere',service:'PRIORITY',minKg:3.5, maxKg:4.0, minTL:1436, maxTL:1652},
+  {region:'İngiltere',service:'PRIORITY',minKg:4.0, maxKg:4.5, minTL:1502, maxTL:1727},
+  {region:'İngiltere',service:'PRIORITY',minKg:4.5, maxKg:5.0, minTL:1566, maxTL:1801},
+  {region:'İngiltere',service:'PRIORITY',minKg:5.0, maxKg:5.5, minTL:1648, maxTL:1895},
+  {region:'İngiltere',service:'PRIORITY',minKg:5.5, maxKg:6.0, minTL:1738, maxTL:1999},
+  {region:'İngiltere',service:'PRIORITY',minKg:6.0, maxKg:6.5, minTL:1827, maxTL:2101},
+  {region:'İngiltere',service:'PRIORITY',minKg:6.5, maxKg:7.0, minTL:1917, maxTL:2205},
+  {region:'İngiltere',service:'PRIORITY',minKg:7.0, maxKg:7.5, minTL:2007, maxTL:2308},
+  {region:'İngiltere',service:'PRIORITY',minKg:7.5, maxKg:8.0, minTL:2096, maxTL:2411},
+  {region:'İngiltere',service:'PRIORITY',minKg:8.0, maxKg:8.5, minTL:2185, maxTL:2513},
+  {region:'İngiltere',service:'PRIORITY',minKg:8.5, maxKg:9.0, minTL:2275, maxTL:2616},
+  {region:'İngiltere',service:'PRIORITY',minKg:9.0, maxKg:9.5, minTL:2365, maxTL:2719},
+  {region:'İngiltere',service:'PRIORITY',minKg:9.5, maxKg:10.0,minTL:2455, maxTL:2823},
+  {region:'İngiltere',service:'PRIORITY',minKg:10.0,maxKg:10.5,minTL:2469, maxTL:2839},
+  {region:'İngiltere',service:'PRIORITY',minKg:10.5,maxKg:11.0,minTL:2586, maxTL:2974},
+  {region:'İngiltere',service:'PRIORITY',minKg:11.0,maxKg:11.5,minTL:2703, maxTL:3108},
+  {region:'İngiltere',service:'PRIORITY',minKg:11.5,maxKg:12.0,minTL:2820, maxTL:3243},
+  {region:'İngiltere',service:'PRIORITY',minKg:12.0,maxKg:12.5,minTL:2936, maxTL:3376},
+  {region:'İngiltere',service:'PRIORITY',minKg:12.5,maxKg:13.0,minTL:3053, maxTL:3511},
+  {region:'İngiltere',service:'PRIORITY',minKg:13.0,maxKg:13.5,minTL:3170, maxTL:3645},
+  {region:'İngiltere',service:'PRIORITY',minKg:13.5,maxKg:14.0,minTL:3287, maxTL:3780},
+  {region:'İngiltere',service:'PRIORITY',minKg:14.0,maxKg:14.5,minTL:3403, maxTL:3914},
+  {region:'İngiltere',service:'PRIORITY',minKg:14.5,maxKg:15.0,minTL:3520, maxTL:4048},
+  {region:'Körfez',service:'PAK',minKg:0,  maxKg:0.5,minTL:1168,maxTL:1343},
+  {region:'Körfez',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1227,maxTL:1411},
+  {region:'Körfez',service:'PAK',minKg:1.0,maxKg:1.5,minTL:1285,maxTL:1478},
+  {region:'Körfez',service:'PAK',minKg:1.5,maxKg:2.0,minTL:1344,maxTL:1545},
+  {region:'Körfez',service:'PAK',minKg:2.0,maxKg:2.5,minTL:1402,maxTL:1613},
+  {region:'Körfez',service:'PRIORITY',minKg:0,   maxKg:0.5, minTL:1372, maxTL:1577},
+  {region:'Körfez',service:'PRIORITY',minKg:0.5, maxKg:1.0, minTL:1408, maxTL:1619},
+  {region:'Körfez',service:'PRIORITY',minKg:1.0, maxKg:1.5, minTL:1445, maxTL:1661},
+  {region:'Körfez',service:'PRIORITY',minKg:1.5, maxKg:2.0, minTL:1482, maxTL:1704},
+  {region:'Körfez',service:'PRIORITY',minKg:2.0, maxKg:2.5, minTL:1518, maxTL:1746},
+  {region:'Körfez',service:'PRIORITY',minKg:2.5, maxKg:3.0, minTL:1792, maxTL:2061},
+  {region:'Körfez',service:'PRIORITY',minKg:3.0, maxKg:3.5, minTL:1831, maxTL:2106},
+  {region:'Körfez',service:'PRIORITY',minKg:3.5, maxKg:4.0, minTL:1871, maxTL:2152},
+  {region:'Körfez',service:'PRIORITY',minKg:4.0, maxKg:4.5, minTL:1911, maxTL:2197},
+  {region:'Körfez',service:'PRIORITY',minKg:4.5, maxKg:5.0, minTL:1951, maxTL:2243},
+  {region:'Körfez',service:'PRIORITY',minKg:5.0, maxKg:5.5, minTL:1973, maxTL:2269},
+  {region:'Körfez',service:'PRIORITY',minKg:5.5, maxKg:6.0, minTL:2027, maxTL:2331},
+  {region:'Körfez',service:'PRIORITY',minKg:6.0, maxKg:6.5, minTL:2081, maxTL:2393},
+  {region:'Körfez',service:'PRIORITY',minKg:6.5, maxKg:7.0, minTL:2135, maxTL:2455},
+  {region:'Körfez',service:'PRIORITY',minKg:7.0, maxKg:7.5, minTL:2189, maxTL:2517},
+  {region:'Körfez',service:'PRIORITY',minKg:7.5, maxKg:8.0, minTL:2243, maxTL:2580},
+  {region:'Körfez',service:'PRIORITY',minKg:8.0, maxKg:8.5, minTL:2297, maxTL:2641},
+  {region:'Körfez',service:'PRIORITY',minKg:8.5, maxKg:9.0, minTL:2351, maxTL:2704},
+  {region:'Körfez',service:'PRIORITY',minKg:9.0, maxKg:9.5, minTL:2405, maxTL:2766},
+  {region:'Körfez',service:'PRIORITY',minKg:9.5, maxKg:10.0,minTL:2459, maxTL:2828},
+  {region:'Körfez',service:'PRIORITY',minKg:10.0,maxKg:10.5,minTL:2522, maxTL:2900},
+  {region:'Körfez',service:'PRIORITY',minKg:10.5,maxKg:11.0,minTL:2694, maxTL:3099},
+  {region:'Körfez',service:'PRIORITY',minKg:11.0,maxKg:11.5,minTL:2869, maxTL:3299},
+  {region:'Körfez',service:'PRIORITY',minKg:11.5,maxKg:12.0,minTL:3041, maxTL:3497},
+  {region:'Körfez',service:'PRIORITY',minKg:12.0,maxKg:12.5,minTL:3215, maxTL:3697},
+  {region:'Körfez',service:'PRIORITY',minKg:12.5,maxKg:13.0,minTL:3388, maxTL:3896},
+  {region:'Körfez',service:'PRIORITY',minKg:13.0,maxKg:13.5,minTL:3562, maxTL:4096},
+  {region:'Körfez',service:'PRIORITY',minKg:13.5,maxKg:14.0,minTL:3735, maxTL:4296},
+  {region:'Körfez',service:'PRIORITY',minKg:14.0,maxKg:14.5,minTL:3909, maxTL:4495},
+  {region:'Körfez',service:'PRIORITY',minKg:14.5,maxKg:15.0,minTL:4082, maxTL:4694},
+  {region:'Avustralya',service:'PAK',minKg:0,  maxKg:0.5,minTL:1587,maxTL:1825},
+  {region:'Avustralya',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1811,maxTL:2083},
+  {region:'Avustralya',service:'PAK',minKg:1.0,maxKg:1.5,minTL:2035,maxTL:2341},
+  {region:'Avustralya',service:'PAK',minKg:1.5,maxKg:2.0,minTL:2260,maxTL:2599},
+  {region:'Avustralya',service:'PAK',minKg:2.0,maxKg:2.5,minTL:2485,maxTL:2857},
+  {region:'Avustralya',service:'PRIORITY',minKg:0,   maxKg:0.5, minTL:1588, maxTL:1826},
+  {region:'Avustralya',service:'PRIORITY',minKg:0.5, maxKg:1.0, minTL:1824, maxTL:2098},
+  {region:'Avustralya',service:'PRIORITY',minKg:1.0, maxKg:1.5, minTL:2059, maxTL:2368},
+  {region:'Avustralya',service:'PRIORITY',minKg:1.5, maxKg:2.0, minTL:2295, maxTL:2640},
+  {region:'Avustralya',service:'PRIORITY',minKg:2.0, maxKg:2.5, minTL:2531, maxTL:2911},
+  {region:'Avustralya',service:'PRIORITY',minKg:2.5, maxKg:3.0, minTL:3200, maxTL:3680},
+  {region:'Avustralya',service:'PRIORITY',minKg:3.0, maxKg:3.5, minTL:3473, maxTL:3994},
+  {region:'Avustralya',service:'PRIORITY',minKg:3.5, maxKg:4.0, minTL:3746, maxTL:4308},
+  {region:'Avustralya',service:'PRIORITY',minKg:4.0, maxKg:4.5, minTL:4019, maxTL:4621},
+  {region:'Avustralya',service:'PRIORITY',minKg:4.5, maxKg:5.0, minTL:4291, maxTL:4935},
+  {region:'Avustralya',service:'PRIORITY',minKg:5.0, maxKg:5.5, minTL:4564, maxTL:5249},
+  {region:'Avustralya',service:'PRIORITY',minKg:5.5, maxKg:6.0, minTL:4837, maxTL:5562},
+  {region:'Avustralya',service:'PRIORITY',minKg:6.0, maxKg:6.5, minTL:5110, maxTL:5877},
+  {region:'Avustralya',service:'PRIORITY',minKg:6.5, maxKg:7.0, minTL:5383, maxTL:6190},
+  {region:'Avustralya',service:'PRIORITY',minKg:7.0, maxKg:7.5, minTL:5655, maxTL:6503},
+  {region:'Avustralya',service:'PRIORITY',minKg:7.5, maxKg:8.0, minTL:5928, maxTL:6817},
+  {region:'Avustralya',service:'PRIORITY',minKg:8.0, maxKg:8.5, minTL:6201, maxTL:7131},
+  {region:'Avustralya',service:'PRIORITY',minKg:8.5, maxKg:9.0, minTL:6474, maxTL:7445},
+  {region:'Avustralya',service:'PRIORITY',minKg:9.0, maxKg:9.5, minTL:6746, maxTL:7758},
+  {region:'Avustralya',service:'PRIORITY',minKg:9.5, maxKg:10.0,minTL:7019, maxTL:8072},
+  {region:'Avustralya',service:'PRIORITY',minKg:10.0,maxKg:10.5,minTL:7072, maxTL:8133},
+  {region:'Avustralya',service:'PRIORITY',minKg:10.5,maxKg:11.0,minTL:7436, maxTL:8551},
+  {region:'Avustralya',service:'PRIORITY',minKg:11.0,maxKg:11.5,minTL:7799, maxTL:8969},
+  {region:'Avustralya',service:'PRIORITY',minKg:11.5,maxKg:12.0,minTL:8163, maxTL:9388},
+  {region:'Avustralya',service:'PRIORITY',minKg:12.0,maxKg:12.5,minTL:8527, maxTL:9806},
+  {region:'Avustralya',service:'PRIORITY',minKg:12.5,maxKg:13.0,minTL:8890, maxTL:10224},
+  {region:'Avustralya',service:'PRIORITY',minKg:13.0,maxKg:13.5,minTL:9254, maxTL:10642},
+  {region:'Avustralya',service:'PRIORITY',minKg:13.5,maxKg:14.0,minTL:9617, maxTL:11059},
+  {region:'Avustralya',service:'PRIORITY',minKg:14.0,maxKg:14.5,minTL:9980, maxTL:11477},
+  {region:'Avustralya',service:'PRIORITY',minKg:14.5,maxKg:15.0,minTL:10344,maxTL:11896},
+  {region:'Asya-Pasifik',service:'PAK',minKg:0,  maxKg:0.5,minTL:1167,maxTL:1342},
+  {region:'Asya-Pasifik',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1226,maxTL:1410},
+  {region:'Asya-Pasifik',service:'PAK',minKg:1.0,maxKg:1.5,minTL:1285,maxTL:1477},
+  {region:'Asya-Pasifik',service:'PAK',minKg:1.5,maxKg:2.0,minTL:1343,maxTL:1545},
+  {region:'Asya-Pasifik',service:'PAK',minKg:2.0,maxKg:2.5,minTL:1402,maxTL:1613},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:0,   maxKg:0.5, minTL:1316, maxTL:1514},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:0.5, maxKg:1.0, minTL:1360, maxTL:1564},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:1.0, maxKg:1.5, minTL:1403, maxTL:1614},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:1.5, maxKg:2.0, minTL:1447, maxTL:1664},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:2.0, maxKg:2.5, minTL:1491, maxTL:1714},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:2.5, maxKg:3.0, minTL:1583, maxTL:1821},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:3.0, maxKg:3.5, minTL:1627, maxTL:1871},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:3.5, maxKg:4.0, minTL:1671, maxTL:1922},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:4.0, maxKg:4.5, minTL:1715, maxTL:1972},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:4.5, maxKg:5.0, minTL:1759, maxTL:2023},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:5.0, maxKg:5.5, minTL:1812, maxTL:2084},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:5.5, maxKg:6.0, minTL:1867, maxTL:2147},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:6.0, maxKg:6.5, minTL:1922, maxTL:2210},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:6.5, maxKg:7.0, minTL:1977, maxTL:2273},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:7.0, maxKg:7.5, minTL:2032, maxTL:2337},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:7.5, maxKg:8.0, minTL:2087, maxTL:2400},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:8.0, maxKg:8.5, minTL:2142, maxTL:2463},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:8.5, maxKg:9.0, minTL:2197, maxTL:2527},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:9.0, maxKg:9.5, minTL:2252, maxTL:2590},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:9.5, maxKg:10.0,minTL:2307, maxTL:2653},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:10.0,maxKg:10.5,minTL:2524, maxTL:2902},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:10.5,maxKg:11.0,minTL:2773, maxTL:3189},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:11.0,maxKg:11.5,minTL:3022, maxTL:3475},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:11.5,maxKg:12.0,minTL:3271, maxTL:3762},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:12.0,maxKg:12.5,minTL:3520, maxTL:4048},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:12.5,maxKg:13.0,minTL:3769, maxTL:4335},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:13.0,maxKg:13.5,minTL:4018, maxTL:4621},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:13.5,maxKg:14.0,minTL:4268, maxTL:4908},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:14.0,maxKg:14.5,minTL:4517, maxTL:5194},
+  {region:'Asya-Pasifik',service:'PRIORITY',minKg:14.5,maxKg:15.0,minTL:4766, maxTL:5481},
+  {region:'Avrupa',service:'PAK',minKg:0,  maxKg:0.5,minTL:778, maxTL:894},
+  {region:'Avrupa',service:'PAK',minKg:0.5,maxKg:1.0,minTL:835, maxTL:960},
+  {region:'Avrupa',service:'PAK',minKg:1.0,maxKg:1.5,minTL:892, maxTL:1026},
+  {region:'Avrupa',service:'PAK',minKg:1.5,maxKg:2.0,minTL:950, maxTL:1092},
+  {region:'Avrupa',service:'PAK',minKg:2.0,maxKg:2.5,minTL:1007,maxTL:1158},
+  {region:'Avrupa',service:'PRIORITY',minKg:0,   maxKg:0.5, minTL:902,  maxTL:1037},
+  {region:'Avrupa',service:'PRIORITY',minKg:0.5, maxKg:1.0, minTL:939,  maxTL:1080},
+  {region:'Avrupa',service:'PRIORITY',minKg:1.0, maxKg:1.5, minTL:976,  maxTL:1122},
+  {region:'Avrupa',service:'PRIORITY',minKg:1.5, maxKg:2.0, minTL:1013, maxTL:1165},
+  {region:'Avrupa',service:'PRIORITY',minKg:2.0, maxKg:2.5, minTL:1050, maxTL:1207},
+  {region:'Avrupa',service:'PRIORITY',minKg:2.5, maxKg:3.0, minTL:1185, maxTL:1363},
+  {region:'Avrupa',service:'PRIORITY',minKg:3.0, maxKg:3.5, minTL:1226, maxTL:1410},
+  {region:'Avrupa',service:'PRIORITY',minKg:3.5, maxKg:4.0, minTL:1267, maxTL:1457},
+  {region:'Avrupa',service:'PRIORITY',minKg:4.0, maxKg:4.5, minTL:1308, maxTL:1504},
+  {region:'Avrupa',service:'PRIORITY',minKg:4.5, maxKg:5.0, minTL:1349, maxTL:1551},
+  {region:'Avrupa',service:'PRIORITY',minKg:5.0, maxKg:5.5, minTL:1402, maxTL:1613},
+  {region:'Avrupa',service:'PRIORITY',minKg:5.5, maxKg:6.0, minTL:1492, maxTL:1716},
+  {region:'Avrupa',service:'PRIORITY',minKg:6.0, maxKg:6.5, minTL:1582, maxTL:1819},
+  {region:'Avrupa',service:'PRIORITY',minKg:6.5, maxKg:7.0, minTL:1672, maxTL:1923},
+  {region:'Avrupa',service:'PRIORITY',minKg:7.0, maxKg:7.5, minTL:1762, maxTL:2026},
+  {region:'Avrupa',service:'PRIORITY',minKg:7.5, maxKg:8.0, minTL:1852, maxTL:2130},
+  {region:'Avrupa',service:'PRIORITY',minKg:8.0, maxKg:8.5, minTL:1942, maxTL:2233},
+  {region:'Avrupa',service:'PRIORITY',minKg:8.5, maxKg:9.0, minTL:2032, maxTL:2337},
+  {region:'Avrupa',service:'PRIORITY',minKg:9.0, maxKg:9.5, minTL:2122, maxTL:2440},
+  {region:'Avrupa',service:'PRIORITY',minKg:9.5, maxKg:10.0,minTL:2212, maxTL:2544},
+  {region:'Avrupa',service:'PRIORITY',minKg:10.0,maxKg:10.5,minTL:2267, maxTL:2607},
+  {region:'Avrupa',service:'PRIORITY',minKg:10.5,maxKg:11.0,minTL:2371, maxTL:2727},
+  {region:'Avrupa',service:'PRIORITY',minKg:11.0,maxKg:11.5,minTL:2476, maxTL:2847},
+  {region:'Avrupa',service:'PRIORITY',minKg:11.5,maxKg:12.0,minTL:2580, maxTL:2967},
+  {region:'Avrupa',service:'PRIORITY',minKg:12.0,maxKg:12.5,minTL:2684, maxTL:3087},
+  {region:'Avrupa',service:'PRIORITY',minKg:12.5,maxKg:13.0,minTL:2788, maxTL:3207},
+  {region:'Avrupa',service:'PRIORITY',minKg:13.0,maxKg:13.5,minTL:2892, maxTL:3326},
+  {region:'Avrupa',service:'PRIORITY',minKg:13.5,maxKg:14.0,minTL:2997, maxTL:3446},
+  {region:'Avrupa',service:'PRIORITY',minKg:14.0,maxKg:14.5,minTL:3101, maxTL:3566},
+  {region:'Avrupa',service:'PRIORITY',minKg:14.5,maxKg:15.0,minTL:3205, maxTL:3686},
   {region:'Amerika',service:'PAK',minKg:0,  maxKg:0.5,minTL:714, maxTL:821},
   {region:'Amerika',service:'PAK',minKg:0.5,maxKg:1.0,minTL:768, maxTL:883},
   {region:'Amerika',service:'PAK',minKg:1.0,maxKg:1.5,minTL:822, maxTL:945},
@@ -853,17 +1106,57 @@ let fedexSettings={version:7,rules:[
   {region:'Amerika',service:'PRIORITY',minKg:14.0,maxKg:14.5,minTL:4778, maxTL:5494},
   {region:'Amerika',service:'PRIORITY',minKg:14.5,maxKg:15.0,minTL:5044, maxTL:5801},
 ]};
-let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments}
+let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments} — legacy, kept for archive compat
+let fedexBulkResults=[]; // array of parsed invoices (max 10)
+let fedexBulkActiveIdx=0;
+let fedexGlobalSettings={
+  USD_TRY_RATE:48.77,FUEL_SURCHARGE_PERCENT:20.0,EPH_PERCENT:2.35,HIGH_PRICE_PERCENT:15.0,
+  USA_INBOUND_USD:0.66,EU_INBOUND_USD:2.65,UK_INBOUND_USD:0,CANADA_INBOUND_USD:0,
+  GULF_INBOUND_USD:0,APAC_INBOUND_USD:0,AU_NZ_INBOUND_USD:0,LATAM_INBOUND_USD:0
+};
+let fxRateVersions=[],fxRateLines=[],fxParamHistory=[];
+let fxRuleVersions=[]; // TL kural snapshot'ları
+let fxTarifePreviewData=null; // {rules, errors, params} computed on demand
+
+const REGION_PRICING_PROFILES={
+  'Amerika':       {type:'DIRECT_ZONE',zone:'H'},
+  'Kanada':        {type:'DIRECT_ZONE',zone:'A'},
+  'İngiltere':     {type:'DIRECT_ZONE',zone:'W'},
+  'Körfez':        {type:'DIRECT_ZONE',zone:'C'},
+  'Avustralya':    {type:'DIRECT_ZONE',zone:'G'},
+  'Latin Amerika': {type:'DIRECT_ZONE',zone:'D'},
+  'Avrupa':        {type:'WEIGHTED_ZONE_AVERAGE',zones:{R:7,S:8,T:2,U:8,V:2},divisor:27},
+  'Asya-Pasifik':  {type:'WEIGHTED_ZONE_AVERAGE',zones:{B:7,C:1,F:2,G:1,I:2},divisor:13}
+};
+const FX_INBOUND_MAP={
+  'Amerika':'USA_INBOUND_USD','Avrupa':'EU_INBOUND_USD','İngiltere':'UK_INBOUND_USD',
+  'Kanada':'CANADA_INBOUND_USD','Körfez':'GULF_INBOUND_USD','Asya-Pasifik':'APAC_INBOUND_USD',
+  'Avustralya':'AU_NZ_INBOUND_USD','Latin Amerika':'LATAM_INBOUND_USD'
+};
+const FX_PAK_WEIGHTS=[0.5,1,1.5,2,2.5];
+const FX_PKG_WEIGHTS=[0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11,11.5,12,12.5,13,13.5,14,14.5,15];
+const FX_EXPECTED_ZONES=['A','B','C','D','E','F','G','H','I','R','S','T','U','V','W'];
+const FX_SPOT_CHECKS=[
+  ['H','PAK',1.0],['H','PACKAGE',3.0],
+  ['G','PAK',1.5],['G','PACKAGE',10.0],
+  ['C','PACKAGE',5.0],['D','PACKAGE',5.0],
+  ['A','PACKAGE',5.0],['W','PACKAGE',5.0],
+  ['R','PACKAGE',5.0],['S','PACKAGE',5.0],
+  ['T','PACKAGE',5.0],['U','PACKAGE',5.0],
+  ['V','PACKAGE',5.0]
+];
 
 const FX_REGION={
-  'UNITED STATES':'Amerika','UNITED STATES OF AMERICA':'Amerika','USA':'Amerika','CANADA':'Amerika','MEXICO':'Amerika',
-  'UNITED KINGDOM':'Avrupa','GREAT BRITAIN':'Avrupa','GERMANY':'Avrupa','FRANCE':'Avrupa','SPAIN':'Avrupa',
+  'UNITED STATES':'Amerika','UNITED STATES OF AMERICA':'Amerika','USA':'Amerika','CANADA':'Kanada',
+  'MEXICO':'Latin Amerika','BRAZIL':'Latin Amerika','ARGENTINA':'Latin Amerika','CHILE':'Latin Amerika',
+  'COLOMBIA':'Latin Amerika','PERU':'Latin Amerika','URUGUAY':'Latin Amerika','PARAGUAY':'Latin Amerika','PANAMA':'Latin Amerika',
+  'UNITED KINGDOM':'İngiltere','GREAT BRITAIN':'İngiltere','GERMANY':'Avrupa','FRANCE':'Avrupa','SPAIN':'Avrupa',
   'ITALY':'Avrupa','SWEDEN':'Avrupa','NETHERLANDS':'Avrupa','SWITZERLAND':'Avrupa','LUXEMBOURG':'Avrupa',
   'BELGIUM':'Avrupa','AUSTRIA':'Avrupa','DENMARK':'Avrupa','NORWAY':'Avrupa','FINLAND':'Avrupa',
   'PORTUGAL':'Avrupa','IRELAND':'Avrupa','POLAND':'Avrupa','GREECE':'Avrupa','CZECH REPUBLIC':'Avrupa',
-  'AUSTRALIA':'Asya-Pasifik','NEW ZEALAND':'Asya-Pasifik','JAPAN':'Asya-Pasifik','SINGAPORE':'Asya-Pasifik',
+  'AUSTRALIA':'Avustralya','NEW ZEALAND':'Avustralya','JAPAN':'Asya-Pasifik','SINGAPORE':'Asya-Pasifik',
   'HONG KONG':'Asya-Pasifik','SOUTH KOREA':'Asya-Pasifik','CHINA':'Asya-Pasifik','INDIA':'Asya-Pasifik',
-  'UNITED ARAB EMIRATES':'Orta Doğu','UAE':'Orta Doğu','SAUDI ARABIA':'Orta Doğu','QATAR':'Orta Doğu','KUWAIT':'Orta Doğu',
+  'UNITED ARAB EMIRATES':'Körfez','UAE':'Körfez','SAUDI ARABIA':'Körfez','QATAR':'Körfez','KUWAIT':'Körfez','BAHRAIN':'Körfez','OMAN':'Körfez',
 };
 let view={page:'home', companyId:null, section:null, cardId:null, bankId:null, homeTab:'overview', taskOpen:{daily:false,weekly:false,monthly:false}};
 let calMonth=new Date(); // aylık takvimde gösterilen ay
@@ -1578,7 +1871,7 @@ function _llcEntryHTML(){
   return `<button class="entry-panel" data-llc style="--accent:#1D4ED8;--accent-tint:#DBEAFE">
     <span class="entry-ico" style="font-size:22px;font-weight:700;font-family:'Fraunces',serif">🇺🇸</span>
     <span class="entry-body">
-      <span class="entry-title">LLC Şirketi</span>
+      <span class="entry-title">LLC Miniden</span>
       <span class="entry-sum">${summary}</span>
     </span>
     ${svgArrow()}
@@ -1591,7 +1884,7 @@ function _fedexEntryHTML(){
   return `<button class="entry-panel" data-fedex style="--accent:#4D1979;--accent-tint:#EDE0F7">
     <span class="entry-ico" style="font-size:22px">📦</span>
     <span class="entry-body">
-      <span class="entry-title">FedEx Notlarım</span>
+      <span class="entry-title">FedEx Kontrol</span>
       <span class="entry-sum">${summary}</span>
     </span>
     ${svgArrow()}
@@ -1616,6 +1909,7 @@ function renderFedexPage(){
       </div>`).join('');
 
   const invoiceHTML=tab!=='invoice'?'':_fedexInvoiceTabHTML();
+  const tarifeHTML=tab!=='tarife'?'':_fedexTarifeTabHTML();
 
   const archiveHTML=tab!=='archive'?'':fedexArchives.length===0
     ?`<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz arşivlenmiş fatura yok</div></div>`
@@ -1646,7 +1940,7 @@ function renderFedexPage(){
       <span class="logo" style="background:#EDE0F7;color:#4D1979;width:56px;height:56px;font-size:26px">📦</span>
       <div class="cv-title">
         <div class="eyebrow" style="color:#4D1979">FedEx</div>
-        <h2>FedEx</h2>
+        <h2>FedEx Kontrol</h2>
       </div>
       <span class="spacer"></span>
       ${tab==='notes'
@@ -1659,8 +1953,9 @@ function renderFedexPage(){
       <button class="tab ${tab==='notes'?'active':''}" data-ftab="notes">Notlar (${fedexNotes.length})</button>
       <button class="tab ${tab==='invoice'?'active':''}" data-ftab="invoice">Fatura Analizi</button>
       <button class="tab ${tab==='archive'?'active':''}" data-ftab="archive">Arşiv (${fedexArchives.length})</button>
+      <button class="tab ${tab==='tarife'?'active':''}" data-ftab="tarife">Tarife Yönetimi</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px">${notesHTML}${invoiceHTML}${archiveHTML}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">${notesHTML}${invoiceHTML}${archiveHTML}${tarifeHTML}</div>
   </div>
   ${renderFooter()}`;
 
@@ -1673,26 +1968,84 @@ function renderFedexPage(){
   }
   if(tab==='invoice'){
     $('#fxInvSettings')?.addEventListener('click',openFedexPricingModal);
-    $('#fxUploadBtn')?.addEventListener('click',()=>$('#fxFileInput')?.click());
-    $('#fxNewPdf')?.addEventListener('click',()=>$('#fxFileInput')?.click());
-    $('#fxArchiveBtn')?.addEventListener('click',async()=>{
-      if(!fedexScanResult) return;
-      const analyzed=_fedexAnalyzeShipments(fedexScanResult.shipments);
-      const errCnt=analyzed.filter(s=>s.status==='error').length;
-      const title=`${fedexScanResult.invoiceNo} · ${fedexScanResult.invoiceDate} · ${fedexScanResult.shipments.length} gönderi${errCnt?' · '+errCnt+' hatalı':''}`;
-      await put('notes',{id:generateId(),companyId:'__fedex_archive__',title,text:JSON.stringify(fedexScanResult),date:dailyKey(new Date()),createdAt:Date.now()});
-      notes=Object.fromEntries((await getAll('notes')).map(n=>[n.id,n]));
-      toast('Fatura arşivlendi');
-      view.fedexTab='archive';
+
+    // PDF yükle (bulk, max 10)
+    $('#fxBulkUploadBtn')?.addEventListener('click',()=>$('#fxBulkFileInput')?.click());
+    $('#fxBulkFileInput')?.addEventListener('change',async e=>{
+      const remaining=10-fedexBulkResults.length;
+      const files=Array.from(e.target.files||[]).slice(0,remaining);
+      if(!files.length)return;
+      const statusEl=document.getElementById('fxBulkStatus');
+      for(let i=0;i<files.length;i++){
+        if(statusEl)statusEl.textContent=`${i+1}/${files.length} işleniyor…`;
+        try{
+          const result=await _parseFedexPDF(files[i]);
+          if(!fedexBulkResults.some(r=>r.invoiceNo&&r.invoiceNo===result.invoiceNo)){
+            fedexBulkResults.push(result);
+          }else{
+            toast(`${result.invoiceNo} zaten yüklü, atlandı`);
+          }
+        }catch(err){
+          toast('Hata: '+files[i].name+' — '+err.message);
+        }
+      }
+      fedexBulkActiveIdx=fedexBulkResults.length-1;
+      if(statusEl)statusEl.textContent='';
+      e.target.value='';
+      view.fedexFilter='all';
       renderFedexPage();
     });
-    $('#fxFileInput')?.addEventListener('change',async e=>{
-      const f=e.target.files[0]; if(!f)return;
-      await _runFedexAnalysis(f);
+
+    // Toplu kontrol — mevcut rules ile tüm yüklü faturaları yeniden analiz et
+    $('#fxBulkRecheck')?.addEventListener('click',()=>{
+      if(!fedexBulkResults.length){toast('Yüklenmiş fatura yok');return;}
+      renderFedexPage();
+      toast(`${fedexBulkResults.length} fatura yeniden kontrol edildi`);
     });
-    document.querySelectorAll('[data-fxfilter]').forEach(btn=>btn.addEventListener('click',()=>{view.fedexFilter=btn.dataset.fxfilter;renderFedexPage();}));
+
+    // Sekme geçişi
+    document.querySelectorAll('[data-fxbulktab]').forEach(btn=>btn.addEventListener('click',()=>{
+      fedexBulkActiveIdx=parseInt(btn.dataset.fxbulktab);
+      view.fedexFilter='all';
+      renderFedexPage();
+    }));
+
+    // Aktif sekmeyi arşivle (sadece o fatura)
+    document.querySelectorAll('[data-fxbulkarchive]').forEach(btn=>btn.addEventListener('click',async()=>{
+      const idx=parseInt(btn.dataset.fxbulkarchive);
+      const result=fedexBulkResults[idx];
+      if(!result)return;
+      const analyzed=_fedexAnalyzeShipments(result.shipments);
+      const errCnt=analyzed.filter(s=>s.status==='error').length;
+      const title=`${result.invoiceNo} · ${result.invoiceDate} · ${result.shipments.length} gönderi${errCnt?' · '+errCnt+' hatalı':''}`;
+      await put('notes',{id:generateId(),companyId:'__fedex_archive__',title,text:JSON.stringify(result),date:dailyKey(new Date()),createdAt:Date.now()});
+      notes=Object.fromEntries((await getAll('notes')).map(n=>[n.id,n]));
+      fedexBulkResults.splice(idx,1);
+      fedexBulkActiveIdx=Math.max(0,Math.min(fedexBulkActiveIdx,fedexBulkResults.length-1));
+      toast('Fatura arşivlendi');
+      view.fedexFilter='all';
+      renderFedexPage();
+    }));
+
+    // Aktif sekmeyi arşivlemeden kaldır
+    $('#fxBulkRemove')?.addEventListener('click',()=>{
+      fedexBulkResults.splice(fedexBulkActiveIdx,1);
+      fedexBulkActiveIdx=Math.max(0,Math.min(fedexBulkActiveIdx,fedexBulkResults.length-1));
+      view.fedexFilter='all';
+      renderFedexPage();
+    });
+
+    // Filtre butonları
+    document.querySelectorAll('[data-fxfilter]').forEach(btn=>btn.addEventListener('click',()=>{
+      view.fedexFilter=btn.dataset.fxfilter;
+      renderFedexPage();
+    }));
+
+    // Hatalıları kopyala (aktif sekme)
     $('#fxCopyErrors')?.addEventListener('click',()=>{
-      const errs=_fedexAnalyzeShipments(fedexScanResult.shipments).filter(s=>s.status==='error');
+      const result=fedexBulkResults[fedexBulkActiveIdx];
+      if(!result)return;
+      const errs=_fedexAnalyzeShipments(result.shipments).filter(s=>s.status==='error');
       if(!errs.length){toast('Hatalı kayıt yok');return;}
       const lines=errs.map(s=>`#${s.rowNo} ${s.date} | ${s.recipient} | ${s.country} | ${s.service} | ${s.weightKg} KG | ${fmtMoney(s.amountTL,'TRY')} | Beklenen: ${s.expected}`);
       navigator.clipboard.writeText(lines.join('\n')).then(()=>toast(`${errs.length} hatalı kayıt kopyalandı`));
@@ -1701,7 +2054,17 @@ function renderFedexPage(){
   if(tab==='archive'){
     document.querySelectorAll('[data-fxarchload]').forEach(el=>el.addEventListener('click',()=>{
       const arch=notes[el.dataset.fxarchload]; if(!arch)return;
-      try{fedexScanResult=JSON.parse(arch.text);view.fedexTab='invoice';renderFedexPage();}catch(e){toast('Arşiv yüklenemedi');}
+      try{
+        const result=JSON.parse(arch.text);
+        if(!fedexBulkResults.some(r=>r.invoiceNo&&r.invoiceNo===result.invoiceNo)){
+          if(fedexBulkResults.length>=10){toast('Maksimum 10 fatura yüklü, önce birini kaldırın');return;}
+          fedexBulkResults.push(result);
+          fedexBulkActiveIdx=fedexBulkResults.length-1;
+        }else{
+          fedexBulkActiveIdx=fedexBulkResults.findIndex(r=>r.invoiceNo===result.invoiceNo);
+        }
+        view.fedexTab='invoice';view.fedexFilter='all';renderFedexPage();
+      }catch(e){toast('Arşiv yüklenemedi');}
     }));
     document.querySelectorAll('[data-fxarchdel]').forEach(el=>el.addEventListener('click',async()=>{
       const id=el.dataset.fxarchdel;
@@ -1711,26 +2074,42 @@ function renderFedexPage(){
       renderFedexPage();
     }));
   }
+  if(tab==='tarife') _bindFedexTarifeEvents();
   bindFooter();
 }
 
 function _fedexInvoiceTabHTML(){
-  if(!fedexScanResult){
+  // Empty state
+  if(!fedexBulkResults.length){
     return `<div style="text-align:center;padding:40px 20px">
       <div style="font-size:48px;margin-bottom:12px">📄</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:6px">FedEx Fatura PDF Yükle</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Fatura parse edilir, her gönderinin USD karşılığı hesaplanır, hatalı fiyatlar işaretlenir.</div>
-      <input type="file" id="fxFileInput" accept=".pdf" style="display:none">
-      <button id="fxUploadBtn" style="padding:12px 28px;background:#4D1979;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">PDF Seç</button>
-      <div id="fxStatus" style="margin-top:16px;font-size:13px;color:var(--muted)"></div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Maksimum 10 fatura aynı anda analiz edilebilir.</div>
+      <input type="file" id="fxBulkFileInput" accept=".pdf" multiple style="display:none">
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button id="fxBulkUploadBtn" style="padding:12px 28px;background:#4D1979;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">PDF Yükle</button>
+      </div>
+      <div id="fxBulkStatus" style="margin-top:16px;font-size:13px;color:var(--muted)"></div>
     </div>`;
   }
+
+  // Active tab result
+  const ai=Math.min(fedexBulkActiveIdx,fedexBulkResults.length-1);
+  const activeResult=fedexBulkResults[ai];
   const filter=view.fedexFilter||'all';
-  const analyzed=_fedexAnalyzeShipments(fedexScanResult.shipments);
+  const analyzed=_fedexAnalyzeShipments(activeResult.shipments);
   const errors=analyzed.filter(s=>s.status==='error');
   const noRule=analyzed.filter(s=>s.status==='noRule');
   const shown=filter==='errors'?errors:filter==='norule'?noRule:analyzed;
 
+  // Sekme başlıkları
+  const tabBtns=fedexBulkResults.map((r,i)=>{
+    const errCnt=_fedexAnalyzeShipments(r.shipments).filter(s=>s.status==='error').length;
+    const isAct=i===ai;
+    return `<button data-fxbulktab="${i}" style="font-size:12px;padding:6px 12px;border-radius:8px 8px 0 0;border:1px solid var(--line);border-bottom:${isAct?'2px solid #4D1979':'1px solid var(--line)'};cursor:pointer;background:${isAct?'#fff':'var(--paper-2)'};color:${isAct?'#4D1979':'var(--ink)'};font-weight:${isAct?700:400};white-space:nowrap">${esc(r.invoiceNo||('Fatura '+(i+1)))}${errCnt?` <span style="background:#DC2626;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px">${errCnt}</span>`:''}</button>`;
+  }).join('');
+
+  // Satır tablosu
   const rows=shown.map(s=>{
     const sc=s.status==='error'?'#DC2626':s.status==='ok'?'#16A34A':'#9CA3AF';
     const sl=s.status==='error'?'⚠ Hata':s.status==='ok'?'✓ OK':'Kural yok';
@@ -1749,40 +2128,53 @@ function _fedexInvoiceTabHTML(){
     </tr>`;
   }).join('');
 
-  return `<div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
-      <div style="font-size:12px;color:var(--muted)">${esc(fedexScanResult.invoiceNo)} · ${fedexScanResult.invoiceDate} · ${analyzed.length} gönderi</div>
-      <span style="flex:1"></span>
-      ${errors.length?`<span style="font-size:12px;font-weight:700;color:#DC2626">${errors.length} hatalı</span>`:''}
-      <input type="file" id="fxFileInput" accept=".pdf" style="display:none">
-      <button id="fxArchiveBtn" style="font-size:12px;padding:5px 12px;background:#4D1979;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">📁 Arşive Gönder</button>
-      <button id="fxNewPdf" style="font-size:12px;padding:5px 12px;background:var(--paper-2);border:1px solid var(--line);border-radius:8px;cursor:pointer">Yeni PDF</button>
-    </div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-      <button data-fxfilter="all" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='all'?'#4D1979':'var(--card)'};color:${filter==='all'?'#fff':'var(--ink)'}">Tümü (${analyzed.length})</button>
-      <button data-fxfilter="errors" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='errors'?'#DC2626':'var(--card)'};color:${filter==='errors'?'#fff':'var(--ink)'}">Hatalı (${errors.length})</button>
-      ${noRule.length?`<button data-fxfilter="norule" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='norule'?'#6B7280':'var(--card)'};color:${filter==='norule'?'#fff':'var(--ink)'}">Kural yok (${noRule.length})</button>`:''}
-      ${errors.length?`<button id="fxCopyErrors" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #DC2626;cursor:pointer;background:var(--card);color:#DC2626;margin-left:auto">📋 Hatalıları Kopyala</button>`:''}
-    </div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <table style="width:100%;border-collapse:collapse;min-width:600px">
-        <thead>
-          <tr style="border-bottom:2px solid var(--line)">
-            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">NO</th>
-            <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">TARİH</th>
-            <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">ALICI</th>
-            <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">ÜLKE</th>
-            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BÖLGE</th>
-            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">SERVİS</th>
-            <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">AĞIRLIK</th>
-            <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR TL</th>
-            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BEKLENEN</th>
-            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">DURUM</th>
-          </tr>
-        </thead>
-        <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Gösterilecek kayıt yok</td></tr>'}</tbody>
+  const canAddMore=fedexBulkResults.length<10;
 
-      </table>
+  return `<div>
+    <!-- üst kontroller -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:0">
+      <input type="file" id="fxBulkFileInput" accept=".pdf" multiple style="display:none">
+      ${canAddMore?`<button id="fxBulkUploadBtn" style="font-size:12px;padding:6px 12px;background:#4D1979;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ PDF Ekle</button>`:'<span style="font-size:12px;color:var(--muted)">Maksimum 10 fatura yüklendi</span>'}
+      <button id="fxBulkRecheck" style="font-size:12px;padding:6px 12px;background:var(--paper-2);border:1px solid var(--line);border-radius:8px;cursor:pointer">↻ Toplu Kontrol</button>
+      <span style="flex:1"></span>
+      <div id="fxBulkStatus" style="font-size:12px;color:var(--muted)"></div>
+    </div>
+    <!-- sekmeler -->
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin:10px 0 0;overflow-x:auto">${tabBtns}</div>
+    <!-- aktif sekme içeriği -->
+    <div style="border:1px solid var(--line);border-top:2px solid #4D1979;padding:12px;border-radius:0 0 8px 8px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <div style="font-size:12px;color:var(--muted)">${esc(activeResult.invoiceNo)} · ${activeResult.invoiceDate} · ${analyzed.length} gönderi</div>
+        <span style="flex:1"></span>
+        ${errors.length?`<span style="font-size:12px;font-weight:700;color:#DC2626">${errors.length} hatalı</span>`:''}
+        <button data-fxbulkarchive="${ai}" style="font-size:12px;padding:5px 12px;background:#4D1979;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">📁 Arşive Gönder</button>
+        <button id="fxBulkRemove" style="font-size:12px;padding:5px 12px;background:var(--paper-2);border:1px solid #DC2626;border-radius:8px;cursor:pointer;color:#DC2626">✕ Kaldır</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <button data-fxfilter="all" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='all'?'#4D1979':'var(--card)'};color:${filter==='all'?'#fff':'var(--ink)'}">Tümü (${analyzed.length})</button>
+        <button data-fxfilter="errors" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='errors'?'#DC2626':'var(--card)'};color:${filter==='errors'?'#fff':'var(--ink)'}">Hatalı (${errors.length})</button>
+        ${noRule.length?`<button data-fxfilter="norule" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:${filter==='norule'?'#6B7280':'var(--card)'};color:${filter==='norule'?'#fff':'var(--ink)'}">Kural yok (${noRule.length})</button>`:''}
+        ${errors.length?`<button id="fxCopyErrors" style="font-size:12px;padding:5px 12px;border-radius:8px;border:1px solid #DC2626;cursor:pointer;background:var(--card);color:#DC2626;margin-left:auto">📋 Hatalıları Kopyala</button>`:''}
+      </div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table style="width:100%;border-collapse:collapse;min-width:600px">
+          <thead>
+            <tr style="border-bottom:2px solid var(--line)">
+              <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">NO</th>
+              <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">TARİH</th>
+              <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">ALICI</th>
+              <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">ÜLKE</th>
+              <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BÖLGE</th>
+              <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">SERVİS</th>
+              <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">AĞIRLIK</th>
+              <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR TL</th>
+              <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BEKLENEN</th>
+              <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">DURUM</th>
+            </tr>
+          </thead>
+          <tbody>${rows||'<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Gösterilecek kayıt yok</td></tr>'}</tbody>
+        </table>
+      </div>
     </div>
   </div>`;
 }
@@ -1803,6 +2195,444 @@ function _fedexAnalyzeShipments(shipments){
     }
     return {...s, region, status, expected};
   });
+}
+
+/* ── FedEx Tarife Engine ── */
+function _fxWeightTier(kg){
+  const T=[0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11,11.5,12,12.5,13,13.5,14,14.5,15];
+  for(const t of T){if(kg<=t)return t;}
+  return 15;
+}
+
+function _fxGetNetUSD(lines,region,pkgType,weightKg){
+  const profile=REGION_PRICING_PROFILES[region];
+  if(!profile)return null;
+  const tier=_fxWeightTier(weightKg);
+  if(profile.type==='DIRECT_ZONE'){
+    const l=lines.find(l=>l.zone===profile.zone&&l.packageType===pkgType&&l.weightKg===tier);
+    return l?l.netUSD:null;
+  }
+  if(profile.type==='WEIGHTED_ZONE_AVERAGE'){
+    let sum=0;
+    for(const[zone,w]of Object.entries(profile.zones)){
+      const l=lines.find(l=>l.zone===zone&&l.packageType===pkgType&&l.weightKg===tier);
+      if(!l)return null;
+      sum+=l.netUSD*w;
+    }
+    return sum/profile.divisor;
+  }
+  return null;
+}
+
+function _fxComputeTL(netUSD,region,params){
+  const inboundUSD=params[FX_INBOUND_MAP[region]||'USA_INBOUND_USD']||0;
+  const freightWithFuel=netUSD*(1+(params.FUEL_SURCHARGE_PERCENT||0)/100);
+  const subtotalUSD=freightWithFuel+inboundUSD;
+  const totalUSD=subtotalUSD*(1+(params.EPH_PERCENT||0)/100);
+  const standardTRY=totalUSD*(params.USD_TRY_RATE||1);
+  const highTRY=standardTRY*(1+(params.HIGH_PRICE_PERCENT||0)/100);
+  return{standardTRY:Math.round(standardTRY),highTRY:Math.round(highTRY),netUSD,freightWithFuel,subtotalUSD,totalUSD};
+}
+
+function _fxComputeAllRules(lines,params){
+  const regions=Object.keys(REGION_PRICING_PROFILES);
+  const errors=[];
+  const rules=[];
+  for(const region of regions){
+    for(const[service,pkgType,weights]of[['PAK','PAK',FX_PAK_WEIGHTS],['PRIORITY','PACKAGE',FX_PKG_WEIGHTS]]){
+      for(let i=0;i<weights.length;i++){
+        const w=weights[i];
+        const minKg=i===0?0:weights[i-1];
+        const netUSD=_fxGetNetUSD(lines,region,pkgType,w);
+        if(netUSD===null){errors.push(`${region}/${service}/${w}KG`);continue;}
+        const{standardTRY,highTRY}=_fxComputeTL(netUSD,region,params);
+        rules.push({region,service,minKg,maxKg:w,minTL:standardTRY,maxTL:highTRY});
+      }
+    }
+  }
+  return{rules,errors};
+}
+
+function _fxValidateGeneratedRules(rules){
+  const errs=[];
+  if(rules.length!==280)errs.push(`Kural sayısı ${rules.length} ≠ 280`);
+  const pakCnt=rules.filter(r=>r.service==='PAK').length;
+  const priCnt=rules.filter(r=>r.service==='PRIORITY').length;
+  if(pakCnt!==40)errs.push(`PAK kural sayısı ${pakCnt} ≠ 40`);
+  if(priCnt!==240)errs.push(`PRIORITY kural sayısı ${priCnt} ≠ 240`);
+  const keys=new Set();
+  for(const r of rules){
+    if(!r.region)errs.push('Bölge boş rule var');
+    if(!['PAK','PRIORITY'].includes(r.service))errs.push(`Bilinmeyen service: ${r.service}`);
+    if(!Number.isFinite(Number(r.minTL))||Number(r.minTL)<=0)errs.push(`Geçersiz minTL: ${r.region}/${r.service}/${r.maxKg}`);
+    if(!Number.isFinite(Number(r.maxTL))||Number(r.maxTL)<=Number(r.minTL))errs.push(`Geçersiz maxTL: ${r.region}/${r.service}/${r.maxKg}`);
+    const k=`${r.region}/${r.service}/${r.maxKg}`;
+    if(keys.has(k))errs.push(`Duplicate rule: ${k}`);
+    keys.add(k);
+  }
+  return{errors:errs,pakCnt,priCnt,isValid:errs.length===0};
+}
+
+async function _fxSnapshotRules(name,source,isProtected=false){
+  if(!fedexSettings.rules||!fedexSettings.rules.length) return null;
+  const snap={
+    id:generateId(),
+    name,
+    source,
+    isProtected,
+    createdAt:new Date().toISOString(),
+    fedexSettingsVersion:fedexSettings.version||16,
+    ruleCount:fedexSettings.rules.length,
+    rules:JSON.parse(JSON.stringify(fedexSettings.rules)),
+    globalSettings:JSON.parse(JSON.stringify(fedexGlobalSettings))
+  };
+  await put('fedexRuleVersions',snap);
+  fxRuleVersions.unshift(snap);
+  return snap;
+}
+
+async function _fxRestoreRuleVersion(versionId){
+  const target=fxRuleVersions.find(v=>v.id===versionId);
+  if(!target)return{ok:false,error:'Sürüm bulunamadı'};
+
+  // 1. Mevcut durumu snapshot'la
+  const preSnap=await _fxSnapshotRules(
+    'Geri Yükleme Öncesi — '+new Date().toLocaleString('tr-TR'),
+    'PRE_RESTORE'
+  );
+  if(!preSnap)return{ok:false,error:'Mevcut kurallar yedeklenemedi'};
+
+  const oldRules=JSON.parse(JSON.stringify(fedexSettings.rules||[]));
+  const oldVer=fedexSettings.version||16;
+
+  try{
+    fedexSettings.rules=JSON.parse(JSON.stringify(target.rules));
+    fedexSettings.version=oldVer+1;
+    await put('settings',{id:'fedexSettings',data:fedexSettings});
+
+    const hist={id:generateId(),changedAt:new Date().toISOString(),params:{...fedexGlobalSettings},
+      appliedRuleCount:fedexSettings.rules.length,triggeredBy:'RESTORE:'+target.name};
+    fxParamHistory.unshift(hist);
+    await put('fedexParamHistory',hist);
+
+    return{ok:true,ruleCount:fedexSettings.rules.length};
+  }catch(e){
+    fedexSettings.rules=oldRules;
+    fedexSettings.version=oldVer;
+    try{await put('settings',{id:'fedexSettings',data:fedexSettings});}catch(e2){}
+    return{ok:false,error:e.message};
+  }
+}
+
+async function _fxApplyRuleUpdate(newRules,newParams,triggeredBy='PARAM_CHANGE',extraMeta={}){
+  // Her apply öncesi mevcut kuralları otomatik yedekle
+  const snapName=(triggeredBy==='RATESHEET_ACTIVATION'
+    ?'Yeni Tarife Öncesi — '
+    :'Parametre Güncellemesi Öncesi — ')+new Date().toLocaleString('tr-TR');
+  await _fxSnapshotRules(snapName,'PRE_UPDATE');
+
+  const oldRules=JSON.parse(JSON.stringify(fedexSettings.rules||[]));
+  const oldParams=JSON.parse(JSON.stringify(fedexGlobalSettings));
+  const oldVer=fedexSettings.version||16;
+  try{
+    fedexSettings.rules=newRules;
+    fedexSettings.version=oldVer+1;
+    await put('settings',{id:'fedexSettings',data:fedexSettings});
+    Object.assign(fedexGlobalSettings,newParams);
+    await put('settings',{id:'fedexGlobalSettings',data:fedexGlobalSettings});
+    const hist={id:generateId(),changedAt:new Date().toISOString(),params:{...newParams},appliedRuleCount:newRules.length,triggeredBy,...extraMeta};
+    fxParamHistory.unshift(hist);
+    await put('fedexParamHistory',hist);
+    return{ok:true};
+  }catch(e){
+    fedexSettings.rules=oldRules;
+    fedexSettings.version=oldVer;
+    Object.assign(fedexGlobalSettings,oldParams);
+    try{
+      await put('settings',{id:'fedexSettings',data:fedexSettings});
+      await put('settings',{id:'fedexGlobalSettings',data:fedexGlobalSettings});
+    }catch(e2){console.error('Rollback failed',e2);}
+    return{ok:false,error:e.message};
+  }
+}
+
+function _fxIsValidWeightToken(token){
+  // Accept ONLY "X.X" or "XX.X" exact format — rejects commas, ranges, per-kg rows
+  // Valid: "0.5","1.0","10.5","15.0"   Invalid: "1,000.0","71.0","100.0","1.5 - 2.0"
+  if(!/^\d{1,2}\.\d$/.test(token))return false;
+  const w=Number(token);
+  return w>=0.5&&w<=15.0&&Number.isInteger(w*2);
+}
+
+async function _parseRatesheetPDF(file){
+  const lib=await _loadPdfJs();
+  const buf=await file.arrayBuffer();
+  const pdf=await lib.getDocument({data:buf}).promise;
+
+  const allItems=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const content=await page.getTextContent();
+    const vp=page.getViewport({scale:1});
+    const h=vp.height;
+    content.items.forEach(it=>{
+      const x=Math.round(it.transform[4]);
+      const y=Math.round(h-it.transform[5]);
+      const str=(it.str||'').trim();
+      if(str)allItems.push({str,x,y,page:p});
+    });
+  }
+  allItems.sort((a,b)=>a.page-b.page||a.y-b.y||a.x-b.x);
+
+  // Header info from first 2 pages — build row text then use capture-group regex
+  let proposalNo='',effectiveDate='';
+  const hdrRows=[];
+  for(const it of allItems.filter(x=>x.page<=2)){
+    const r=hdrRows.find(r=>r.page===it.page&&Math.abs(r.y-it.y)<=5);
+    if(r)r.text+=' '+it.str;
+    else hdrRows.push({page:it.page,y:it.y,text:it.str});
+  }
+  for(const r of hdrRows){
+    if(!proposalNo){
+      const m=r.text.match(/Proposal\s+No\.?\s*:?\s*(\d{6,})/i);
+      if(m)proposalNo=m[1];
+    }
+    if(!effectiveDate){
+      const m=r.text.match(/Effective\s+Date\s*:?\s*([A-Za-z]+\s+\d{1,2},?\s*\d{4})/i);
+      if(m)effectiveDate=m[1].trim();
+    }
+  }
+
+  // Group ALL items into rows (same page, y within 3px)
+  const rows=[];
+  for(const it of allItems){
+    const row=rows.find(r=>r.page===it.page&&Math.abs(r.y-it.y)<=3);
+    if(row)row.items.push(it);
+    else rows.push({y:it.y,page:it.page,items:[it]});
+  }
+  rows.forEach(r=>r.items.sort((a,b)=>a.x-b.x));
+
+  const ZONE_SET=new Set(['A','B','C','D','E','F','G','H','I','R','S','T','U','V','W']);
+  const IP_EXPORT_RE=/FedEx\s+International\s+Priority\s+Export/i;
+  const STOP_RE=/FedEx\s+International\s+(Economy|First|Priority\s+Express)/i;
+
+  // Pre-scan: build per-page full text to find REAL section page (not TOC entry)
+  // TOC pages have service name but lack Currency/WeightZone/Kgs headers
+  const pageTexts={};
+  for(const it of allItems){
+    if(!pageTexts[it.page])pageTexts[it.page]='';
+    pageTexts[it.page]+=' '+it.str;
+  }
+  let realSectionPage=-1;
+  for(const p of Object.keys(pageTexts).map(Number).sort((a,b)=>a-b)){
+    const pt=pageTexts[p];
+    if(!IP_EXPORT_RE.test(pt))continue;
+    const hasCurrency=/Currency:\s*USD/i.test(pt);
+    const hasWeightZone=/Weight\s+Zone/i.test(pt);
+    const hasKgsHeader=/Kgs\s+[AT]\b/i.test(pt);
+    if(hasCurrency&&hasWeightZone&&hasKgsHeader){
+      console.log('[FX-PARSE] Candidate page '+p+' accepted: IP Export + Currency USD + Weight Zone + Kgs header');
+      realSectionPage=p;
+      break;
+    }else{
+      const why=!hasCurrency?'Currency missing':!hasWeightZone?'Weight Zone missing':'Kgs header missing';
+      console.log('[FX-PARSE] TOC match ignored page='+p+' ('+why+')');
+    }
+  }
+  if(realSectionPage<0)throw new Error('"FedEx International Priority Export" bölümü PDF\'de bulunamadı. Doğru tarife belgesini seçin.');
+
+  let inSection=false;
+  let sectionFoundPage=-1;
+  let zoneBlockCount=0;          // distinct canonical pricing blocks only
+  const seenZoneSigs=new Set();  // dedup continuation-page repeats
+  let inPerKgSection=false;      // per-kilogram range section flag
+  let currentZoneMap=null; // {x_pos: zoneLabel} — preserved across page breaks
+  let currentPkgType=null; // 'PAK'|'PACKAGE'|null — preserved across page breaks
+  const rateLines=[];
+
+  for(let ri=0;ri<rows.length;ri++){
+    const row=rows[ri];
+    const rowText=row.items.map(it=>it.str).join(' ');
+
+    // Section entry: IP Export heading on/after realSectionPage only
+    // Continuation pages repeat this heading — stay in section, don't reset state
+    if(IP_EXPORT_RE.test(rowText)&&!STOP_RE.test(rowText)){
+      if(!inSection&&row.page>=realSectionPage){
+        inSection=true;
+        sectionFoundPage=row.page;
+        console.log('[FX-PARSE] REAL target section found page='+row.page);
+      }
+      continue;
+    }
+    if(!inSection)continue;
+    // Section exit: Economy / First / IPE heading
+    if(STOP_RE.test(rowText)){
+      console.log('[FX-PARSE] Section end page='+row.page);
+      break;
+    }
+
+    // Per-kilogram section marker — zone headers after this are not canonical pricing blocks
+    if(/per.kilogram/i.test(rowText)){
+      inPerKgSection=true;
+      console.log('[FX-PARSE] Per-kg section detected page='+row.page);
+      continue;
+    }
+
+    // Zone header row: has "Kgs"/"Kg" item + ≥2 zone letter items
+    // Block 1: Kgs A B C D E F G H I R S (11 zones, pages 13-15)
+    // Block 2: Kgs T U V W               (4 zones,  page 16)
+    const zoneCells=row.items.filter(it=>ZONE_SET.has(it.str.trim().toUpperCase()));
+    if(row.items.some(it=>/^kgs?$/i.test(it.str.trim()))&&zoneCells.length>=2){
+      currentZoneMap={};
+      zoneCells.forEach(it=>currentZoneMap[it.x]=it.str.trim().toUpperCase());
+      const sig=[...new Set(Object.values(currentZoneMap))].sort().join(',');
+      if(!inPerKgSection&&!seenZoneSigs.has(sig)){
+        seenZoneSigs.add(sig);
+        zoneBlockCount++;
+        console.log('[FX-PARSE] Zone block #'+zoneBlockCount+': '+sig);
+      }else{
+        const why=inPerKgSection?'per-kg section':'continuation page repeat';
+        console.log('[FX-PARSE] Zone header skipped ('+why+'): '+sig);
+      }
+      continue;
+    }
+
+    // Envelope: reset pkg type regardless of row length/decimal content
+    // (Envelope+price rows may be merged at same y in some PDF renderings)
+    if(row.items.some(it=>/^envelope$/i.test(it.str.trim()))){
+      currentPkgType=null;
+      continue;
+    }
+
+    // Package type label: no decimal numbers — does NOT reset zone map
+    const hasDecimal=row.items.some(it=>/^\d+[.,]\d+$/.test(it.str.trim()));
+    if(!hasDecimal){
+      const rt=rowText.toUpperCase().trim();
+      if(row.items.some(it=>/^pak$/i.test(it.str.trim()))&&!rt.includes('PACKAGE')){
+        currentPkgType='PAK';
+        console.log('[FX-PARSE] Package type: PAK');
+        continue;
+      }
+      if(row.items.some(it=>/^(package|box)$/i.test(it.str.trim()))){
+        currentPkgType='PACKAGE';
+        console.log('[FX-PARSE] Package type: PACKAGE');
+        continue;
+      }
+    }
+
+    // Weight data row — strict token validation (rejects comma-thousands, ranges, per-kg rows)
+    if(!currentZoneMap||!currentPkgType)continue;
+    const firstStr=(row.items[0]?.str||'').trim();
+    if(!_fxIsValidWeightToken(firstStr))continue;
+    const roundedW=Number(firstStr);
+    if(currentPkgType==='PAK'&&roundedW>2.5)continue;
+
+    const usedItems=new Set();
+    for(const zx of Object.keys(currentZoneMap).map(Number).sort((a,b)=>a-b)){
+      const zone=currentZoneMap[zx];
+      const candidate=row.items.slice(1)
+        .filter(it=>!usedItems.has(it)&&Math.abs(it.x-zx)<=35)
+        .sort((a,b)=>Math.abs(a.x-zx)-Math.abs(b.x-zx))[0];
+      if(!candidate)continue;
+      usedItems.add(candidate);
+      const usdStr=candidate.str.replace(/,/g,'.').replace(/[^\d.]/g,'');
+      const netUSD=parseFloat(usdStr);
+      if(isNaN(netUSD)||netUSD<=0)continue;
+      rateLines.push({zone,packageType:currentPkgType,weightKg:roundedW,netUSD,
+        _sourcePage:row.page,_rawRow:rowText,_zoneBlock:zoneBlockCount});
+    }
+  }
+
+  const pakCnt=rateLines.filter(l=>l.packageType==='PAK').length;
+  const pkgCnt=rateLines.filter(l=>l.packageType==='PACKAGE').length;
+  console.log(`[FX-PARSE] Done: PAK=${pakCnt} PACKAGE=${pkgCnt} TOTAL=${rateLines.length} zoneBlocks=${zoneBlockCount}`);
+
+  if(rateLines.length===0){
+    throw new Error(
+      'Tarife satırları okunamadı.\n'+
+      'Tanı: Bölüm bulundu='+(sectionFoundPage>0?'EVET (sayfa '+sectionFoundPage+')':'HAYIR')+
+      ', Zone blok sayısı='+zoneBlockCount+
+      ', PAK satır='+pakCnt+', PACKAGE satır='+pkgCnt
+    );
+  }
+
+  const found=new Set(rateLines.map(l=>`${l.zone}/${l.packageType}/${l.weightKg}`));
+  const missing=[];
+  FX_EXPECTED_ZONES.forEach(zone=>{
+    FX_PAK_WEIGHTS.forEach(w=>{if(!found.has(`${zone}/PAK/${w}`))missing.push(`${zone}/PAK/${w}`);});
+    FX_PKG_WEIGHTS.forEach(w=>{if(!found.has(`${zone}/PACKAGE/${w}`))missing.push(`${zone}/PACKAGE/${w}`);});
+  });
+
+  return{proposalNo,effectiveDate,rateLines,missing,currency:'USD'};
+}
+
+function _fxValidateParsedRatesheet(rateLines){
+  // Build seen map (pkgType|zone|weight → first line) and detect duplicates with full diagnostic
+  const seenMap=new Map();
+  const duplicates=[];
+  const _dupDetails=[];
+  let _dupPak=0,_dupPkg=0;
+  const _dupByWeight={};
+  const _dupZones=new Set();
+  rateLines.forEach(l=>{
+    const k=`${l.packageType}|${l.zone}|${l.weightKg}`;
+    if(seenMap.has(k)){
+      duplicates.push(`${l.zone}/${l.packageType}/${l.weightKg}`);
+      const first=seenMap.get(k);
+      const detail={
+        packageType:l.packageType,zone:l.zone,weightKg:l.weightKg,netUSD:l.netUSD,
+        firstSourcePage:first._sourcePage||null,firstZoneBlock:first._zoneBlock||null,
+        firstRawRow:(first._rawRow||'').substring(0,100),
+        duplicateSourcePage:l._sourcePage||null,duplicateZoneBlock:l._zoneBlock||null,
+        duplicateRawRow:(l._rawRow||'').substring(0,100)
+      };
+      _dupDetails.push(detail);
+      if(l.packageType==='PAK')_dupPak++;else _dupPkg++;
+      _dupByWeight[l.weightKg]=(_dupByWeight[l.weightKg]||0)+1;
+      _dupZones.add(l.zone);
+    }else{
+      seenMap.set(k,l);
+    }
+  });
+  if(duplicates.length){
+    console.warn(`[FX-DUPLICATE SUMMARY] Total=${duplicates.length} PAK=${_dupPak} PACKAGE=${_dupPkg}`);
+    console.warn('[FX-DUPLICATE SUMMARY] By weight JSON:',JSON.stringify(_dupByWeight));
+    console.warn(`[FX-DUPLICATE SUMMARY] Zones: ${[..._dupZones].sort().join(',')}`);
+    console.warn('[FX-DUPLICATE KEYS]',JSON.stringify(_dupDetails));
+  }
+  // Rebuild seen set in zone/pkgType/weight format for missing check below
+  const seen=new Set([...seenMap.keys()].map(k=>{const p=k.split('|');return`${p[1]}/${p[0]}/${p[2]}`;}));
+
+  const foundZones=[...new Set(rateLines.map(l=>l.zone))].sort();
+  const pakWeights=[...new Set(rateLines.filter(l=>l.packageType==='PAK').map(l=>l.weightKg))].sort((a,b)=>a-b);
+  const pkgWeights=[...new Set(rateLines.filter(l=>l.packageType==='PACKAGE').map(l=>l.weightKg))].sort((a,b)=>a-b);
+
+  const missing=[];
+  FX_EXPECTED_ZONES.forEach(z=>{
+    FX_PAK_WEIGHTS.forEach(w=>{if(!seen.has(`${z}/PAK/${w}`)) missing.push(`${z}/PAK/${w}`);});
+    FX_PKG_WEIGHTS.forEach(w=>{if(!seen.has(`${z}/PACKAGE/${w}`)) missing.push(`${z}/PACKAGE/${w}`);});
+  });
+
+  // Spot check values
+  const spotResults=FX_SPOT_CHECKS.map(([z,t,w])=>{
+    const l=rateLines.find(x=>x.zone===z&&x.packageType===t&&x.weightKg===w);
+    return{zone:z,pkgType:t,weight:w,netUSD:l?l.netUSD:null};
+  });
+
+  return{
+    foundZones,
+    zoneCount:foundZones.length,
+    expectedZoneCount:FX_EXPECTED_ZONES.length,
+    missingZones:FX_EXPECTED_ZONES.filter(z=>!foundZones.includes(z)),
+    pakWeightCount:pakWeights.length,
+    pkgWeightCount:pkgWeights.length,
+    totalLines:rateLines.length,
+    expectedLines:FX_EXPECTED_ZONES.length*(FX_PAK_WEIGHTS.length+FX_PKG_WEIGHTS.length),
+    missing,
+    duplicates,
+    spotResults,
+    isComplete:missing.length===0&&duplicates.length===0
+  };
 }
 
 async function _runFedexAnalysis(file){
@@ -1976,31 +2806,788 @@ async function _parseFedexPDF(file){
   return {invoiceDate, invoiceNo, totalTL, shipments};
 }
 
+let fxDraftData=null; // parsed-not-saved ratesheet {proposalNo,effectiveDate,rateLines,missing}
+let _fxPendingActivation=null; // {rules,pakCount,priCount} waiting for user confirm
+
+function _fxInpStyle(){return 'width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--card)';}
+function _fxLblStyle(){return 'font-size:11px;color:var(--muted);margin-bottom:4px';}
+
+function _fedexTarifeTabHTML(){
+  const p=fedexGlobalSettings;
+  const activeVer=fxRateVersions.find(v=>v.status==='ACTIVE');
+  const hasLines=fxRateLines.length>0;
+
+  const inboundFields=[
+    ['Amerika','USA_INBOUND_USD'],['Avrupa','EU_INBOUND_USD'],['İngiltere','UK_INBOUND_USD'],
+    ['Kanada','CANADA_INBOUND_USD'],['Körfez','GULF_INBOUND_USD'],['Asya-Pasifik','APAC_INBOUND_USD'],
+    ['Avustralya','AU_NZ_INBOUND_USD'],['Latin Amerika','LATAM_INBOUND_USD']
+  ];
+
+  const previewHint=hasLines?'':' title="Önce tarife PDF yükleyin"';
+  const previewStyle=hasLines
+    ?'padding:10px 20px;background:#4D1979;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer'
+    :'padding:10px 20px;background:#ccc;color:#888;border:none;border-radius:9px;font-size:13px;cursor:not-allowed';
+
+  const draftSection=(()=>{
+    if(!fxDraftData) return '';
+    const val=fxDraftData.validation||_fxValidateParsedRatesheet(fxDraftData.rateLines);
+    const ok=val.isComplete;
+    const hasDups=val.duplicates&&val.duplicates.length>0;
+    const hasMissing=val.missing&&val.missing.length>0;
+    const statusBadge=ok
+      ?`<div style="display:inline-block;padding:4px 12px;background:#dcfce7;color:#16a34a;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:12px">PARSE BAŞARILI</div>`
+      :hasDups&&hasMissing
+        ?`<div style="display:inline-block;padding:4px 12px;background:#fee2e2;color:#dc2626;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:12px">DOĞRULAMA HATASI — ${val.duplicates.length} mükerrer · ${val.missing.length} eksik</div>`
+        :hasDups
+          ?`<div style="display:inline-block;padding:4px 12px;background:#fee2e2;color:#dc2626;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:12px">DOĞRULAMA HATASI — ${val.duplicates.length} mükerrer kayıt</div>`
+          :`<div style="display:inline-block;padding:4px 12px;background:#fef3c7;color:#b45309;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:12px">EKSİK VERİ — ${val.missing.length} kombinasyon eksik</div>`;
+    const metaRows=[
+      ['Service','FedEx International Priority Export'],
+      ['Currency',fxDraftData.currency||'USD'],
+      ['Proposal No',fxDraftData.proposalNo||'—'],
+      ['Effective Date',fxDraftData.effectiveDate||'—'],
+      ['Zones',`${val.zoneCount} / ${val.expectedZoneCount}${val.missingZones.length?' · Eksik: '+val.missingZones.join(', '):''}`,!ok&&val.missingZones.length],
+      ['PAK Ağırlıkları',`${val.pakWeightCount} / ${FX_PAK_WEIGHTS.length}`,val.pakWeightCount!==FX_PAK_WEIGHTS.length],
+      ['PACKAGE Ağırlıkları',`${val.pkgWeightCount} / ${FX_PKG_WEIGHTS.length}`,val.pkgWeightCount!==FX_PKG_WEIGHTS.length],
+      ['Toplam Rate Line',`${val.totalLines} / ${val.expectedLines}`,val.totalLines!==val.expectedLines],
+      ['Duplicate',val.duplicates.length,val.duplicates.length>0],
+      ['Missing',val.missing.length,val.missing.length>0]
+    ].map(([k,v,warn])=>`<tr>
+      <td style="padding:4px 8px;font-size:12px;color:var(--muted);white-space:nowrap">${k}</td>
+      <td style="padding:4px 8px;font-size:12px;font-weight:600;${warn?'color:#c0392b':''}">${v}</td>
+    </tr>`).join('');
+    const spotRows=val.spotResults.map(s=>`<tr>
+      <td style="padding:4px 8px;font-size:12px">${s.zone}</td>
+      <td style="padding:4px 8px;font-size:12px">${s.pkgType}</td>
+      <td style="padding:4px 8px;font-size:12px">${s.weight}</td>
+      <td style="padding:4px 8px;font-size:12px;font-weight:600;text-align:right;${s.netUSD===null?'color:#c0392b':''}">${s.netUSD!==null?s.netUSD.toFixed(2)+' $':'EKSIK'}</td>
+    </tr>`).join('');
+    const activateBtn=ok
+      ?`<button id="fxDraftActivate" style="padding:9px 18px;background:#4D1979;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">Aktifleştir</button>`
+      :`<button disabled title="Eksik veriler düzeltilmeden aktifleştirilemez" style="padding:9px 18px;background:#ccc;color:#888;border:none;border-radius:9px;font-size:13px;cursor:not-allowed">Aktifleştir (Eksik)</button>`;
+    return `<div class="bill" style="margin-bottom:8px;padding:16px;border:2px dashed #4D1979;flex-direction:column;align-items:stretch">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px">Taslak Tarife — Parse Raporu</div>
+      ${statusBadge}
+      <table style="border-collapse:collapse;margin-bottom:14px;width:100%">${metaRows}</table>
+      <div style="font-weight:600;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Spot Check</div>
+      <div style="overflow-x:auto;margin-bottom:14px"><table style="border-collapse:collapse;width:100%">
+        <thead><tr style="border-bottom:1px solid var(--line)">
+          <th style="padding:4px 8px;font-size:11px;text-align:left">Zone</th>
+          <th style="padding:4px 8px;font-size:11px;text-align:left">Tip</th>
+          <th style="padding:4px 8px;font-size:11px;text-align:left">KG</th>
+          <th style="padding:4px 8px;font-size:11px;text-align:right">Net USD</th>
+        </tr></thead>
+        <tbody>${spotRows}</tbody>
+      </table></div>
+      ${val.missing.length?`<div style="font-size:11px;color:#c0392b;margin-bottom:12px">Eksik kombinasyonlar: ${val.missing.slice(0,8).join(', ')}${val.missing.length>8?' … ('+val.missing.length+' toplam)':''}</div>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${activateBtn}
+        <button id="fxDraftDiscard" style="padding:9px 18px;background:none;color:#c0392b;border:1px solid #c0392b;border-radius:9px;font-size:13px;cursor:pointer">İptal / Sil</button>
+      </div>
+    </div>`;
+  })();
+
+  const activeSection=activeVer?`
+  <div style="margin-bottom:12px;padding:14px;background:#EDE0F7;border-radius:10px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#4D1979;margin-bottom:6px">Aktif Tarife</div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:2px">${esc(activeVer.proposalNo||'FedEx Tarife')}</div>
+    ${activeVer.effectiveDate?`<div style="font-size:12px;color:var(--muted)">Geçerlilik: ${esc(activeVer.effectiveDate)}</div>`:''}
+    <div style="font-size:12px;color:var(--muted)">Para Birimi: USD · ${activeVer.lineCount||fxRateLines.length} satır</div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button id="fxActiveVerView" style="padding:7px 14px;background:#4D1979;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Tarifeyi Gör</button>
+      <button id="fxRatesheetUploadBtn" style="padding:7px 14px;background:none;border:1px solid #4D1979;color:#4D1979;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Yeni Tarife PDF Yükle</button>
+    </div>
+  </div>`:`<div style="margin-bottom:12px;font-size:13px;color:var(--muted)">Henüz aktif tarife yüklenmedi. Fiyatlar manuel kurallara göre çalışıyor.</div>`;
+
+  const histHTML=fxParamHistory.length===0?'<div style="font-size:13px;color:var(--muted)">Henüz kayıt yok.</div>'
+    :fxParamHistory.slice(0,6).map(h=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div style="font-size:12px;font-weight:600">${h.triggeredBy==='RATESHEET_ACTIVATION'?'Tarife Aktivasyonu':h.triggeredBy.startsWith('RESTORE:')?'Geri Yükleme':'Parametre Değişikliği'}</div>
+        <div style="font-size:11px;color:var(--muted)">${new Date(h.changedAt).toLocaleString('tr-TR')}</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">USD/TRY: ${h.params.USD_TRY_RATE} · Yakıt: ${h.params.FUEL_SURCHARGE_PERCENT}% · EPH: ${h.params.EPH_PERCENT}% · ${h.appliedRuleCount} kural</div>
+    </div>`).join('');
+
+  const manualBackup=fxRuleVersions.find(v=>v.source==='MANUAL_BACKUP'&&v.isProtected);
+  const ruleVerHTML=fxRuleVersions.length===0?'<div style="font-size:13px;color:var(--muted)">Henüz kural snapshot\'ı yok.</div>'
+    :fxRuleVersions.map(v=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">${v.isProtected?'🔒 ':''} ${esc(v.name)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${new Date(v.createdAt).toLocaleString('tr-TR')} · ${v.ruleCount} kural · USD/TRY ${v.globalSettings?.USD_TRY_RATE||'—'} · Yakıt ${v.globalSettings?.FUEL_SURCHARGE_PERCENT||'—'}%</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
+          ${v.isProtected?`<button data-fxrvexport="${v.id}" style="padding:5px 10px;background:none;border:1px solid #16a34a;color:#16a34a;border-radius:7px;font-size:11px;cursor:pointer">↓ JSON</button>`:''}
+          <button data-fxrvprev="${v.id}" style="padding:5px 10px;background:none;border:1px solid var(--line);border-radius:7px;font-size:11px;cursor:pointer">Önizle</button>
+          <button data-fxrvrestore="${v.id}" style="padding:5px 10px;background:none;border:1px solid #4D1979;color:#4D1979;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer">Geri Dön</button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  return `
+  <div class="bill" style="margin-bottom:8px;padding:16px;flex-direction:column;align-items:stretch">
+    <div style="font-weight:700;font-size:14px;margin-bottom:14px">Fiyat Parametreleri</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="${_fxLblStyle()}">USD/TRY Kuru</div>
+        <input type="number" id="fxP_usd" step="0.01" min="1" value="${p.USD_TRY_RATE}" style="${_fxInpStyle()}">
+        <div style="font-size:10px;color:var(--faint);margin-top:3px">TL fiyatların hesaplanmasında kullanılır.</div>
+      </div>
+      <div>
+        <div style="${_fxLblStyle()}">Yakıt Sürşarjı (%)</div>
+        <input type="number" id="fxP_fuel" step="0.1" min="0" value="${p.FUEL_SURCHARGE_PERCENT}" style="${_fxInpStyle()}">
+        <div style="font-size:10px;color:var(--faint);margin-top:3px">Net FedEx navlun fiyatına uygulanır.</div>
+      </div>
+      <div>
+        <div style="${_fxLblStyle()}">EPH (%)</div>
+        <input type="number" id="fxP_eph" step="0.01" min="0" value="${p.EPH_PERCENT}" style="${_fxInpStyle()}">
+        <div style="font-size:10px;color:var(--faint);margin-top:3px">Yakıt + inbound toplamından sonra uygulanır.</div>
+      </div>
+      <div>
+        <div style="${_fxLblStyle()}">Yüksek Fiyat Farkı (%)</div>
+        <input type="number" id="fxP_high" step="0.1" min="0" value="${p.HIGH_PRICE_PERCENT}" style="${_fxInpStyle()}">
+        <div style="font-size:10px;color:var(--faint);margin-top:3px">Standart fiyatın üzerinde gösterilen güvenlik payı.</div>
+      </div>
+    </div>
+    <div style="font-weight:600;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Gelen Gönderi Ek Ücretleri (USD)</div>
+    <div style="font-size:10px;color:var(--faint);margin-bottom:8px">Bölgeye özel USD sabit ek ücret — yoksa 0 bırakın.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      ${inboundFields.map(([label,key])=>`
+      <div><div style="${_fxLblStyle()}">${label}</div><input type="number" id="fxP_${key}" step="0.01" min="0" value="${p[key]||0}" style="${_fxInpStyle()}"></div>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button id="fxTarifePreviewBtn" ${hasLines?'':'disabled'}${previewHint} style="${previewStyle}">Önizle</button>
+      ${!hasLines?`<span style="font-size:12px;color:var(--muted)">Önizleme için tarife PDF gerekli</span>`:''}
+    </div>
+  </div>
+  <div id="fxTarifePreviewArea" style="display:none;margin-bottom:8px"></div>
+  <div class="bill" style="margin-bottom:8px;padding:16px;flex-direction:column;align-items:stretch">
+    <div style="font-weight:700;font-size:14px;margin-bottom:12px">Net Navlun Tarifesi (USD)</div>
+    ${activeSection}
+    ${draftSection}
+    <input type="file" id="fxRatesheetInput" accept=".pdf" style="display:none">
+    ${!activeVer?`<button id="fxRatesheetUploadBtn" style="padding:9px 18px;background:none;border:1px solid #4D1979;color:#4D1979;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">PDF Yükle (Tarife)</button>`:''}
+    <div id="fxRatesheetStatus" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+  </div>
+  <div class="bill" style="padding:16px;flex-direction:column;align-items:stretch;margin-bottom:8px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px">Parametre Geçmişi</div>
+    ${histHTML}
+  </div>
+  <div class="bill" style="padding:16px;flex-direction:column;align-items:stretch">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+      <div style="font-weight:700;font-size:14px">Fiyat Kuralı Geçmişi</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="fxRuleImportInput" accept=".json" style="display:none">
+        <button id="fxRuleImportBtn" style="padding:7px 13px;background:none;border:1px solid #16a34a;color:#16a34a;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">↑ Yedek İçe Aktar</button>
+        ${manualBackup?`<button id="fxRestoreManual" style="padding:7px 13px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">🔒 Manuel Sisteme Geri Dön</button>`:''}
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Her fiyat güncellemesi öncesi otomatik snapshot alınır. Herhangi bir sürüme geri dönebilirsiniz.</div>
+    ${ruleVerHTML}
+  </div>`;
+}
+
+function _bindFedexTarifeEvents(){
+  $('#fxRatesheetUploadBtn')?.addEventListener('click',()=>$('#fxRatesheetInput')?.click());
+  $('#fxRatesheetInput')?.addEventListener('change',async e=>{
+    const f=e.target.files[0];if(!f)return;
+    const statusEl=$('#fxRatesheetStatus');
+    if(statusEl)statusEl.textContent='PDF işleniyor…';
+    try{
+      fxDraftData=await _parseRatesheetPDF(f);
+      fxDraftData.validation=_fxValidateParsedRatesheet(fxDraftData.rateLines);
+      const v=fxDraftData.validation;
+      const toastDetail=v.isComplete?'Tam (525/525)':(v.duplicates.length?v.duplicates.length+' mükerrer':''+(v.missing.length?' '+v.missing.length+' eksik':'')).trim();
+      toast(`${v.totalLines} satır okundu · ${toastDetail||'Hatalı'}`);
+      renderFedexPage();
+    }catch(err){
+      fxDraftData=null;
+      if(statusEl)statusEl.textContent='Hata: '+err.message;
+      console.error(err);
+    }
+  });
+
+  $('#fxActiveVerView')?.addEventListener('click',()=>{
+    const activeVer=fxRateVersions.find(v=>v.status==='ACTIVE');
+    if(!activeVer){toast('Aktif tarife yok');return;}
+    // Zones × 2 (PAK+PACKAGE): show summary table
+    const zones=[...new Set(fxRateLines.map(l=>l.zone))].sort();
+    const rows=zones.map(z=>{
+      const pakLines=fxRateLines.filter(l=>l.zone===z&&l.packageType==='PAK');
+      const pkgLines=fxRateLines.filter(l=>l.zone===z&&l.packageType==='PACKAGE');
+      const pakMin=pakLines.length?Math.min(...pakLines.map(l=>l.netUSD)).toFixed(2):'—';
+      const pakMax=pakLines.length?Math.max(...pakLines.map(l=>l.netUSD)).toFixed(2):'—';
+      const pkgMin=pkgLines.length?Math.min(...pkgLines.map(l=>l.netUSD)).toFixed(2):'—';
+      const pkgMax=pkgLines.length?Math.max(...pkgLines.map(l=>l.netUSD)).toFixed(2):'—';
+      return `<tr><td style="padding:6px 8px;font-weight:600">Zone ${z}</td><td style="padding:6px 8px;text-align:right">${pakMin}–${pakMax}</td><td style="padding:6px 8px;text-align:right">${pkgMin}–${pkgMax}</td></tr>`;
+    }).join('');
+    modal.innerHTML=`<div class="modal-head"><div class="eyebrow">FedEx</div><h3>Aktif Tarife — USD Net Navlun Aralıkları</h3></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">${esc(activeVer.proposalNo||'')} ${activeVer.effectiveDate?'· Geçerlilik: '+esc(activeVer.effectiveDate):''} · ${fxRateLines.length} satır</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid var(--line)"><th style="padding:6px 8px;text-align:left">Bölge</th><th style="padding:6px 8px;text-align:right">PAK (USD)</th><th style="padding:6px 8px;text-align:right">PACKAGE (USD)</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <div class="modal-foot"><button class="btn-ghost" onclick="closeModal()">Kapat</button></div>
+    </div>`;
+    overlay.classList.add('show');
+  });
+
+  $('#fxDraftDiscard')?.addEventListener('click',()=>{fxDraftData=null;_fxPendingActivation=null;renderFedexPage();});
+  $('#fxDraftActivate')?.addEventListener('click',async()=>{
+    if(!fxDraftData)return;
+    const val=fxDraftData.validation||_fxValidateParsedRatesheet(fxDraftData.rateLines);
+    if(!val.isComplete){
+      toast('Doğrulama başarısız — aktifleştirme engellendi.');
+      return;
+    }
+    // Compute 280 TL rules
+    const{rules,errors}=_fxComputeAllRules(fxDraftData.rateLines,fedexGlobalSettings);
+    if(errors.length){
+      modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Kural Hesaplama Hatası</div><h3>Eksik Bölge/Ağırlık Kombinasyonları</h3></div>
+        <div class="modal-body"><p style="font-size:13px;color:#c0392b">${errors.slice(0,10).map(e=>esc(e)).join('<br>')}${errors.length>10?`<br>… ve ${errors.length-10} daha`:''}</p>
+        <div class="modal-foot"><button class="btn-ghost" onclick="closeModal()">Kapat</button></div></div>`;
+      overlay.classList.add('show');
+      return;
+    }
+    // Technical validation of generated rules
+    const vCheck=_fxValidateGeneratedRules(rules);
+    if(!vCheck.isValid){
+      modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Teknik Doğrulama Hatası</div><h3>Kural Seti Geçersiz</h3></div>
+        <div class="modal-body"><p style="font-size:13px;color:#c0392b">${vCheck.errors.map(e=>esc(e)).join('<br>')}</p>
+        <div class="modal-foot"><button class="btn-ghost" onclick="closeModal()">Kapat</button></div></div>`;
+      overlay.classList.add('show');
+      return;
+    }
+    // Store pending activation for confirm step
+    _fxPendingActivation={rules,pakCnt:vCheck.pakCnt,priCnt:vCheck.priCnt};
+    // Show simple confirmation
+    modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Tarife Aktivasyonu</div><h3>Yeni Tarifeyi Uygula</h3></div>
+      <div class="modal-body">
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;margin-bottom:20px">
+          <div>✓ ${val.totalLines} USD tarife satırı doğrulandı.</div>
+          <div>✓ ${rules.length} TL fiyat kuralı üretildi (PAK: ${vCheck.pakCnt} · PRIORITY: ${vCheck.priCnt}).</div>
+          <div>✓ Mevcut ${fedexSettings.rules?fedexSettings.rules.length:0} kural otomatik yedeklenecek.</div>
+        </div>
+        <div style="background:#fef3c7;border-radius:8px;padding:12px;font-size:12px;color:#92400E;margin-bottom:20px">
+          Proposal No: <strong>${esc(fxDraftData.proposalNo||'—')}</strong><br>
+          Geçerlilik: <strong>${esc(fxDraftData.effectiveDate||'—')}</strong>
+        </div>
+        <p style="font-size:13px;color:var(--muted)">Yeni tarifeyi uygulamak istiyor musunuz?</p>
+        <div class="modal-foot">
+          <button class="btn" style="background:#4D1979;color:#fff" onclick="_fxConfirmActivation()">Uygula</button>
+          <button class="btn-ghost" onclick="closeModal();_fxPendingActivation=null;">İptal</button>
+        </div>
+      </div>`;
+    overlay.classList.add('show');
+  });
+
+  $('#fxTarifePreviewBtn')?.addEventListener('click',()=>{
+    const readP=key=>parseFloat(document.getElementById(key)?.value)||0;
+    const newParams={
+      USD_TRY_RATE:readP('fxP_usd'),FUEL_SURCHARGE_PERCENT:readP('fxP_fuel'),
+      EPH_PERCENT:readP('fxP_eph'),HIGH_PRICE_PERCENT:readP('fxP_high'),
+      USA_INBOUND_USD:readP('fxP_USA_INBOUND_USD'),EU_INBOUND_USD:readP('fxP_EU_INBOUND_USD'),
+      UK_INBOUND_USD:readP('fxP_UK_INBOUND_USD'),CANADA_INBOUND_USD:readP('fxP_CANADA_INBOUND_USD'),
+      GULF_INBOUND_USD:readP('fxP_GULF_INBOUND_USD'),APAC_INBOUND_USD:readP('fxP_APAC_INBOUND_USD'),
+      AU_NZ_INBOUND_USD:readP('fxP_AU_NZ_INBOUND_USD'),LATAM_INBOUND_USD:readP('fxP_LATAM_INBOUND_USD')
+    };
+    if(!newParams.USD_TRY_RATE||newParams.USD_TRY_RATE<1){toast('USD/TRY kuru geçersiz');return;}
+    const oldRules=JSON.parse(JSON.stringify(fedexSettings.rules||[]));
+    const{rules,errors}=_fxComputeAllRules(fxRateLines,newParams);
+    const previewArea=$('#fxTarifePreviewArea');
+    if(!previewArea)return;
+    const changed=rules.filter(nr=>{
+      const or=oldRules.find(r=>r.region===nr.region&&r.service===nr.service&&r.minKg===nr.minKg);
+      return !or||or.minTL!==nr.minTL||or.maxTL!==nr.maxTL;
+    }).length;
+
+    let tableRows='';
+    const regions=Object.keys(REGION_PRICING_PROFILES);
+    for(const region of regions){
+      for(const svc of['PAK','PRIORITY']){
+        const svcRules=rules.filter(r=>r.region===region&&r.service===svc);
+        if(!svcRules.length)continue;
+        const sample=svcRules.filter((_,i)=>i<3||i===svcRules.length-1);
+        for(const nr of sample){
+          const or=oldRules.find(r=>r.region===nr.region&&r.service===nr.service&&r.minKg===nr.minKg);
+          const diff=or?Math.round((nr.minTL-or.minTL)/or.minTL*100):null;
+          const diffStr=diff===null?'—':`${diff>0?'+':''}${diff}%`;
+          const diffColor=diff===null?'':diff>0?'#f59e0b':diff<0?'#16a34a':'var(--muted)';
+          tableRows+=`<tr>
+            <td style="font-size:12px">${esc(region)}</td>
+            <td style="font-size:12px">${svc}</td>
+            <td style="font-size:12px">${nr.maxKg} KG</td>
+            <td style="font-size:12px;text-align:right">${or?fmtMoney(or.minTL,'TRY'):'—'}</td>
+            <td style="font-size:12px;text-align:right;font-weight:600">${fmtMoney(nr.minTL,'TRY')}</td>
+            <td style="font-size:12px;text-align:right;color:${diffColor};font-weight:600">${diffStr}</td>
+          </tr>`;
+        }
+      }
+    }
+
+    const errNote=errors.length?`<div style="margin-bottom:10px;padding:10px 12px;background:#FEF3C7;border-radius:8px;font-size:13px;color:#92400E">${errors.length} kombinasyon eksik (tarife PDF'inde yok): ${errors.slice(0,4).join(', ')}${errors.length>4?' …':''}</div>`:'';
+
+    previewArea.style.display='';
+    previewArea.innerHTML=`
+    <div class="bill" style="padding:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px">Önizleme — ${rules.length} kural · ${changed} değişiklik</div>
+      ${errNote}
+      <div style="overflow-x:auto;margin-bottom:14px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="text-align:left;border-bottom:2px solid var(--line)">
+              <th style="padding:6px 4px">Bölge</th><th>Servis</th><th>Ağırlık</th>
+              <th style="text-align:right">Eski Std</th><th style="text-align:right">Yeni Std</th><th style="text-align:right">Fark</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Tablo: Her bölge/servis için ilk 3 + son ağırlık gösteriliyor.</div>
+      <div style="display:flex;gap:10px">
+        <button id="fxTarifeApplyBtn" style="padding:10px 22px;background:#4D1979;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">Güncellemeyi Uygula</button>
+        <button id="fxTarifePreviewClose" style="padding:10px 18px;background:none;border:1px solid var(--line);border-radius:9px;font-size:13px;cursor:pointer">İptal</button>
+      </div>
+    </div>`;
+
+    document.getElementById('fxTarifePreviewClose')?.addEventListener('click',()=>{previewArea.style.display='none';});
+    document.getElementById('fxTarifeApplyBtn')?.addEventListener('click',async()=>{
+      const btn=document.getElementById('fxTarifeApplyBtn');
+      if(btn){btn.disabled=true;btn.textContent='Kaydediliyor…';}
+      const res=await _fxApplyRuleUpdate(rules,newParams,'PARAM_CHANGE');
+      if(res.ok){
+        toast(rules.length+' kural güncellendi');
+        previewArea.style.display='none';
+        renderFedexPage();
+      }else{
+        toast('Hata: '+res.error);
+        if(btn){btn.disabled=false;btn.textContent='Güncellemeyi Uygula';}
+      }
+    });
+  });
+
+  // Kural geçmişi — Önizle
+  document.querySelectorAll('[data-fxrvprev]').forEach(btn=>btn.addEventListener('click',()=>{
+    const v=fxRuleVersions.find(x=>x.id===btn.dataset.fxrvprev);
+    if(!v)return;
+    const cur=fedexSettings.rules||[];
+    const changed=v.rules.filter(tr=>{
+      const cr=cur.find(r=>r.region===tr.region&&r.service===tr.service&&r.minKg===tr.minKg);
+      return !cr||cr.minTL!==tr.minTL||cr.maxTL!==tr.maxTL;
+    }).length;
+    const sample=v.rules.slice(0,8);
+    const sampleRows=sample.map(r=>{
+      const cr=cur.find(x=>x.region===r.region&&x.service===r.service&&x.minKg===r.minKg);
+      return `<tr>
+        <td style="padding:5px 8px;font-size:12px">${esc(r.region)}</td>
+        <td style="font-size:12px">${r.service}</td>
+        <td style="font-size:12px">${r.maxKg} KG</td>
+        <td style="font-size:12px;text-align:right">${cr?fmtMoney(cr.minTL,'TRY'):'—'}</td>
+        <td style="font-size:12px;text-align:right;font-weight:600">${fmtMoney(r.minTL,'TRY')}</td>
+      </tr>`;
+    }).join('');
+    modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Snapshot Önizleme</div><h3>${esc(v.name)}</h3></div>
+    <div class="modal-body">
+      <div style="font-size:13px;margin-bottom:12px"><strong>${changed}</strong> kural mevcut sistemden farklı · Toplam ${v.ruleCount} kural</div>
+      <div style="overflow-x:auto;margin-bottom:14px"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid var(--line);font-size:11px">
+          <th style="padding:5px 8px;text-align:left">Bölge</th><th>Servis</th><th>Ağırlık</th>
+          <th style="text-align:right">Mevcut</th><th style="text-align:right">Snapshot</th>
+        </tr></thead>
+        <tbody>${sampleRows}</tbody>
+      </table></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">İlk 8 kural gösteriliyor.</div>
+      <div class="modal-foot">
+        <button class="btn-ghost" onclick="closeModal()">Kapat</button>
+        <button class="btn-prim" onclick="closeModal();_fxDoRestore('${v.id}')">Bu Sürüme Geri Dön</button>
+      </div>
+    </div>`;
+    overlay.classList.add('show');
+  }));
+
+  // Kural geçmişi — Geri Dön
+  document.querySelectorAll('[data-fxrvrestore]').forEach(btn=>btn.addEventListener('click',()=>_fxDoRestore(btn.dataset.fxrvrestore)));
+
+  // Kural geçmişi — JSON Export (sadece isProtected)
+  document.querySelectorAll('[data-fxrvexport]').forEach(btn=>btn.addEventListener('click',()=>_fxExportRuleBackup(btn.dataset.fxrvexport)));
+
+  // JSON Import
+  $('#fxRuleImportBtn')?.addEventListener('click',()=>$('#fxRuleImportInput')?.click());
+  $('#fxRuleImportInput')?.addEventListener('change',async e=>{
+    const f=e.target.files[0];
+    if(!f)return;
+    e.target.value=''; // reset so same file can be imported again
+    await _fxImportRuleBackup(f);
+  });
+
+  // Manuel Sisteme Geri Dön
+  $('#fxRestoreManual')?.addEventListener('click',()=>{
+    const backup=fxRuleVersions.find(v=>v.source==='MANUAL_BACKUP'&&v.isProtected);
+    if(backup)_fxDoRestore(backup.id);
+  });
+}
+
+async function _fxDoRestore(versionId){
+  const v=fxRuleVersions.find(x=>x.id===versionId);
+  if(!v){toast('Sürüm bulunamadı');return;}
+  const cur=fedexSettings.rules||[];
+  const changed=v.rules.filter(tr=>{
+    const cr=cur.find(r=>r.region===tr.region&&r.service===tr.service&&r.minKg===tr.minKg);
+    return !cr||cr.minTL!==tr.minTL||cr.maxTL!==tr.maxTL;
+  }).length;
+  if(!confirm(`"${v.name}" sürümüne geri dönülecek.\n${changed} fiyat kuralı değişecek.\n\nMevcut kurallar otomatik yedeklenecek.\n\nDevam?`))return;
+  const res=await _fxRestoreRuleVersion(versionId);
+  if(res.ok){
+    toast(`Geri yüklendi — ${res.ruleCount} kural aktif`);
+    renderFedexPage();
+  }else{
+    toast('Hata: '+res.error);
+  }
+}
+
+/* ── FedEx JSON Yedek: Dışa / İçe Aktarma ── */
+function _fxSafeFilename(name){
+  const map={'ı':'i','İ':'I','ğ':'g','Ğ':'G','ü':'u','Ü':'U','ş':'s','Ş':'S','ö':'o','Ö':'O','ç':'c','Ç':'C'};
+  return name.replace(/[ıİğĞüÜşŞöÖçÇ]/g,c=>map[c]||c).replace(/[^a-zA-Z0-9]/g,'-').replace(/-+/g,'-').toLowerCase().slice(0,60);
+}
+
+function _fxExportRuleBackup(versionId){
+  const v=fxRuleVersions.find(x=>x.id===versionId);
+  if(!v){toast('Sürüm bulunamadı');return;}
+  const exportObj={
+    schemaVersion:1,
+    backupId:v.id,
+    name:v.name,
+    createdAt:v.createdAt,
+    source:v.source,
+    isProtected:v.isProtected,
+    fedexSettingsVersion:v.fedexSettingsVersion,
+    ruleCount:v.rules.length,
+    rules:JSON.parse(JSON.stringify(v.rules)),
+    globalSettings:JSON.parse(JSON.stringify(v.globalSettings||{})),
+    exportedAt:new Date().toISOString()
+  };
+  const json=JSON.stringify(exportObj,null,2);
+  const dateStr=new Date().toISOString().slice(0,10);
+  const filename='fedex-'+_fxSafeFilename(v.name)+'-'+dateStr+'.json';
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+  toast('İndiriliyor: '+filename);
+}
+
+function _fxValidateImportedBackup(data){
+  const errors=[];
+  if(typeof data!=='object'||data===null){errors.push('Geçersiz JSON yapısı');return errors;}
+  if(!data.schemaVersion||data.schemaVersion!==1) errors.push('Desteklenmeyen schemaVersion: '+data.schemaVersion);
+  if(!Array.isArray(data.rules)) errors.push('"rules" alanı array değil');
+  else if(data.rules.length===0) errors.push('"rules" array boş');
+  else{
+    const REQUIRED=['region','service','minKg','maxKg','minTL','maxTL'];
+    const seen=new Set();
+    data.rules.forEach((r,i)=>{
+      REQUIRED.forEach(f=>{if(r[f]===undefined||r[f]===null)errors.push(`Kural ${i+1}: "${f}" eksik`);});
+      if(typeof r.minKg!=='number'||typeof r.maxKg!=='number'||r.minKg<0||r.maxKg<=0||r.minKg>=r.maxKg)
+        errors.push(`Kural ${i+1}: minKg/maxKg geçersiz (${r.minKg}–${r.maxKg})`);
+      if(typeof r.minTL!=='number'||typeof r.maxTL!=='number'||r.minTL<=0||r.maxTL<=0)
+        errors.push(`Kural ${i+1}: minTL/maxTL geçersiz`);
+      const key=`${r.region}|${r.service}|${r.minKg}`;
+      if(seen.has(key))errors.push(`Duplicate kural: ${r.region}/${r.service}/${r.minKg}KG`);
+      else seen.add(key);
+    });
+    if(errors.length>12)errors.splice(12,errors.length-12,'... ve '+(errors.length-12)+' daha');
+  }
+  return errors;
+}
+
+async function _fxConfirmActivation(){
+  closeModal();
+  if(!_fxPendingActivation||!fxDraftData)return;
+  const{rules,pakCnt,priCnt}=_fxPendingActivation;
+  _fxPendingActivation=null;
+
+  // Pre-flight re-validation — nothing written yet
+  const val=fxDraftData.validation||{isComplete:false};
+  const vCheck=_fxValidateGeneratedRules(rules);
+  const preflightErrors=[];
+  if(!val.isComplete)preflightErrors.push('Tarife parse doğrulaması başarısız (eksik veya mükerrer satır var)');
+  if(fxDraftData.rateLines.length!==525)preflightErrors.push(`Rate line sayısı ${fxDraftData.rateLines.length} ≠ 525`);
+  if(!vCheck.isValid)preflightErrors.push(...vCheck.errors);
+  if(preflightErrors.length){
+    modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Aktivasyon İptal</div><h3>Ön Doğrulama Başarısız</h3></div>
+      <div class="modal-body"><p style="font-size:13px;color:#c0392b;line-height:1.6;">${preflightErrors.map(e=>esc(e)).join('<br>')}</p></div>
+      <div class="modal-foot"><button class="btn-ghost" onclick="closeModal()">Kapat</button></div>`;
+    overlay.classList.add('show');
+    return;
+  }
+
+  // Deep-copy rollback snapshot before ANY write.
+  // rb IDs are used as "what existed before" sets — rollback only touches records NOT in these sets.
+  const rb={
+    rules:JSON.parse(JSON.stringify(fedexSettings.rules||[])),
+    version:fedexSettings.version||16,
+    globalSettings:JSON.parse(JSON.stringify(fedexGlobalSettings)),
+    rateVersions:JSON.parse(JSON.stringify(fxRateVersions)),
+    rateLines:JSON.parse(JSON.stringify(fxRateLines)),
+    paramHistory:JSON.parse(JSON.stringify(fxParamHistory)),
+    ruleVersions:JSON.parse(JSON.stringify(fxRuleVersions)),
+    paramHistIds:new Set(fxParamHistory.map(h=>h.id)),
+    ruleVersionIds:new Set(fxRuleVersions.map(v=>v.id))
+  };
+
+  const verId=generateId();
+  const today=new Date().toLocaleDateString('tr-TR');
+  const snapName='Tarife değişimi öncesi — '+today;
+  const newVer={
+    id:verId,status:'ACTIVE',
+    proposalNo:fxDraftData.proposalNo,effectiveDate:fxDraftData.effectiveDate,
+    lineCount:fxDraftData.rateLines.length,
+    createdAt:new Date().toISOString(),activatedAt:new Date().toISOString()
+  };
+  const proposalNo=fxDraftData.proposalNo||'—';
+  const newRateLines=fxDraftData.rateLines.map(l=>({...l,id:generateId(),versionId:verId}));
+  const newRateLineIds=new Set(newRateLines.map(l=>l.id));
+
+  try{
+    // 1. Rule snapshot (pre-activation)
+    await _fxSnapshotRules(snapName,'PRE_UPDATE');
+
+    // 2. Archive existing ACTIVE rate versions — NO DELETE, history preserved
+    for(const v of fxRateVersions.filter(v=>v.status==='ACTIVE')){
+      v.status='ARCHIVED';
+      await put('fedexRateVersions',v);
+    }
+
+    // 3. Save new rate version
+    fxRateVersions=fxRateVersions.filter(v=>v.status!=='ACTIVE');
+    fxRateVersions.unshift(newVer);
+    await put('fedexRateVersions',newVer);
+
+    // 4. Save new rate lines — old lines stay in IDB under old versionId for recovery
+    for(const l of newRateLines)await put('fedexRateLines',l);
+    fxRateLines=newRateLines;
+
+    // 5. Apply rules + write fedexParamHistory
+    const extraMeta={
+      rateVersionId:verId,
+      proposalNo:fxDraftData.proposalNo,
+      effectiveDate:fxDraftData.effectiveDate,
+      generatedRuleCount:rules.length
+    };
+    const res=await _fxApplyRuleUpdate(rules,fedexGlobalSettings,'RATESHEET_ACTIVATION',extraMeta);
+    if(!res.ok)throw new Error(res.error||'Kural güncelleme başarısız');
+
+    // 6. Final verify — read persisted state from IDB before declaring success
+    const[allRVRaw,allRLRaw,settingsRec,allRVersRaw]=await Promise.all([
+      getAll('fedexRateVersions'),
+      getAll('fedexRateLines'),
+      getOne('settings','fedexSettings'),
+      getAll('fedexRuleVersions')
+    ]);
+    const verifyErrors=[];
+    const activeVersions=allRVRaw.filter(v=>v.status==='ACTIVE');
+    if(activeVersions.length!==1)verifyErrors.push(`ACTIVE version sayısı ${activeVersions.length} ≠ 1`);
+    else if(activeVersions[0].id!==verId)verifyErrors.push('ACTIVE version ID tutarsız');
+    const versionLines=allRLRaw.filter(l=>l.versionId===verId);
+    if(versionLines.length!==525)verifyErrors.push(`Yeni version rate line ${versionLines.length} ≠ 525`);
+    const persistedRules=settingsRec?.data?.rules||[];
+    if(persistedRules.length!==280)verifyErrors.push(`Persisted rule ${persistedRules.length} ≠ 280`);
+    const pakP=persistedRules.filter(r=>r.service==='PAK').length;
+    const priP=persistedRules.filter(r=>r.service==='PRIORITY').length;
+    if(pakP!==40)verifyErrors.push(`Persisted PAK ${pakP} ≠ 40`);
+    if(priP!==240)verifyErrors.push(`Persisted PRIORITY ${priP} ≠ 240`);
+    const ruleKeys=new Set();let dupCount=0;
+    for(const r of persistedRules){const k=`${r.region}/${r.service}/${r.maxKg}`;if(ruleKeys.has(k))dupCount++;ruleKeys.add(k);}
+    if(dupCount>0)verifyErrors.push(`${dupCount} duplicate rule persisted`);
+    const manualBackup=allRVersRaw.find(v=>v.isProtected&&v.source==='MANUAL_BACKUP');
+    if(!manualBackup)verifyErrors.push('Korumalı "Manuel Sistem — İlk Yedek" bulunamadı');
+    if(verifyErrors.length)throw new Error('Final verify başarısız: '+verifyErrors.join('; '));
+
+    // All steps passed — show success
+    fxDraftData=null;
+    modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Başarılı</div><h3>TARİFE AKTİF</h3></div>
+      <div class="modal-body">
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;margin-bottom:20px">
+          <div>Proposal No: <strong>${esc(proposalNo)}</strong></div>
+          <div>USD Rate Lines: <strong>525</strong></div>
+          <div>TL Rules: <strong>${rules.length}</strong></div>
+          <div>PAK Rules: <strong>${pakCnt}</strong></div>
+          <div>PRIORITY Rules: <strong>${priCnt}</strong></div>
+          <div>Backup: <strong>Başarılı</strong></div>
+          <div>Final Verify: <strong>Başarılı</strong></div>
+        </div>
+        <div class="modal-foot"><button class="btn" style="background:#4D1979;color:#fff" onclick="closeModal()">Tamam</button></div>
+      </div>`;
+    overlay.classList.add('show');
+
+  }catch(err){
+    console.error('[FX-ACTIVATE ROLLBACK]',err);
+
+    // Restore in-memory state
+    fedexSettings.rules=rb.rules;
+    fedexSettings.version=rb.version;
+    Object.assign(fedexGlobalSettings,rb.globalSettings);
+    fxRateVersions=rb.rateVersions;
+    fxRateLines=rb.rateLines;
+    fxParamHistory=rb.paramHistory;
+    fxRuleVersions=rb.ruleVersions;
+
+    // Best-effort IDB rollback — only touch records created during THIS attempt
+    try{
+      await put('settings',{id:'fedexSettings',data:fedexSettings});
+      await put('settings',{id:'fedexGlobalSettings',data:fedexGlobalSettings});
+      // Restore rateVersions: put all pre-activation versions (reverses ACTIVE→ARCHIVED),
+      // then delete the new version created this attempt
+      for(const v of rb.rateVersions)await put('fedexRateVersions',v);
+      try{await del('fedexRateVersions',verId);}catch(e2){}
+      // Delete only the new rate lines created this attempt
+      for(const id of newRateLineIds){try{await del('fedexRateLines',id);}catch(e2){}}
+      // Delete any fedexRuleVersions entries created during this attempt
+      // (includes _fxSnapshotRules call + _fxApplyRuleUpdate's own snapshot)
+      const allRVersNow=await getAll('fedexRuleVersions');
+      for(const v of allRVersNow){
+        if(!rb.ruleVersionIds.has(v.id)){try{await del('fedexRuleVersions',v.id);}catch(e2){}}
+      }
+      // Delete any fedexParamHistory entries created during this attempt
+      const allHistNow=await getAll('fedexParamHistory');
+      for(const h of allHistNow){
+        if(!rb.paramHistIds.has(h.id)){try{await del('fedexParamHistory',h.id);}catch(e2){}}
+      }
+    }catch(e2){
+      console.error('[FX-ACTIVATE ROLLBACK IDB FAILED]',e2);
+    }
+
+    modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Hata</div><h3>AKTİVASYON BAŞARISIZ</h3></div>
+      <div class="modal-body">
+        <p style="font-size:14px;font-weight:600;color:#c0392b;margin-bottom:12px">Önceki fiyat sistemi korunmuştur.</p>
+        <p style="font-size:12px;color:var(--muted)">Hata: ${esc(err.message)}</p>
+        <div class="modal-foot"><button class="btn-ghost" onclick="closeModal()">Kapat</button></div>
+      </div>`;
+    overlay.classList.add('show');
+  }
+  renderFedexPage();
+}
+
+async function _fxImportRuleBackup(file){
+  let data;
+  try{
+    const text=await file.text();
+    data=JSON.parse(text);
+  }catch(e){
+    modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Import Hatası</div><h3>JSON Okunamadı</h3></div>
+    <div class="modal-body"><div style="color:#c0392b;font-size:13px">Parse hatası: ${esc(e.message)}</div>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal()">Kapat</button></div></div>`;
+    overlay.classList.add('show');
+    return;
+  }
+  const errors=_fxValidateImportedBackup(data);
+  if(errors.length>0){
+    modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Import Hatası</div><h3>Yedek Doğrulanamadı</h3></div>
+    <div class="modal-body"><div style="color:#c0392b;font-size:13px;margin-bottom:10px">${errors.length} hata:</div>
+    <ul style="font-size:12px;color:#c0392b;margin:0;padding:0 0 0 16px">${errors.map(e=>`<li>${esc(e)}</li>`).join('')}</ul>
+    <div class="modal-foot"><button class="btn-ghost" onclick="closeModal()">Kapat</button></div></div>`;
+    overlay.classList.add('show');
+    return;
+  }
+  const cur=fedexSettings.rules||[];
+  const changed=data.rules.filter(tr=>{
+    const cr=cur.find(r=>r.region===tr.region&&r.service===tr.service&&r.minKg===tr.minKg);
+    return !cr||cr.minTL!==tr.minTL||cr.maxTL!==tr.maxTL;
+  }).length;
+  const added=data.rules.filter(tr=>!cur.find(r=>r.region===tr.region&&r.service===tr.service&&r.minKg===tr.minKg)).length;
+  const removed=cur.filter(cr=>!data.rules.find(tr=>tr.region===cr.region&&tr.service===cr.service&&tr.minKg===cr.minKg)).length;
+  modal.innerHTML=`<div class="modal-head"><div class="eyebrow">Yedek İçe Aktarma</div><h3>Önizleme</h3></div>
+  <div class="modal-body">
+    <div style="font-size:13px;margin-bottom:14px;display:flex;flex-direction:column;gap:5px">
+      <div><strong>Yedek adı:</strong> ${esc(data.name||'—')}</div>
+      <div><strong>Oluşturulma:</strong> ${data.createdAt?new Date(data.createdAt).toLocaleString('tr-TR'):'—'}</div>
+      <div><strong>Yedekteki kural sayısı:</strong> ${data.rules.length}</div>
+      <div><strong>Mevcut kural sayısı:</strong> ${cur.length}</div>
+      <div><strong>Farklı kural:</strong> ${changed}</div>
+      <div><strong>Yeni (import'ta fazla):</strong> ${added}</div>
+      <div><strong>Eksik (mevcut'ta fazla):</strong> ${removed}</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Aktif fiyatlar onay vermeden değişmez.</div>
+    <div class="modal-foot" style="flex-wrap:wrap;gap:8px">
+      <button class="btn-ghost" onclick="closeModal()">İptal</button>
+      <button id="fxImportSaveOnly" style="padding:10px 16px;background:none;border:1px solid #4D1979;color:#4D1979;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">Yalnızca Kaydet</button>
+      <button class="btn-prim" id="fxImportSaveRestore">Kaydet ve Geri Dön</button>
+    </div>
+  </div>`;
+  overlay.classList.add('show');
+  // capture data in closure
+  document.getElementById('fxImportSaveOnly')?.addEventListener('click',async()=>{closeModal();await _fxSaveImportedBackup(data,false);});
+  document.getElementById('fxImportSaveRestore')?.addEventListener('click',async()=>{closeModal();await _fxSaveImportedBackup(data,true);});
+}
+
+async function _fxSaveImportedBackup(data,andRestore){
+  const snap={
+    id:generateId(), // yeni local ID — import'taki ID'ye güvenme
+    name:(data.name||'İçe Aktarılan Yedek')+' (İçe Aktarıldı)',
+    source:data.source||'IMPORTED',
+    isProtected:true,
+    createdAt:data.createdAt||new Date().toISOString(),
+    importedAt:new Date().toISOString(),
+    fedexSettingsVersion:data.fedexSettingsVersion,
+    ruleCount:data.rules.length,
+    rules:JSON.parse(JSON.stringify(data.rules)),
+    globalSettings:JSON.parse(JSON.stringify(data.globalSettings||{}))
+  };
+  await put('fedexRuleVersions',snap);
+  fxRuleVersions.unshift(snap);
+  toast('Yedek kaydedildi: '+data.rules.length+' kural');
+  if(andRestore){
+    const res=await _fxRestoreRuleVersion(snap.id);
+    if(res.ok)toast('Geri yüklendi — '+res.ruleCount+' kural aktif');
+    else toast('Geri yükleme hatası: '+res.error);
+  }
+  renderFedexPage();
+}
+
 function openFedexPricingModal(){
   const renderRules=()=>{
     const list=document.getElementById('fxRuleList');
     if(!list)return;
-    const REGIONS=['Amerika','Avrupa','Asya-Pasifik','Orta Doğu','Diğer'];
-    const SERVICES=['PRIORITY','PAK','TÜMÜ'];
-    list.innerHTML=(fedexSettings.rules||[]).map((r,i)=>`
-      <div style="display:flex;gap:5px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
-        <select id="fxRR${i}" style="font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
-          ${REGIONS.map(rg=>`<option value="${rg}" ${r.region===rg?'selected':''}>${rg}</option>`).join('')}
-        </select>
-        <select id="fxRS${i}" style="font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
-          ${SERVICES.map(sv=>`<option value="${sv}" ${(r.service||'PRIORITY')===sv?'selected':''}>${sv}</option>`).join('')}
-        </select>
-        <input type="number" id="fxR0${i}" value="${r.minKg}" step="0.1" min="0" style="width:52px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
-        <span style="font-size:11px">–</span>
-        <input type="number" id="fxR1${i}" value="${r.maxKg}" step="0.1" min="0" style="width:52px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
-        <span style="font-size:11px;color:var(--muted)">KG · OK aralığı:</span>
-        <input type="number" id="fxRA${i}" value="${r.minTL}" step="1" min="0" style="width:60px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
-        <span style="font-size:11px">–</span>
-        <input type="number" id="fxRB${i}" value="${r.maxTL}" step="1" min="0" style="width:60px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
-        <span style="font-size:11px;color:var(--muted)">₺</span>
-        <button data-fxrdel="${i}" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:18px;line-height:1;padding:0 4px">×</button>
-      </div>`).join('')
-      ||`<div style="font-size:13px;color:var(--muted);padding:8px 0">Henüz kural yok — + Kural Ekle ile başla.</div>`;
+    const rules=fedexSettings.rules||[];
+    if(!rules.length){
+      list.innerHTML=`<div style="font-size:13px;color:var(--muted);padding:8px 0">Henüz kural yok — + Kural Ekle ile başla.</div>`;
+      return;
+    }
+    // Grup: region+service sırasına göre
+    const groups=[];const groupMap={};
+    rules.forEach((r,i)=>{
+      const key=(r.region||'')+'__'+(r.service||'PRIORITY');
+      if(!groupMap[key]){groupMap[key]={region:r.region,service:r.service||'PRIORITY',indices:[]};groups.push(groupMap[key]);}
+      groupMap[key].indices.push(i);
+    });
+    list.innerHTML=groups.map(g=>`
+      <details style="margin-bottom:6px;border:1px solid var(--line);border-radius:9px;overflow:hidden">
+        <summary style="padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;background:var(--card);user-select:none">
+          <span>${g.region} — ${g.service}</span>
+          <span style="font-size:11px;color:var(--muted);font-weight:400">${g.indices.length} kural</span>
+        </summary>
+        <div style="padding:4px 10px 6px">
+          ${g.indices.map(i=>{const r=rules[i];return`
+            <div style="display:flex;gap:5px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
+              <input type="hidden" id="fxRR${i}" value="${r.region||'Amerika'}">
+              <input type="hidden" id="fxRS${i}" value="${r.service||'PRIORITY'}">
+              <input type="number" id="fxR0${i}" value="${r.minKg}" step="0.1" min="0" style="width:52px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+              <span style="font-size:11px">–</span>
+              <input type="number" id="fxR1${i}" value="${r.maxKg}" step="0.1" min="0" style="width:52px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+              <span style="font-size:11px;color:var(--muted)">KG · OK:</span>
+              <input type="number" id="fxRA${i}" value="${r.minTL}" step="1" min="0" style="width:65px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+              <span style="font-size:11px">–</span>
+              <input type="number" id="fxRB${i}" value="${r.maxTL}" step="1" min="0" style="width:65px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+              <span style="font-size:11px;color:var(--muted)">₺</span>
+              <button data-fxrdel="${i}" style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:18px;line-height:1;padding:0 4px">×</button>
+            </div>`;}).join('')}
+        </div>
+      </details>`).join('');
     list.querySelectorAll('[data-fxrdel]').forEach(btn=>btn.addEventListener('click',async()=>{
       fedexSettings.rules.splice(parseInt(btn.dataset.fxrdel),1);
       await put('settings',{id:'fedexSettings',data:fedexSettings});
@@ -2041,7 +3628,7 @@ function openFedexPricingModal(){
     }));
     await put('settings',{id:'fedexSettings',data:fedexSettings});
     closeModal(); toast('Ayarlar kaydedildi');
-    if(fedexScanResult) renderFedexPage();
+    if(fedexScanResult||fedexBulkResults.length) renderFedexPage();
   };
 }
 
@@ -2051,7 +3638,7 @@ function openFedexModal(id){
   modal.innerHTML=`
     <div class="modal-head">
       <div class="eyebrow">${existing?'Notu Düzenle':'Yeni Not'}</div>
-      <h3>FedEx Notlarım</h3>
+      <h3>FedEx Kontrol</h3>
     </div>
     <div class="modal-body">
       <div class="field"><label>Başlık</label>
@@ -2120,7 +3707,7 @@ function renderLLCPage(){
       <span class="logo" style="background:#DBEAFE;color:#1D4ED8;width:56px;height:56px;font-size:26px">🇺🇸</span>
       <div class="cv-title">
         <div class="eyebrow" style="color:#1D4ED8">Amerika · LLC</div>
-        <h2>LLC Şirketi</h2>
+        <h2>LLC Miniden</h2>
       </div>
     </div>
 
@@ -3097,7 +4684,7 @@ function bindHome(){
     view={page:'llc',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render();
   });
 
-  // FedEx Notlarım kartı
+  // FedEx Kontrol kartı
   const efedex=$('[data-fedex]');if(efedex)efedex.addEventListener('click',()=>{
     view={page:'fedex',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render();
   });
@@ -4392,10 +5979,24 @@ async function onUserSignedIn(user){
     }
   }
   const _fxs=await getOne('settings','fedexSettings');
-  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=7){
+  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=16){
     fedexSettings={...fedexSettings,..._fxs.data};
   } else {
     await put('settings',{id:'fedexSettings',data:fedexSettings});
+  }
+  const _fxg=await getOne('settings','fedexGlobalSettings');
+  if(_fxg&&_fxg.data) Object.assign(fedexGlobalSettings,_fxg.data);
+  fxRateVersions=await getAll('fedexRateVersions');
+  fxParamHistory=(await getAll('fedexParamHistory')).sort((a,b)=>(b.changedAt||'').localeCompare(a.changedAt||''));
+  fxRuleVersions=(await getAll('fedexRuleVersions')).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const _fxActiveVer=fxRateVersions.find(v=>v.status==='ACTIVE');
+  if(_fxActiveVer){
+    fxRateLines=(await getAll('fedexRateLines')).filter(l=>l.versionId===_fxActiveVer.id);
+  }
+  // İlk yedek: snapshot yoksa ve manuel rules varsa otomatik yedekle
+  const _hasManualBackup=fxRuleVersions.some(v=>v.source==='MANUAL_BACKUP'&&v.isProtected);
+  if(!_hasManualBackup&&fedexSettings.rules&&fedexSettings.rules.length>0){
+    await _fxSnapshotRules('Manuel Sistem — İlk Yedek','MANUAL_BACKUP',true);
   }
   await loadAll();
   await loadAllFinance();
