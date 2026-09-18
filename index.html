@@ -1910,8 +1910,7 @@ function renderFedexPage(){
       </div>`).join('');
 
   const invoiceHTML=tab!=='invoice'?'':_fedexInvoiceTabHTML();
-  const hizmetBlockHTML=(tab==='invoice'&&fedexBulkResults.some(r=>r.extraCharges?.length))
-    ?`<div style="margin-top:8px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:#B45309;margin-bottom:8px;padding-left:2px">Hizmet</div>${_fedexHizmetTabHTML()}</div>`:'';
+  const hizmetHTML=tab!=='hizmet'?'':_fedexHizmetTabHTML();
   const tarifeHTML=tab!=='tarife'?'':_fedexTarifeTabHTML();
 
   const archiveHTML=tab!=='archive'?'':fedexArchives.length===0
@@ -1955,10 +1954,11 @@ function renderFedexPage(){
     <div class="tabs" style="margin:16px 0 14px">
       <button class="tab ${tab==='notes'?'active':''}" data-ftab="notes">Notlar (${fedexNotes.length})</button>
       <button class="tab ${tab==='invoice'?'active':''}" data-ftab="invoice">Fatura Analizi</button>
+      ${(()=>{const cnt=fedexBulkResults.reduce((s,r)=>s+(r.extraCharges?.length||0),0);return`<button class="tab ${tab==='hizmet'?'active':''}" data-ftab="hizmet">Hizmet${cnt?` <span style="background:#B45309;color:#fff;border-radius:4px;padding:1px 5px;font-size:10px">${cnt}</span>`:''}</button>`;})()}
       <button class="tab ${tab==='archive'?'active':''}" data-ftab="archive">Arşiv (${fedexArchives.length})</button>
       <button class="tab ${tab==='tarife'?'active':''}" data-ftab="tarife">Tarife Yönetimi</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px">${notesHTML}${invoiceHTML}${hizmetBlockHTML}${archiveHTML}${tarifeHTML}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">${notesHTML}${invoiceHTML}${hizmetHTML}${archiveHTML}${tarifeHTML}</div>
   </div>
   ${renderFooter()}`;
 
