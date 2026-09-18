@@ -817,8 +817,11 @@ let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,com
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
 let fedexSettings={rules:[
-  {region:'Amerika', minKg:0, maxKg:1, minTL:300, maxTL:450},
-  {region:'Avrupa',  minKg:0, maxKg:1, minTL:300, maxTL:450},
+  {region:'Amerika',service:'PAK',minKg:0,  maxKg:0.5,minTL:571, maxTL:821},
+  {region:'Amerika',service:'PAK',minKg:0.5,maxKg:1.0,minTL:614, maxTL:882},
+  {region:'Amerika',service:'PAK',minKg:1.0,maxKg:1.5,minTL:658, maxTL:945},
+  {region:'Amerika',service:'PAK',minKg:1.5,maxKg:2.0,minTL:701, maxTL:1008},
+  {region:'Amerika',service:'PAK',minKg:2.0,maxKg:2.5,minTL:745, maxTL:1071},
 ]};
 let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments}
 
@@ -4357,7 +4360,13 @@ async function onUserSignedIn(user){
       cloudConnect_postAuth().then(()=>startCloudLoop()).catch(e=>console.error('Bulut:',e));
     }
   }
-  const _fxs=await getOne('settings','fedexSettings');if(_fxs&&_fxs.data)fedexSettings={...fedexSettings,..._fxs.data};
+  const _fxs=await getOne('settings','fedexSettings');
+  if(_fxs&&_fxs.data){
+    fedexSettings={...fedexSettings,..._fxs.data};
+    // Eski kayıtta service alanı yoksa default kuralları koru
+    const hasService=(_fxs.data.rules||[]).some(r=>r.service);
+    if(!hasService) fedexSettings.rules=[...fedexSettings.rules,...(_fxs.data.rules||[])];
+  }
   await loadAll();
   await loadAllFinance();
   await seedPastelyaRoutines();
