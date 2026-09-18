@@ -2097,6 +2097,7 @@ function _fedexInvoiceTabHTML(){
   const ai=Math.min(fedexBulkActiveIdx,fedexBulkResults.length-1);
   const activeResult=fedexBulkResults[ai];
   const filter=view.fedexFilter||'all';
+  const extraCharges=activeResult.extraCharges||[];
   const analyzed=_fedexAnalyzeShipments(activeResult.shipments);
   const errors=analyzed.filter(s=>s.status==='error');
   const noRule=analyzed.filter(s=>s.status==='noRule');
@@ -2175,6 +2176,38 @@ function _fedexInvoiceTabHTML(){
           <tbody>${rows||'<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Gösterilecek kayıt yok</td></tr>'}</tbody>
         </table>
       </div>
+      ${extraCharges.length?`<div style="margin-top:16px;border-top:2px solid var(--line);padding-top:12px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:8px">Hizmet &amp; Gümrük Ücretleri (${extraCharges.length} satır)</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;min-width:360px">
+            <thead>
+              <tr style="border-bottom:1px solid var(--line)">
+                <th style="padding:5px 6px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">NO</th>
+                <th style="padding:5px 6px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">TÜR</th>
+                <th style="padding:5px 6px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">SERVİS</th>
+                <th style="padding:5px 6px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">AĞIRLIK</th>
+                <th style="padding:5px 6px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR TL</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${extraCharges.map(c=>`<tr style="border-bottom:1px solid var(--line)">
+                <td style="padding:6px 6px;font-size:11px;color:var(--muted);text-align:center">${c.rowNo}</td>
+                <td style="padding:6px 6px;font-size:12px"><span style="font-weight:600;color:${c.type==='GUMRUK'?'#B45309':'#4D1979'}">${esc(c.label)}</span></td>
+                <td style="padding:6px 6px;text-align:center"><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:${c.service==='PAK'?'#EDE9FE':'#DBEAFE'};color:${c.service==='PAK'?'#6D28D9':'#1D4ED8'}">${c.service}</span></td>
+                <td style="padding:6px 6px;font-size:12px;text-align:right;white-space:nowrap">${c.weightKg?c.weightKg+' KG':'—'}</td>
+                <td style="padding:6px 6px;font-size:13px;font-weight:700;text-align:right;white-space:nowrap;color:${c.type==='GUMRUK'?'#B45309':'#4D1979'}">${fmtMoney(c.amountTL,'TRY')}</td>
+              </tr>`).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="border-top:2px solid var(--line)">
+                <td colspan="4" style="padding:7px 6px;font-size:12px;font-weight:700;text-align:right;color:var(--muted)">Toplam Ek Ücret:</td>
+                <td style="padding:7px 6px;font-size:13px;font-weight:700;text-align:right;white-space:nowrap">${fmtMoney(extraCharges.reduce((s,c)=>s+c.amountTL,0),'TRY')}</td>
+              </tr>
+              ${(()=>{const h=extraCharges.filter(c=>c.type==='HIZMET');const g=extraCharges.filter(c=>c.type==='GUMRUK');return(h.length&&g.length)?`<tr><td colspan="3" style="padding:4px 6px;font-size:11px;color:var(--muted);text-align:right">Hizmet Ücreti:</td><td style="padding:4px 6px;font-size:11px;text-align:right;white-space:nowrap">${fmtMoney(h.reduce((s,c)=>s+c.amountTL,0),'TRY')}</td><td></td></tr><tr><td colspan="3" style="padding:4px 6px;font-size:11px;color:var(--muted);text-align:right">Gümrük Vergisi:</td><td style="padding:4px 6px;font-size:11px;text-align:right;white-space:nowrap">${fmtMoney(g.reduce((s,c)=>s+c.amountTL,0),'TRY')}</td><td></td></tr>`:''})()}
+            </tfoot>
+          </table>
+        </div>
+      </div>`:''}
     </div>
   </div>`;
 }
@@ -2723,6 +2756,7 @@ async function _parseFedexPDF(file){
   const LABEL_RE=/^(?:Alıcı|Alici|İsim|Isim|Gönderen|Gonderen|Adres|Ülke|Ulke|Teslimat)[:\s]*$/i;
 
   const shipments=[];
+  const extraCharges=[];
 
   for(let i=0;i<rowList.length;i++){
     const rowItem=rowList[i];
@@ -2739,6 +2773,31 @@ async function _parseFedexPDF(file){
     if(!block.length) continue;
     const blockText=block.map(it=>it.str).join(' ');
     const up=blockText.toUpperCase();
+
+    // Hizmet Ücreti / Gümrük Vergisi satırları — normal tutar regex'e uymaz, ayrı yakala
+    const hizmetM=blockText.match(/Hizmet\s+[ÜU]creti\s*:?\s*([\d.,]+)\s*TL/i);
+    const gumrukM=blockText.match(/G[üu]mr[üu]k\s+Vergisi\s*:?\s*([\d.,]+)\s*TL/i);
+    if(hizmetM||gumrukM){
+      const match=hizmetM||gumrukM;
+      const rawAmt=match[1].replace(/\./g,'').replace(',','.');
+      const amtTL=parseFloat(rawAmt);
+      if(amtTL>0){
+        let wKg=0;
+        for(const it of block){
+          const mw=it.str.match(/^(\d+(?:[.,]\d+)?)\s*KG$/i)||it.str.match(/^(\d+[.,]\d{1,2})$/);
+          if(mw&&!/TL/i.test(it.str)){const v=parseFloat(mw[1].replace(',','.'));if(v>0&&v<100){wKg=v;break;}}
+        }
+        extraCharges.push({
+          type:hizmetM?'HIZMET':'GUMRUK',
+          label:hizmetM?'Hizmet Ücreti':'Gümrük Vergisi',
+          amountTL:amtTL,
+          weightKg:wKg,
+          service:/\bPAK\b/.test(up)?'PAK':'PRIORITY',
+          rowNo
+        });
+      }
+      continue;
+    }
 
     // Tutar: blok içinde geçerli aralıktaki (50-15000 TL) en sağdaki değer
     const amtInBlock=block
@@ -2803,7 +2862,8 @@ async function _parseFedexPDF(file){
   }
 
   shipments.sort((a,b)=>a.rowNo-b.rowNo);
-  return {invoiceDate, invoiceNo, totalTL, shipments};
+  extraCharges.sort((a,b)=>a.rowNo-b.rowNo);
+  return {invoiceDate, invoiceNo, totalTL, shipments, extraCharges};
 }
 
 let fxDraftData=null; // parsed-not-saved ratesheet {proposalNo,effectiveDate,rateLines,missing}
