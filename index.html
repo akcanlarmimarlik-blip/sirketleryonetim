@@ -816,7 +816,7 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
-let fedexSettings={rules:[
+let fedexSettings={version:2,rules:[
   {region:'Amerika',service:'PAK',     minKg:0,  maxKg:0.5,minTL:571,  maxTL:821},
   {region:'Amerika',service:'PAK',     minKg:0.5,maxKg:1.0,minTL:614,  maxTL:882},
   {region:'Amerika',service:'PAK',     minKg:1.0,maxKg:1.5,minTL:658,  maxTL:945},
@@ -4381,15 +4381,11 @@ async function onUserSignedIn(user){
     }
   }
   const _fxs=await getOne('settings','fedexSettings');
-  if(_fxs&&_fxs.data){
-    const savedRules=_fxs.data.rules||[];
-    const hasValidRules=savedRules.length>0&&savedRules.some(r=>r.service);
-    if(hasValidRules){
-      // Yeni formatta kurallar var — kullan
-      fedexSettings={...fedexSettings,..._fxs.data};
-    }
-    // Eski/boş kurallar → default kuralları koru, bir sonraki Kaydet'te yazılır
+  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=2){
+    // Güncel format — kullan
+    fedexSettings={...fedexSettings,..._fxs.data};
   }
+  // Eski/versiyon eksik kayıt → default 25 kural, bir sonraki Kaydet'te yazılır
   await loadAll();
   await loadAllFinance();
   await seedPastelyaRoutines();
