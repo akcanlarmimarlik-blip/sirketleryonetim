@@ -1815,6 +1815,10 @@ async function _parseFedexPDF(file){
       if(it.str.length<3) return false;
       if(CLIST.some(c=>it.str.toUpperCase()===c)) return false;
       if(amtRe.test(it.str)) return false;
+      // KG veya TL içeren (ağırlık/tutar) öğeleri çıkar
+      if(/\bKG\b|\bTL\b/i.test(it.str)) return false;
+      // Tek ondalıklı sayılar (1,6 gibi ağırlık değerleri)
+      if(/^\d+[.,]\d{1,2}$/.test(it.str)) return false;
       return true;
     });
     recipItems.sort((a,b)=>b.y-a.y);
