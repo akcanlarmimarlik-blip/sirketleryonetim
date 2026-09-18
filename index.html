@@ -1921,7 +1921,8 @@ async function _parseFedexPDF(file){
     // Ağırlık: blok içinde "X,X KG" veya "X,X" ağırlık değeri
     let weightKg=0;
     for(const it of block){
-      const mw=it.str.match(/^(\d+[.,]\d+)\s*KG$/i)||it.str.match(/^(\d+[.,]\d{1,2})$/);
+      // "1,6 KG" / "2 KG" / "11 KG" / "1,6" (ondalıklı birimsiz)
+      const mw=it.str.match(/^(\d+(?:[.,]\d+)?)\s*KG$/i)||it.str.match(/^(\d+[.,]\d{1,2})$/);
       if(mw&&!/TL/i.test(it.str)){
         const v=parseFloat(mw[1].replace(',','.'));
         if(v>0&&v<100){weightKg=v;break;}
