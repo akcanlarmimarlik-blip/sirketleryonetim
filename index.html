@@ -816,7 +816,13 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
-let fedexSettings={version:7,rules:[]};
+let fedexSettings={version:7,rules:[
+  {region:'Amerika',service:'PAK',minKg:0,  maxKg:0.5,minTL:714, maxTL:821},
+  {region:'Amerika',service:'PAK',minKg:0.5,maxKg:1.0,minTL:768, maxTL:883},
+  {region:'Amerika',service:'PAK',minKg:1.0,maxKg:1.5,minTL:822, maxTL:945},
+  {region:'Amerika',service:'PAK',minKg:1.5,maxKg:2.0,minTL:877, maxTL:1008},
+  {region:'Amerika',service:'PAK',minKg:2.0,maxKg:2.5,minTL:931, maxTL:1071},
+]};
 let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments}
 
 const FX_REGION={
