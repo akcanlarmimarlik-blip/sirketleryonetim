@@ -1651,6 +1651,7 @@ function _fedexInvoiceTabHTML(){
       <td style="padding:7px 5px;font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(s.recipient)}">${esc(s.recipient)}</td>
       <td style="padding:7px 5px;font-size:11px;color:var(--muted)">${esc(cshort)}</td>
       <td style="padding:7px 5px;font-size:11px;color:var(--muted);text-align:center">${s.region}</td>
+      <td style="padding:7px 5px;text-align:center"><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:${(s.service||'PRIORITY')==='PAK'?'#EDE9FE':'#DBEAFE'};color:${(s.service||'PRIORITY')==='PAK'?'#6D28D9':'#1D4ED8'}">${s.service||'PRIORITY'}</span></td>
       <td style="padding:7px 5px;font-size:12px;text-align:right;white-space:nowrap">${s.weightKg} KG</td>
       <td style="padding:7px 5px;font-size:12px;text-align:right;white-space:nowrap">${fmtMoney(s.amountTL,'TRY')}</td>
       <td style="padding:7px 5px;font-size:11px;color:var(--muted);text-align:center;white-space:nowrap">${s.expected}</td>
@@ -1679,6 +1680,7 @@ function _fedexInvoiceTabHTML(){
             <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">ALICI</th>
             <th style="padding:6px 5px;text-align:left;font-size:10px;color:var(--muted);font-weight:600">ÜLKE</th>
             <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BÖLGE</th>
+            <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">SERVİS</th>
             <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">AĞIRLIK</th>
             <th style="padding:6px 5px;text-align:right;font-size:10px;color:var(--muted);font-weight:600">TUTAR TL</th>
             <th style="padding:6px 5px;text-align:center;font-size:10px;color:var(--muted);font-weight:600">BEKLENEN</th>
@@ -1686,6 +1688,7 @@ function _fedexInvoiceTabHTML(){
           </tr>
         </thead>
         <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Gösterilecek kayıt yok</td></tr>'}</tbody>
+
       </table>
     </div>
   </div>`;
@@ -1694,8 +1697,11 @@ function _fedexInvoiceTabHTML(){
 function _fedexAnalyzeShipments(shipments){
   return shipments.map(s=>{
     const region=FX_REGION[s.country.toUpperCase().trim()]||'Diğer';
+    const svc=s.service||'PRIORITY';
     const rule=(fedexSettings.rules||[]).find(r=>
-      r.region===region && s.weightKg>=r.minKg && s.weightKg<=r.maxKg
+      r.region===region &&
+      (r.service==='TÜMÜ'||r.service===svc||!r.service) &&
+      s.weightKg>=r.minKg && s.weightKg<=r.maxKg
     );
     let status='noRule', expected='—';
     if(rule){
@@ -1814,8 +1820,11 @@ async function _parseFedexPDF(file){
     recipItems.sort((a,b)=>b.y-a.y);
     const recipient=recipItems.slice(0,2).map(it=>it.str).join(' ').substring(0,60)||'—';
 
+    // Servis tipi: blokta PAK geçiyorsa PAK, yoksa PRIORITY
+    const service=up.includes(' PAK')||/\bPAK\b/.test(blockText.toUpperCase())?'PAK':'PRIORITY';
+
     if(amountTL>0){
-      shipments.push({date, recipient, country, weightKg, amountTL});
+      shipments.push({date, recipient, country, weightKg, amountTL, service});
     }
   }
 
@@ -1827,10 +1836,14 @@ function openFedexPricingModal(){
     const list=document.getElementById('fxRuleList');
     if(!list)return;
     const REGIONS=['Amerika','Avrupa','Asya-Pasifik','Orta Doğu','Diğer'];
+    const SERVICES=['PRIORITY','PAK','TÜMÜ'];
     list.innerHTML=(fedexSettings.rules||[]).map((r,i)=>`
       <div style="display:flex;gap:5px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
         <select id="fxRR${i}" style="font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
           ${REGIONS.map(rg=>`<option value="${rg}" ${r.region===rg?'selected':''}>${rg}</option>`).join('')}
+        </select>
+        <select id="fxRS${i}" style="font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
+          ${SERVICES.map(sv=>`<option value="${sv}" ${(r.service||'PRIORITY')===sv?'selected':''}>${sv}</option>`).join('')}
         </select>
         <input type="number" id="fxR0${i}" value="${r.minKg}" step="0.1" min="0" style="width:52px;font-size:12px;padding:5px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)">
         <span style="font-size:11px">–</span>
@@ -1869,12 +1882,13 @@ function openFedexPricingModal(){
   $('#fxPC').onclick=closeModal;
   $('#fxRuleAdd').onclick=()=>{
     if(!fedexSettings.rules) fedexSettings.rules=[];
-    fedexSettings.rules.push({region:'Amerika',minKg:0,maxKg:1,minTL:300,maxTL:450});
+    fedexSettings.rules.push({region:'Amerika',service:'PRIORITY',minKg:0,maxKg:1,minTL:300,maxTL:450});
     renderRules();
   };
   $('#fxPS').onclick=async()=>{
     fedexSettings.rules=(fedexSettings.rules||[]).map((_,i)=>({
       region:document.getElementById(`fxRR${i}`)?.value||'Amerika',
+      service:document.getElementById(`fxRS${i}`)?.value||'PRIORITY',
       minKg:parseFloat(document.getElementById(`fxR0${i}`)?.value)||0,
       maxKg:parseFloat(document.getElementById(`fxR1${i}`)?.value)||1,
       minTL:parseFloat(document.getElementById(`fxRA${i}`)?.value)||300,
