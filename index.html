@@ -1806,6 +1806,7 @@ async function _parseFedexPDF(file){
     let country='';
     const up=blockText.toUpperCase();
     for(const c of CLIST){if(up.includes(c)){country=c;break;}}
+    if(!country) continue; // ülke bulunamazsa geçersiz satır (özet/VKN gibi)
 
     // Alıcı adı: gönderici ve sistem kelimelerini çıkar
     const SKIP=/GOLDEN|AKIN AKCAN|TURGUTLU|MANISA|SEHITLER|ANKARA|45400|FEDEX|INTL|PRIORITY|PAK|REFERANS|ISTANBUL|TURKEY/i;
@@ -1819,6 +1820,8 @@ async function _parseFedexPDF(file){
       if(amtRe.test(it.str)) return false;
       if(/\bKG\b|\bTL\b/i.test(it.str)) return false;
       if(/^\d+[.,]\d{1,2}$/.test(it.str)) return false;
+      // Adres satırı: harf+rakam karışımı (STRASSE 1, WANGEROOGESTRASSE 1, CITY 12345 vb.)
+      if(/\s\d{1,6}(?:\s|$|,)/.test(it.str)||(/,/.test(it.str)&&/[A-Z]/i.test(it.str))) return false;
       return true;
     });
     recipItems.sort((a,b)=>b.y-a.y);
