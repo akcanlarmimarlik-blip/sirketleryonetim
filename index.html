@@ -816,7 +816,12 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
-let fedexSettings={version:2,rules:[
+let fedexSettings={version:3,rules:[
+  {region:'Avrupa', service:'PAK',     minKg:0,  maxKg:0.5,minTL:622,  maxTL:894},
+  {region:'Avrupa', service:'PAK',     minKg:0.5,maxKg:1.0,minTL:668,  maxTL:960},
+  {region:'Avrupa', service:'PAK',     minKg:1.0,maxKg:1.5,minTL:714,  maxTL:1026},
+  {region:'Avrupa', service:'PAK',     minKg:1.5,maxKg:2.0,minTL:760,  maxTL:1093},
+  {region:'Avrupa', service:'PAK',     minKg:2.0,maxKg:2.5,minTL:806,  maxTL:1159},
   {region:'Amerika',service:'PAK',     minKg:0,  maxKg:0.5,minTL:571,  maxTL:821},
   {region:'Amerika',service:'PAK',     minKg:0.5,maxKg:1.0,minTL:614,  maxTL:882},
   {region:'Amerika',service:'PAK',     minKg:1.0,maxKg:1.5,minTL:658,  maxTL:945},
@@ -4381,7 +4386,7 @@ async function onUserSignedIn(user){
     }
   }
   const _fxs=await getOne('settings','fedexSettings');
-  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=2){
+  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=3){
     // Güncel format — kullan
     fedexSettings={...fedexSettings,..._fxs.data};
   }
