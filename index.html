@@ -1790,28 +1790,7 @@ async function _parseFedexPDF(file){
     if(invoiceDate && invoiceNo) break;
   }
 
-  // Sıra no kolonu: en soldaki küçük tam sayılar (1-500)
-  const rowNoCandidates=allItems.filter(it=>/^\d{1,3}$/.test(it.str)&&+it.str>=1&&+it.str<=500);
-  const minX=rowNoCandidates.length?Math.min(...rowNoCandidates.map(it=>it.x)):0;
-  const rowNoCol=rowNoCandidates.filter(it=>it.x<minX+30);
-
-  // Tutar kolonunu bul: en sağdaki ondalıklı sayılar (TL eki opsiyonel)
-  const amtRe=/^(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s*TL)?$/;
-  const amtCandidates=allItems.filter(it=>amtRe.test(it.str));
-  if(!amtCandidates.length) return {invoiceDate, invoiceNo, shipments:[]};
-
-  // En sağdaki X grubunu al (amount kolonu)
-  const maxX=Math.max(...amtCandidates.map(it=>it.x));
-  // Aynı sayfa+Y'de tekrar eden satırları tekilleştir (PDF özet/tekrar satırları)
-  const seenYKeys=new Set();
-  const amountItems=amtCandidates.filter(it=>{
-    if(it.x<=maxX-40) return false;
-    const key=`${it.page}_${Math.round(it.y/10)}`;
-    if(seenYKeys.has(key)) return false;
-    seenYKeys.add(key); return true;
-  });
-
-  // Ülke listesi (uzun önce, kısa önce match yanlış yapmasın)
+  // Ülke listesi
   const CLIST=['UNITED STATES OF AMERICA','UNITED STATES','UNITED KINGDOM','UNITED ARAB EMIRATES',
     'SAUDI ARABIA','NEW ZEALAND','SOUTH KOREA','HONG KONG','CZECH REPUBLIC',
     'AUSTRALIA','CANADA','GERMANY','FRANCE','SPAIN','ITALY','SWEDEN','NETHERLANDS',
@@ -1819,34 +1798,67 @@ async function _parseFedexPDF(file){
     'PORTUGAL','IRELAND','POLAND','GREECE','JAPAN','SINGAPORE','INDIA','CHINA',
     'BRAZIL','MEXICO','QATAR','KUWAIT'];
 
+  const amtRe=/^(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s*TL)?$/;
+
+  // Tutar kolonu X konumu (en sağ)
+  const amtCandidates=allItems.filter(it=>amtRe.test(it.str));
+  if(!amtCandidates.length) return {invoiceDate, invoiceNo, shipments:[]};
+  const maxX=Math.max(...amtCandidates.map(it=>it.x));
+
+  // Sıra no kolonu: en soldaki küçük tam sayılar
+  const rowNoCandidates=allItems.filter(it=>/^\d{1,3}$/.test(it.str)&&+it.str>=1&&+it.str<=500);
+  const minX=rowNoCandidates.length?Math.min(...rowNoCandidates.map(it=>it.x)):0;
+  // Her sıra no için tek kayıt: en soldaki X'teki
+  const rowNoMap=new Map();
+  rowNoCandidates.filter(it=>it.x<minX+30).forEach(it=>{
+    const n=+it.str;
+    if(!rowNoMap.has(n)||it.x<rowNoMap.get(n).x) rowNoMap.set(n,it);
+  });
+  // Sayısal sıraya koy
+  const rowList=[...rowNoMap.values()].sort((a,b)=>+a.str-+b.str);
+
+  if(!rowList.length) return {invoiceDate, invoiceNo, shipments:[]};
+
+  const SKIP=/GOLDEN|AKIN AKCAN|TURGUTLU|MANISA|SEHITLER|ANKARA|45400|FEDEX|INTL|PRIORITY|PAK|REFERANS|ISTANBUL|TURKEY/i;
+  const LABEL_RE=/^(?:Alıcı|Alici|İsim|Isim|Gönderen|Gonderen|Adres|Ülke|Ulke|Teslimat)[:\s]*$/i;
+
   const shipments=[];
 
-  for(const amtItem of amountItems){
-    const {x:ax, y:ay, page:ap}=amtItem;
+  for(let i=0;i<rowList.length;i++){
+    const rowItem=rowList[i];
+    const rowNo=+rowItem.str;
+    const page=rowItem.page;
 
-    // Tutarı parse et (TL ekini temizle)
-    const raw=amtItem.str.replace(/\s*TL$/i,'').trim();
+    // Y sınırları: PDF'de Y=0 sayfa altıdır (Y büyüdükçe yukarı)
+    // Bu satır rowItem.y'den başlar, bir sonraki aynı sayfadaki satıra kadar sürer
+    const nextOnPage=rowList.find(r=>r.page===page&&+r.str===rowNo+1);
+    const yTop=rowItem.y+30;                          // satır numarasının biraz üstü
+    const yBot=nextOnPage?nextOnPage.y+10:rowItem.y-300; // sonraki satıra kadar (ya da ~300px)
+
+    const block=allItems.filter(it=>it.page===page&&it.y<=yTop&&it.y>=yBot);
+    if(!block.length) continue;
+    const blockText=block.map(it=>it.str).join(' ');
+    const up=blockText.toUpperCase();
+
+    // Tutar: blok içindeki en sağdaki ondalıklı sayı
+    const amtInBlock=block.filter(it=>amtRe.test(it.str)&&it.x>maxX-50)
+      .sort((a,b)=>b.x-a.x);
+    if(!amtInBlock.length) continue;
+    const raw=amtInBlock[0].str.replace(/\s*TL$/i,'').trim();
     let amountTL=/,\d{2}$/.test(raw)
       ? parseFloat(raw.replace(/\./g,'').replace(',','.'))
       : parseFloat(raw.replace(/,/g,''));
-    if(!amountTL||amountTL<50||amountTL>15000) continue; // toplam satırlarını atla (fatura toplamı 15k üstü olur)
+    if(!amountTL||amountTL<50||amountTL>15000) continue;
 
-    // Aynı Y'deki öğeler (±15px, aynı sayfa) — PDF'de satır yüksekliği değişken olabilir
-    const sameRow=allItems.filter(it=>it.page===ap && Math.abs(it.y-ay)<=15 && it.x<ax-5);
-
-    // Ağırlık: aynı satırda "X.XX" veya "X.X KG"
+    // Ağırlık: blok içinde "X,X KG" veya "X,X" ağırlık değeri
     let weightKg=0;
-    for(const it of sameRow){
-      const mw=it.str.match(/^(\d+[.,]\d+)\s*(?:KG)?$/i);
-      if(mw){
+    for(const it of block){
+      const mw=it.str.match(/^(\d+[.,]\d+)\s*KG$/i)||it.str.match(/^(\d+[.,]\d{1,2})$/);
+      if(mw&&!/TL/i.test(it.str)){
         const v=parseFloat(mw[1].replace(',','.'));
         if(v>0&&v<100){weightKg=v;break;}
       }
     }
-
-    // Blok: bu Y'den 180px yukarısına kadar olan öğeler
-    const block=allItems.filter(it=>it.page===ap && it.y>=ay-10 && it.y<=ay+180);
-    const blockText=block.map(it=>it.str).join(' ');
 
     // Tarih
     const dm=blockText.match(/(\d{2}-\d{2}-\d{4})/);
@@ -1854,57 +1866,40 @@ async function _parseFedexPDF(file){
 
     // Ülke
     let country='';
-    const up=blockText.toUpperCase();
     for(const c of CLIST){if(up.includes(c)){country=c;break;}}
-    if(!country) continue; // ülke bulunamazsa geçersiz satır (özet/VKN gibi)
+    if(!country) continue;
 
-    // Alıcı adı: gönderici ve sistem kelimelerini çıkar
-    const SKIP=/GOLDEN|AKIN AKCAN|TURGUTLU|MANISA|SEHITLER|ANKARA|45400|FEDEX|INTL|PRIORITY|PAK|REFERANS|ISTANBUL|TURKEY/i;
-    const LABEL_RE=/^(?:Alıcı|Alici|İsim|Isim|Gönderen|Gonderen|Adres|Ülke|Ulke|Teslimat)[:\s]*$/i;
+    // Servis
+    const service=/\bPAK\b/.test(up)?'PAK':'PRIORITY';
+
+    // Alıcı
     const recipItems=block.filter(it=>{
       if(SKIP.test(it.str)) return false;
-      if(LABEL_RE.test(it.str.trim())) return false; // saf etiket satırları
-      if(/^(?:Ülke|Ulke|Adres|Gönderen|Gonderen)[:\s]/i.test(it.str)) return false; // "Ülke:US" gibi etiket+içerik
+      if(LABEL_RE.test(it.str.trim())) return false;
+      if(/^(?:Ülke|Ulke|Adres|Gönderen|Gonderen)[:\s]/i.test(it.str)) return false;
       if(/^\d+$/.test(it.str)||/\d{2}-\d{2}-\d{4}/.test(it.str)) return false;
       if(it.str.length<3) return false;
       if(CLIST.some(c=>it.str.toUpperCase()===c)) return false;
       if(amtRe.test(it.str)) return false;
       if(/\bKG\b|\bTL\b/i.test(it.str)) return false;
       if(/^\d+[.,]\d{1,2}$/.test(it.str)) return false;
-      // Adres satırı: harf+rakam karışımı (STRASSE 1, WANGEROOGESTRASSE 1, CITY 12345 vb.)
       if(/\s\d{1,6}(?:\s|$|,)/.test(it.str)||(/,/.test(it.str)&&/[A-Z]/i.test(it.str))) return false;
       return true;
     });
     recipItems.sort((a,b)=>b.y-a.y);
-    // "Alıcı: MELISSA SCHILLING" → "MELISSA SCHILLING" prefix temizle
     const recipStr=recipItems.slice(0,3)
       .map(it=>it.str
-        .replace(/^(?:Alıcı|Alici|İsim|Isim)[:\s]*/i,'')  // "Alıcı: " prefix
-        .replace(/[\s]*(?:Adres|Ülke|Ulke)[:\s].*/i,'')  // "Adres:..." / "Ülke:..." suffix
+        .replace(/^(?:Alıcı|Alici|İsim|Isim)[:\s]*/i,'')
+        .replace(/[\s]*(?:Adres|Ülke|Ulke)[:\s].*/i,'')
         .trim())
       .filter(s=>s.length>=2).slice(0,2).join(' ').substring(0,60);
     const recipient=recipStr||'—';
 
-    // Servis tipi: blokta PAK geçiyorsa PAK, yoksa PRIORITY
-    const service=up.includes(' PAK')||/\bPAK\b/.test(blockText.toUpperCase())?'PAK':'PRIORITY';
-
-    // Sıra no: aynı sayfa+Y bloğunda en yakın sol sütun sayısı
-    const nearRow=rowNoCol
-      .filter(it=>it.page===ap && Math.abs(it.y-ay)<=150)
-      .sort((a,b)=>Math.abs(a.y-ay)-Math.abs(b.y-ay))[0];
-    const rowNo=nearRow?+nearRow.str:9999;
-
-    if(amountTL>0){
-      shipments.push({rowNo, date, recipient, country, weightKg, amountTL, service});
-    }
+    shipments.push({rowNo, date, recipient, country, weightKg, amountTL, service});
   }
 
-  // Sıra no'ya göre sırala, tekrarlı sıra no'ları tekilleştir
-  const seen=new Set();
-  const unique=shipments.filter(s=>{if(seen.has(s.rowNo)){return false;}seen.add(s.rowNo);return true;});
-  unique.sort((a,b)=>a.rowNo-b.rowNo);
-
-  return {invoiceDate, invoiceNo, shipments:unique};
+  shipments.sort((a,b)=>a.rowNo-b.rowNo);
+  return {invoiceDate, invoiceNo, shipments};
 }
 
 function openFedexPricingModal(){
