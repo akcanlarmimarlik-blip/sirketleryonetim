@@ -816,7 +816,12 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
-let fedexSettings={version:3,rules:[
+let fedexSettings={version:4,rules:[
+  {region:'Asya-Pasifik',service:'PAK',minKg:0,  maxKg:0.5,minTL:1270, maxTL:1825},
+  {region:'Asya-Pasifik',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1450, maxTL:2084},
+  {region:'Asya-Pasifik',service:'PAK',minKg:1.0,maxKg:1.5,minTL:1629, maxTL:2342},
+  {region:'Asya-Pasifik',service:'PAK',minKg:1.5,maxKg:2.0,minTL:1809, maxTL:2600},
+  {region:'Asya-Pasifik',service:'PAK',minKg:2.0,maxKg:2.5,minTL:1989, maxTL:2858},
   {region:'Avrupa', service:'PAK',     minKg:0,  maxKg:0.5,minTL:622,  maxTL:894},
   {region:'Avrupa', service:'PAK',     minKg:0.5,maxKg:1.0,minTL:668,  maxTL:960},
   {region:'Avrupa', service:'PAK',     minKg:1.0,maxKg:1.5,minTL:714,  maxTL:1026},
@@ -4387,7 +4392,7 @@ async function onUserSignedIn(user){
     }
   }
   const _fxs=await getOne('settings','fedexSettings');
-  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=3){
+  if(_fxs&&_fxs.data&&(_fxs.data.version||0)>=4){
     // Güncel format — kullan
     fedexSettings={...fedexSettings,..._fxs.data};
   }
