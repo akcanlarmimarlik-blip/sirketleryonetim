@@ -747,7 +747,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 15);
+    const r = indexedDB.open('rutinMerkezi', 16);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -783,6 +783,8 @@ function openDB(){
       if(!d.objectStoreNames.contains('fedexRuleVersions'))      d.createObjectStore('fedexRuleVersions',     {keyPath:'id'});
       // Hayat Sigortaları (v15)
       if(!d.objectStoreNames.contains('sigortalar'))             d.createObjectStore('sigortalar',            {keyPath:'id'});
+      // Vergiler (v16)
+      if(!d.objectStoreNames.contains('vergiler'))               d.createObjectStore('vergiler',              {keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -795,7 +797,7 @@ function del(store,key){return new Promise(r=>{const q=tx(store,'readwrite').del
 function clearStore(store){return new Promise(r=>{const q=tx(store,'readwrite').clear();q.onsuccess=()=>{afterWrite(store);r()}})}
 function getOne(store,key){return new Promise(res=>{try{const q=tx(store).get(key);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)}catch(e){res(null)}})}
 
-const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans','customReminders','anlikHarcamalar','sigortalar'];
+const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans','customReminders','anlikHarcamalar','sigortalar','vergiler'];
 let suppressPush=false;
 function afterWrite(store){
   if(suppressPush)return;
@@ -827,6 +829,7 @@ let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,com
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
 let sigortalar=[];
+let vergiler=[];
 let fedexSettings={version:16,rules:[
   {region:'Latin Amerika',service:'PAK',minKg:0,  maxKg:0.5,minTL:1304,maxTL:1500},
   {region:'Latin Amerika',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1375,maxTL:1581},
@@ -1351,6 +1354,7 @@ async function loadAll(){
   customReminders = (await getAll('customReminders')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
   anlikHarcamalar = (await getAll('anlikHarcamalar')).sort((a,b)=>(b.createdAt??0)-(a.createdAt??0));
   sigortalar = (await getAll('sigortalar')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+  vergiler   = (await getAll('vergiler')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
 }
 
 /* ---------- Toggle ---------- */
@@ -1406,6 +1410,7 @@ function render(){
   else if(view.page==='bank') renderBankDetail();
   else if(view.page==='bills') renderBillsPage();
   else if(view.page==='sigortalar') renderSigortalarPage();
+  else if(view.page==='vergiler') renderVergilerPage();
   else if(view.page==='reminders') renderRemindersPage();
   else if(view.page==='anlik') renderAnlikPage();
   else if(view.page==='tasks') renderTaskPage();
@@ -1440,6 +1445,7 @@ function renderHome(){
         ${chequesEntryHTML()}
         ${faturalarimEntryHTML()}
         ${sigortalarEntryHTML()}
+        ${vergilerEntryHTML()}
       </div>
       ${realCompanies.some(c=>c.link) ? `<div class="entry-grid-2">${
         realCompanies.filter(c=>c.link).map(c=>`
@@ -1973,6 +1979,161 @@ function openSigortaModal(sig){
     closeModal();render();toast(editing?'Güncellendi':'Poliçe eklendi');
   };
   if(editing)$('#sgDelete').onclick=async()=>{await del('sigortalar',sig.id);sigortalar=sigortalar.filter(x=>x.id!==sig.id);closeModal();render();toast('Poliçe silindi')};
+}
+
+const VERGI_TURLERI=['Gelir Vergisi','Kurumlar Vergisi','KDV','SGK Primi','Damga Vergisi','Motorlu Taşıtlar Vergisi','Emlak Vergisi','Diğer'];
+const VERGI_PERIOD_LABELS={monthly:'Aylık',quarterly:'Üç Aylık',annual:'Yıllık',once:'Tek Seferlik'};
+
+function vergilerEntryHTML(){
+  const today=new Date().toISOString().slice(0,10);
+  const upcoming=vergiler.filter(v=>v.dueDate&&v.dueDate>=today&&v.dueDate<=new Date(Date.now()+30*86400000).toISOString().slice(0,10)).length;
+  const summary=vergiler.length
+    ? `${vergiler.length} vergi kaydı${upcoming?` · ${upcoming} yaklaşıyor`:''}`
+    : 'Henüz kayıt yok — eklemek için gir';
+  return `
+  <button class="entry-panel" data-vergiler style="--accent:#B45309;--accent-tint:#FEF3C7">
+    <span class="entry-ico" style="background:#FEF3C7;color:#B45309">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+    </span>
+    <span class="entry-body">
+      <span class="entry-title">Vergiler</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+function renderVergilerPage(){
+  document.documentElement.style.setProperty('--accent','#B45309');
+  const realCompanies=companies.filter(c=>!c.isPersonal);
+  const today=new Date().toISOString().slice(0,10);
+  const rows=vergiler.map(v=>{
+    const comp=companies.find(c=>c.id===v.company);
+    const overdue=v.dueDate&&v.dueDate<today;
+    const daysLeft=v.dueDate?Math.round((new Date(v.dueDate)-new Date(today))/86400000):null;
+    const badge=v.ownerType==='sahis'&&v.sahisAdi
+      ?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:#E8F0FE;color:#1D4ED8;white-space:nowrap;flex:none">${esc(v.sahisAdi)}</span>`
+      :comp?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${comp.tint||'#eee'};color:${comp.accent||'#333'};white-space:nowrap;flex:none">${esc(comp.name)}</span>`:'';
+    return `<div class="bill${overdue?' paid':''}" style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px">
+          <span style="font-size:14px;font-weight:600">${esc(v.name)}</span>
+          ${v.vergiTuru&&v.vergiTuru!==v.name?`<span style="font-size:10px;padding:1px 7px;border-radius:5px;background:#FEF3C7;color:#92400E;font-weight:600">${esc(v.vergiTuru)}</span>`:''}
+          ${overdue?`<span style="font-size:10px;padding:1px 7px;border-radius:5px;background:#fee2e2;color:#b91c1c;font-weight:700">Vadesi geçti</span>`:''}
+        </div>
+        <div style="font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          ${badge}
+          ${v.amount?`<span style="font-weight:500;color:var(--ink)">${fmtMoney(v.amount,v.currency||'TRY')}</span>`:''}
+          ${v.period?`<span>${VERGI_PERIOD_LABELS[v.period]||v.period}</span>`:''}
+          ${v.dueDate?`<span>${overdue?'Vade':'Son gün'}: ${v.dueDate}${daysLeft!==null&&!overdue?` · ${daysLeft} gün kaldı`:''}</span>`:''}
+        </div>
+        ${v.note?`<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">${esc(v.note)}</div>`:''}
+      </div>
+      <button data-vergedit="${v.id}" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:2px 4px;flex:none">✎</button>
+    </div>`;
+  }).join('');
+  app.innerHTML=`
+  <div class="cv" style="--accent:#B45309;--accent-tint:#FEF3C7">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:#FEF3C7;color:#B45309;width:56px;height:56px">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+      </span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:#B45309">Vergi takibi</div>
+        <h2>Vergiler</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="sec-add" id="vergAddBtn">${svgPlus()} Vergi ekle</button>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden">
+      ${rows||`<div style="text-align:center;padding:32px;font-size:13px;color:var(--muted)">Henüz vergi kaydı yok</div>`}
+    </div>
+  </div>
+  ${renderFooter()}`;
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null};render()});
+  $('#vergAddBtn').addEventListener('click',()=>openVergiModal(null));
+  document.querySelectorAll('[data-vergedit]').forEach(btn=>btn.addEventListener('click',()=>{
+    const v=vergiler.find(x=>x.id===btn.dataset.vergedit);if(v)openVergiModal(v);
+  }));
+  bindFooter();
+}
+
+function openVergiModal(verg){
+  const editing=!!verg;
+  const realCompanies=companies.filter(c=>!c.isPersonal);
+  let cur=(verg?.currency)||'TRY';
+  const initType=editing?(verg.ownerType||'company'):'company';
+  let ownerType=initType;
+  let period=verg?.period||'annual';
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="eyebrow">${editing?'Vergiyi düzenle':'Yeni vergi kaydı'}</div>
+      <h3>${editing?'Düzenle':'Vergi ekle'}</h3>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Vergi adı / açıklama</label>
+        <input type="text" id="vgName" placeholder="Örn. 2025 Gelir Vergisi" value="${editing?esc(verg.name):''}"></div>
+      <div class="field"><label>Vergi türü</label>
+        <select id="vgTur" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--card)">
+          ${VERGI_TURLERI.map(t=>`<option value="${esc(t)}"${editing&&verg.vergiTuru===t?' selected':''}>${t}</option>`).join('')}
+        </select></div>
+      <div class="field"><label>Sahip türü</label>
+        <div class="seg" id="vgOwnerSeg">
+          <button data-ot="company" class="${initType==='company'?'on':''}">Şirket</button>
+          <button data-ot="sahis" class="${initType==='sahis'?'on':''}">Şahıs</button>
+        </div></div>
+      <div class="field" id="vgCompanyWrap" style="${initType==='sahis'?'display:none':''}"><label>Şirket</label>
+        <select id="vgCompany" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--card)">
+          <option value="">— Şirket seçilmedi —</option>
+          ${realCompanies.map(c=>`<option value="${c.id}"${editing&&verg.company===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}
+        </select></div>
+      <div class="field" id="vgSahisWrap" style="${initType==='company'?'display:none':''}"><label>Şahıs adı</label>
+        <input type="text" id="vgSahisAdi" placeholder="Örn. Ahmet Yılmaz" value="${editing?esc(verg.sahisAdi||''):''}"></div>
+      <div class="two">
+        <div class="field"><label>Tutar</label>
+          <input type="number" id="vgAmount" inputmode="decimal" placeholder="0" value="${editing&&verg.amount?verg.amount:''}"></div>
+        <div class="field"><label>Para birimi</label>
+          <div class="seg" id="vgCur">${['TRY','USD','EUR'].map(k=>`<button data-c="${k}" class="${k===cur?'on':''}">${k}</button>`).join('')}</div></div>
+      </div>
+      <div class="field"><label>Dönem</label>
+        <div class="seg" id="vgPeriod">
+          ${Object.entries(VERGI_PERIOD_LABELS).map(([k,l])=>`<button data-p="${k}" class="${k===period?'on':''}">${l}</button>`).join('')}
+        </div></div>
+      <div class="field"><label>Son ödeme tarihi <span style="font-weight:400;color:var(--faint)">(isteğe bağlı)</span></label>
+        <input type="date" id="vgDue" value="${editing&&verg.dueDate?verg.dueDate:''}"></div>
+      <div class="field"><label>Not (isteğe bağlı)</label>
+        <textarea id="vgNote" rows="2">${editing?esc(verg.note||''):''}</textarea></div>
+      <div class="modal-foot">
+        ${editing?'<button class="btn danger" id="vgDelete">Sil</button>':''}
+        <button class="btn subtle" id="vgCancel">Vazgeç</button>
+        <button class="btn primary" id="vgSave">${editing?'Kaydet':'Ekle'}</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');setTimeout(()=>$('#vgName').focus(),60);
+  modal.querySelectorAll('#vgOwnerSeg button').forEach(b=>b.onclick=()=>{
+    ownerType=b.dataset.ot;
+    modal.querySelectorAll('#vgOwnerSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    $('#vgCompanyWrap').style.display=ownerType==='company'?'':'none';
+    $('#vgSahisWrap').style.display=ownerType==='sahis'?'':'none';
+  });
+  modal.querySelectorAll('#vgCur button').forEach(b=>b.onclick=()=>{cur=b.dataset.c;modal.querySelectorAll('#vgCur button').forEach(x=>x.classList.toggle('on',x===b))});
+  modal.querySelectorAll('#vgPeriod button').forEach(b=>b.onclick=()=>{period=b.dataset.p;modal.querySelectorAll('#vgPeriod button').forEach(x=>x.classList.toggle('on',x===b))});
+  $('#vgCancel').onclick=closeModal;
+  $('#vgSave').onclick=async()=>{
+    const name=$('#vgName').value.trim();if(!name){$('#vgName').focus();return}
+    const vergiTuru=$('#vgTur').value;
+    const company=ownerType==='company'?($('#vgCompany').value||null):null;
+    const sahisAdi=ownerType==='sahis'?$('#vgSahisAdi').value.trim():'';
+    const amount=parseFloat($('#vgAmount').value)||0;
+    const dueDate=$('#vgDue').value||'';
+    const note=$('#vgNote').value.trim();
+    if(editing){Object.assign(verg,{name,vergiTuru,company,ownerType,sahisAdi,amount,currency:cur,period,dueDate,note});await put('vergiler',verg)}
+    else{await put('vergiler',{id:generateId(),name,vergiTuru,company,ownerType,sahisAdi,amount,currency:cur,period,dueDate,note,createdAt:Date.now()})}
+    vergiler=(await getAll('vergiler')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+    closeModal();render();toast(editing?'Güncellendi':'Vergi eklendi');
+  };
+  if(editing)$('#vgDelete').onclick=async()=>{await del('vergiler',verg.id);vergiler=vergiler.filter(x=>x.id!==verg.id);closeModal();render();toast('Vergi silindi')};
 }
 
 function anlikEntryHTML(){
@@ -5084,6 +5245,8 @@ function bindHome(){
   const ebills=$('[data-bills]');if(ebills)ebills.addEventListener('click',()=>{view={page:'bills',companyId:null,section:null,cardId:null};render();});
   // Hayat Sigortaları — sayfa girişi
   const esig=$('[data-sigortalar]');if(esig)esig.addEventListener('click',()=>{view={page:'sigortalar',companyId:null,section:null,cardId:null};render();});
+  // Vergiler — sayfa girişi
+  const everg=$('[data-vergiler]');if(everg)everg.addEventListener('click',()=>{view={page:'vergiler',companyId:null,section:null,cardId:null};render();});
   // Hatırlatıcılar
   const edr=$('[data-custom-rem]');if(edr)edr.addEventListener('click',()=>{view={page:'reminders',companyId:null,section:null,cardId:null};render()});
   // Anlık Harcamalar
