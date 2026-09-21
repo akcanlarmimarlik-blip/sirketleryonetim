@@ -1110,6 +1110,7 @@ let fedexScanResult=null; // {invoiceDate, invoiceNo, shipments} — legacy, kep
 let fedexBulkResults=[]; // array of parsed invoices (max 10)
 let fedexBulkActiveIdx=0;
 let fedexHizmetActiveIdx=0;
+let faturalarimFilter='';
 let fedexGlobalSettings={
   USD_TRY_RATE:48.77,FUEL_SURCHARGE_PERCENT:20.0,EPH_PERCENT:2.35,HIGH_PRICE_PERCENT:15.0,
   USA_INBOUND_USD:0.66,EU_INBOUND_USD:2.65,UK_INBOUND_USD:0,CANADA_INBOUND_USD:0,
@@ -1432,6 +1433,7 @@ function renderHome(){
         ${banksEntryHTML()}
         ${chequesEntryHTML()}
       </div>
+      ${faturalarimSectionHTML()}
       ${realCompanies.some(c=>c.link) ? `<div class="entry-grid-2">${
         realCompanies.filter(c=>c.link).map(c=>`
           <a class="firm-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer"
@@ -1751,6 +1753,33 @@ function banksEntryHTML(){
     </span>
     ${svgArrow()}
   </button>`;
+}
+
+function faturalarimSectionHTML(){
+  const realCompanies=companies.filter(c=>!c.isPersonal);
+  const filtered=faturalarimFilter?bills.filter(b=>b.company===faturalarimFilter):bills;
+  const rows=filtered.map(b=>{
+    const comp=companies.find(c=>c.id===b.company);
+    const paid=isPaid(b.id);
+    const dleft=b.dueDay?daysUntil(nextDueDate(b.dueDay)):null;
+    return `<div class="bill ${paid?'paid':''}" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:default">
+      ${comp?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${comp.tint||'#eee'};color:${comp.accent||'#333'};white-space:nowrap;flex:none">${esc(comp.name)}</span>`:''}
+      <span style="flex:1;font-size:13px;font-weight:500">${esc(b.name)}</span>
+      ${b.dueDay?`<span style="font-size:11px;color:var(--muted);white-space:nowrap">Ayın ${b.dueDay}'i${dleft!==null?` · ${dleft}g`:''}</span>`:''}
+      <button data-fbedit="${b.id}" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:2px 4px;flex:none">✎</button>
+    </div>`;
+  }).join('');
+  return `<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:0">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap">
+      <span style="font-size:14px;font-weight:700;flex:1">Faturalarım</span>
+      <select id="faturalarimFilter" style="font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer">
+        <option value="">Tüm şirketler</option>
+        ${realCompanies.map(c=>`<option value="${c.id}"${c.id===faturalarimFilter?' selected':''}>${esc(c.name)}</option>`).join('')}
+      </select>
+      <button id="faturalarimAdd" style="font-size:12px;padding:5px 12px;background:#4B5B6B;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ Ekle</button>
+    </div>
+    ${rows||`<div style="text-align:center;padding:24px;font-size:13px;color:var(--muted)">Henüz fatura yok${faturalarimFilter?' — bu şirket için':''}</div>`}
+  </div>`;
 }
 
 function anlikEntryHTML(){
@@ -4844,6 +4873,12 @@ function bindHome(){
   const eq=$('[data-cheques]');if(eq)eq.addEventListener('click',()=>{view={page:'cheques',companyId:null,section:null,cardId:null};render()});
   // Banka hesapları — tek girişle aç
   const ebk=$('[data-banks]');if(ebk)ebk.addEventListener('click',()=>{view={page:'banks',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
+  // Faturalarım bölümü
+  $('#faturalarimFilter')?.addEventListener('change',e=>{faturalarimFilter=e.target.value;renderHome();});
+  $('#faturalarimAdd')?.addEventListener('click',()=>openBillModal(null,faturalarimFilter||null));
+  document.querySelectorAll('[data-fbedit]').forEach(btn=>btn.addEventListener('click',()=>{
+    const b=bills.find(x=>x.id===btn.dataset.fbedit);if(b)openBillModal(b);
+  }));
   // Hatırlatıcılar
   const edr=$('[data-custom-rem]');if(edr)edr.addEventListener('click',()=>{view={page:'reminders',companyId:null,section:null,cardId:null};render()});
   // Anlık Harcamalar
@@ -5688,6 +5723,7 @@ function openChequeModal(ch){
 function openBillModal(bill,companyId){
   const editing=!!bill;
   const cid=editing?bill.company:companyId;
+  const realCompanies=companies.filter(c=>!c.isPersonal);
   modal.innerHTML=`
     <div class="modal-head">
       <div class="eyebrow">${editing?'Faturayı düzenle':'Yeni fatura'}</div>
@@ -5696,6 +5732,11 @@ function openBillModal(bill,companyId){
     <div class="modal-body">
       <div class="field"><label>Fatura adı</label>
         <input type="text" id="bName" placeholder="Örn. Elektrik, Shopify aboneliği" value="${editing?esc(bill.name):''}"></div>
+      <div class="field"><label>Şirket</label>
+        <select id="bCompany" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--card)">
+          <option value="">— Şirket seçilmedi —</option>
+          ${realCompanies.map(c=>`<option value="${c.id}"${c.id===cid?' selected':''}>${esc(c.name)}</option>`).join('')}
+        </select></div>
       <div class="field"><label>Her ayın kaçında <span style="font-weight:400;color:var(--faint)">(isteğe bağlı)</span></label>
         <input type="number" id="bDay" min="1" max="31" placeholder="—" value="${editing&&bill.dueDay?bill.dueDay:''}"></div>
       <div class="field"><label>Not (isteğe bağlı)</label>
@@ -5710,10 +5751,11 @@ function openBillModal(bill,companyId){
   $('#bCancel').onclick=closeModal;
   $('#bSave').onclick=async()=>{
     const name=$('#bName').value.trim();if(!name){$('#bName').focus();return}
+    const company=$('#bCompany').value||cid||null;
     let dueDay=parseInt($('#bDay').value);dueDay=isNaN(dueDay)?null:Math.min(31,Math.max(1,dueDay));
     const note=$('#bNote').value.trim();
-    if(editing){Object.assign(bill,{name,dueDay,note});await put('bills',bill)}
-    else{await put('bills',{id:generateId(),name,dueDay,company:cid,note,createdAt:Date.now()})}
+    if(editing){Object.assign(bill,{name,dueDay,note,company});await put('bills',bill)}
+    else{await put('bills',{id:generateId(),name,dueDay,company,note,createdAt:Date.now()})}
     bills=(await getAll('bills')).sort((a,b)=>(a.dueDay??99)-(b.dueDay??99));
     closeModal();render();toast(editing?'Güncellendi':'Fatura eklendi');
   };
