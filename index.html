@@ -1784,13 +1784,16 @@ function faturalarimEntryHTML(){
 function renderBillsPage(){
   document.documentElement.style.setProperty('--accent','#6B5B9A');
   const realCompanies=companies.filter(c=>!c.isPersonal);
-  const filtered=faturalarimFilter?bills.filter(b=>b.company===faturalarimFilter):bills;
+  const filtered=faturalarimFilter==='__sahis__'?bills.filter(b=>b.ownerType==='sahis'):faturalarimFilter?bills.filter(b=>b.company===faturalarimFilter):bills;
   const rows=filtered.map(b=>{
     const comp=companies.find(c=>c.id===b.company);
     const paid=isPaid(b.id);
     const dleft=b.dueDay?daysUntil(nextDueDate(b.dueDay)):null;
+    const badge=b.ownerType==='sahis'&&b.sahisAdi
+      ?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:#E8F0FE;color:#1D4ED8;white-space:nowrap;flex:none">${esc(b.sahisAdi)}</span>`
+      :comp?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${comp.tint||'#eee'};color:${comp.accent||'#333'};white-space:nowrap;flex:none">${esc(comp.name)}</span>`:'';
     return `<div class="bill ${paid?'paid':''}" style="display:flex;align-items:center;gap:8px;padding:12px 16px">
-      ${comp?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${comp.tint||'#eee'};color:${comp.accent||'#333'};white-space:nowrap;flex:none">${esc(comp.name)}</span>`:''}
+      ${badge}
       <span style="flex:1;font-size:14px;font-weight:500">${esc(b.name)}</span>
       ${b.dueDay?`<span style="font-size:11px;color:var(--muted);white-space:nowrap">Ayın ${b.dueDay}'i${dleft!==null?` · ${dleft<0?Math.abs(dleft)+' gün gecikti':dleft===0?'bugün':dleft+' gün'}`:''}</span>`:''}
       <button data-fbedit="${b.id}" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:2px 6px;flex:none">✎</button>
@@ -1812,12 +1815,13 @@ function renderBillsPage(){
     </div>
     <div style="display:flex;align-items:center;gap:8px;padding:0 0 12px">
       <select id="billsCompanyFilter" style="font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer;flex:1">
-        <option value="">Tüm şirketler</option>
+        <option value="">Tümü</option>
+        <option value="__sahis__"${faturalarimFilter==='__sahis__'?' selected':''}>Şahıs</option>
         ${realCompanies.map(c=>`<option value="${c.id}"${c.id===faturalarimFilter?' selected':''}>${esc(c.name)}</option>`).join('')}
       </select>
     </div>
     <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden">
-      ${rows||`<div style="text-align:center;padding:32px;font-size:13px;color:var(--muted)">Henüz fatura yok${faturalarimFilter?' — bu şirket için':''}</div>`}
+      ${rows||`<div style="text-align:center;padding:32px;font-size:13px;color:var(--muted)">Henüz fatura yok${faturalarimFilter?' — bu filtre için':''}</div>`}
     </div>
   </div>
   ${renderFooter()}`;
@@ -5925,6 +5929,7 @@ function openBillModal(bill,companyId){
   const editing=!!bill;
   const cid=editing?bill.company:companyId;
   const realCompanies=companies.filter(c=>!c.isPersonal);
+  const initType=editing?(bill.ownerType||'company'):'company';
   modal.innerHTML=`
     <div class="modal-head">
       <div class="eyebrow">${editing?'Faturayı düzenle':'Yeni fatura'}</div>
@@ -5933,11 +5938,18 @@ function openBillModal(bill,companyId){
     <div class="modal-body">
       <div class="field"><label>Fatura adı</label>
         <input type="text" id="bName" placeholder="Örn. Elektrik, Shopify aboneliği" value="${editing?esc(bill.name):''}"></div>
-      <div class="field"><label>Şirket</label>
+      <div class="field"><label>Sahip türü</label>
+        <div class="seg" id="bOwnerSeg">
+          <button data-ot="company" class="${initType==='company'?'on':''}">Şirket</button>
+          <button data-ot="sahis" class="${initType==='sahis'?'on':''}">Şahıs</button>
+        </div></div>
+      <div class="field" id="bCompanyWrap" style="${initType==='sahis'?'display:none':''}"><label>Şirket</label>
         <select id="bCompany" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--card)">
           <option value="">— Şirket seçilmedi —</option>
           ${realCompanies.map(c=>`<option value="${c.id}"${c.id===cid?' selected':''}>${esc(c.name)}</option>`).join('')}
         </select></div>
+      <div class="field" id="bSahisWrap" style="${initType==='company'?'display:none':''}"><label>Şahıs adı</label>
+        <input type="text" id="bSahisAdi" placeholder="Örn. Ahmet Yılmaz" value="${editing?esc(bill.sahisAdi||''):''}"></div>
       <div class="field"><label>Her ayın kaçında <span style="font-weight:400;color:var(--faint)">(isteğe bağlı)</span></label>
         <input type="number" id="bDay" min="1" max="31" placeholder="—" value="${editing&&bill.dueDay?bill.dueDay:''}"></div>
       <div class="field"><label>Not (isteğe bağlı)</label>
@@ -5949,14 +5961,22 @@ function openBillModal(bill,companyId){
       </div>
     </div>`;
   overlay.classList.add('show');setTimeout(()=>$('#bName').focus(),60);
+  let ownerType=initType;
+  modal.querySelectorAll('#bOwnerSeg button').forEach(b=>b.onclick=()=>{
+    ownerType=b.dataset.ot;
+    modal.querySelectorAll('#bOwnerSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    $('#bCompanyWrap').style.display=ownerType==='company'?'':'none';
+    $('#bSahisWrap').style.display=ownerType==='sahis'?'':'none';
+  });
   $('#bCancel').onclick=closeModal;
   $('#bSave').onclick=async()=>{
     const name=$('#bName').value.trim();if(!name){$('#bName').focus();return}
-    const company=$('#bCompany').value||cid||null;
+    const company=ownerType==='company'?($('#bCompany').value||cid||null):null;
+    const sahisAdi=ownerType==='sahis'?$('#bSahisAdi').value.trim():'';
     let dueDay=parseInt($('#bDay').value);dueDay=isNaN(dueDay)?null:Math.min(31,Math.max(1,dueDay));
     const note=$('#bNote').value.trim();
-    if(editing){Object.assign(bill,{name,dueDay,note,company});await put('bills',bill)}
-    else{await put('bills',{id:generateId(),name,dueDay,company,note,createdAt:Date.now()})}
+    if(editing){Object.assign(bill,{name,dueDay,note,company,ownerType,sahisAdi});await put('bills',bill)}
+    else{await put('bills',{id:generateId(),name,dueDay,company,ownerType,sahisAdi,note,createdAt:Date.now()})}
     bills=(await getAll('bills')).sort((a,b)=>(a.dueDay??99)-(b.dueDay??99));
     closeModal();render();toast(editing?'Güncellendi':'Fatura eklendi');
   };
