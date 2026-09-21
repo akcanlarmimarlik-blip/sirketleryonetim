@@ -747,7 +747,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 16);
+    const r = indexedDB.open('rutinMerkezi', 17);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -785,6 +785,8 @@ function openDB(){
       if(!d.objectStoreNames.contains('sigortalar'))             d.createObjectStore('sigortalar',            {keyPath:'id'});
       // Vergiler (v16)
       if(!d.objectStoreNames.contains('vergiler'))               d.createObjectStore('vergiler',              {keyPath:'id'});
+      // Araçlar & Sigortalar (v17)
+      if(!d.objectStoreNames.contains('araclar'))                d.createObjectStore('araclar',               {keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -797,7 +799,7 @@ function del(store,key){return new Promise(r=>{const q=tx(store,'readwrite').del
 function clearStore(store){return new Promise(r=>{const q=tx(store,'readwrite').clear();q.onsuccess=()=>{afterWrite(store);r()}})}
 function getOne(store,key){return new Promise(res=>{try{const q=tx(store).get(key);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)}catch(e){res(null)}})}
 
-const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans','customReminders','anlikHarcamalar','sigortalar','vergiler'];
+const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans','customReminders','anlikHarcamalar','sigortalar','vergiler','araclar'];
 let suppressPush=false;
 function afterWrite(store){
   if(suppressPush)return;
@@ -830,6 +832,7 @@ let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
 let sigortalar=[];
 let vergiler=[];
+let araclar=[];
 let fedexSettings={version:16,rules:[
   {region:'Latin Amerika',service:'PAK',minKg:0,  maxKg:0.5,minTL:1304,maxTL:1500},
   {region:'Latin Amerika',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1375,maxTL:1581},
@@ -1355,6 +1358,7 @@ async function loadAll(){
   anlikHarcamalar = (await getAll('anlikHarcamalar')).sort((a,b)=>(b.createdAt??0)-(a.createdAt??0));
   sigortalar = (await getAll('sigortalar')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
   vergiler   = (await getAll('vergiler')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+  araclar    = (await getAll('araclar')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
 }
 
 /* ---------- Toggle ---------- */
@@ -1411,6 +1415,7 @@ function render(){
   else if(view.page==='bills') renderBillsPage();
   else if(view.page==='sigortalar') renderSigortalarPage();
   else if(view.page==='vergiler') renderVergilerPage();
+  else if(view.page==='araclar') renderAraclarPage();
   else if(view.page==='reminders') renderRemindersPage();
   else if(view.page==='anlik') renderAnlikPage();
   else if(view.page==='tasks') renderTaskPage();
@@ -1446,6 +1451,7 @@ function renderHome(){
         ${faturalarimEntryHTML()}
         ${sigortalarEntryHTML()}
         ${vergilerEntryHTML()}
+        ${araclarEntryHTML()}
       </div>
       ${realCompanies.some(c=>c.link) ? `<div class="entry-grid-2">${
         realCompanies.filter(c=>c.link).map(c=>`
@@ -2134,6 +2140,175 @@ function openVergiModal(verg){
     closeModal();render();toast(editing?'Güncellendi':'Vergi eklendi');
   };
   if(editing)$('#vgDelete').onclick=async()=>{await del('vergiler',verg.id);vergiler=vergiler.filter(x=>x.id!==verg.id);closeModal();render();toast('Vergi silindi')};
+}
+
+function araclarEntryHTML(){
+  const today=new Date().toISOString().slice(0,10);
+  const soon30=new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+  const expiring=araclar.filter(a=>{
+    const dates=[a.sigortaBitis,a.muayeneBitis,a.egzozBitis].filter(Boolean);
+    return dates.some(d=>d>=today&&d<=soon30);
+  }).length;
+  const summary=araclar.length
+    ? `${araclar.length} araç${expiring?` · ${expiring} yaklaşıyor`:''}`
+    : 'Henüz araç yok — eklemek için gir';
+  return `
+  <button class="entry-panel" data-araclar style="--accent:#1E3A5F;--accent-tint:#DBEAFE">
+    <span class="entry-ico" style="background:#DBEAFE;color:#1E3A5F">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    </span>
+    <span class="entry-body">
+      <span class="entry-title">Araçlar &amp; Sigortalar</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+function _aracDateBadge(label,date,today){
+  if(!date) return '';
+  const days=Math.round((new Date(date)-new Date(today))/86400000);
+  const expired=days<0;
+  const soon=!expired&&days<=30;
+  const color=expired?'#b91c1c':soon?'#92400E':'var(--muted)';
+  const bg=expired?'#fee2e2':soon?'#FEF3C7':'transparent';
+  const txt=expired?`${label}: geçti (${Math.abs(days)}g)`:soon?`${label}: ${days}g kaldı`:`${label}: ${date}`;
+  return `<span style="font-size:10px;padding:1px 7px;border-radius:5px;background:${bg};color:${color};font-weight:${expired||soon?'700':'400'}">${txt}</span>`;
+}
+
+function renderAraclarPage(){
+  document.documentElement.style.setProperty('--accent','#1E3A5F');
+  const realCompanies=companies.filter(c=>!c.isPersonal);
+  const today=new Date().toISOString().slice(0,10);
+  const rows=araclar.map(a=>{
+    const comp=companies.find(c=>c.id===a.company);
+    const badge=a.ownerType==='sahis'&&a.sahisAdi
+      ?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:#E8F0FE;color:#1D4ED8;white-space:nowrap">${esc(a.sahisAdi)}</span>`
+      :comp?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${comp.tint||'#eee'};color:${comp.accent||'#333'};white-space:nowrap">${esc(comp.name)}</span>`:'';
+    return `<div class="bill" style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:5px">
+          <span style="font-size:15px;font-weight:700;letter-spacing:.5px">${esc(a.plaka||'—')}</span>
+          ${a.marka||a.model?`<span style="font-size:13px;color:var(--muted)">${esc([a.marka,a.model].filter(Boolean).join(' '))}${a.yil?` · ${a.yil}`:''}</span>`:''}
+          ${badge}
+        </div>
+        <div style="font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+          ${a.sigortaSirketi?`<span style="font-weight:500;color:var(--ink)">${esc(a.sigortaSirketi)}</span>`:''}
+          ${_aracDateBadge('Sigorta',a.sigortaBitis,today)}
+          ${_aracDateBadge('Muayene',a.muayeneBitis,today)}
+          ${_aracDateBadge('Egzoz',a.egzozBitis,today)}
+        </div>
+        ${a.note?`<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">${esc(a.note)}</div>`:''}
+      </div>
+      <button data-aracedit="${a.id}" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:2px 4px;flex:none">✎</button>
+    </div>`;
+  }).join('');
+  app.innerHTML=`
+  <div class="cv" style="--accent:#1E3A5F;--accent-tint:#DBEAFE">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:#DBEAFE;color:#1E3A5F;width:56px;height:56px">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      </span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:#1E3A5F">Sigorta &amp; muayene takibi</div>
+        <h2>Araçlar &amp; Sigortalar</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="sec-add" id="aracAddBtn">${svgPlus()} Araç ekle</button>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden">
+      ${rows||`<div style="text-align:center;padding:32px;font-size:13px;color:var(--muted)">Henüz araç kaydı yok</div>`}
+    </div>
+  </div>
+  ${renderFooter()}`;
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null};render()});
+  $('#aracAddBtn').addEventListener('click',()=>openAracModal(null));
+  document.querySelectorAll('[data-aracedit]').forEach(btn=>btn.addEventListener('click',()=>{
+    const a=araclar.find(x=>x.id===btn.dataset.aracedit);if(a)openAracModal(a);
+  }));
+  bindFooter();
+}
+
+function openAracModal(arac){
+  const editing=!!arac;
+  const realCompanies=companies.filter(c=>!c.isPersonal);
+  const initType=editing?(arac.ownerType||'company'):'company';
+  let ownerType=initType;
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="eyebrow">${editing?'Aracı düzenle':'Yeni araç'}</div>
+      <h3>${editing?'Düzenle':'Araç ekle'}</h3>
+    </div>
+    <div class="modal-body">
+      <div class="two">
+        <div class="field"><label>Plaka</label>
+          <input type="text" id="arPlaka" placeholder="34 ABC 123" value="${editing?esc(arac.plaka||''):''}"></div>
+        <div class="field"><label>Yıl</label>
+          <input type="number" id="arYil" placeholder="2020" inputmode="numeric" value="${editing&&arac.yil?arac.yil:''}"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Marka</label>
+          <input type="text" id="arMarka" placeholder="Toyota" value="${editing?esc(arac.marka||''):''}"></div>
+        <div class="field"><label>Model</label>
+          <input type="text" id="arModel" placeholder="Corolla" value="${editing?esc(arac.model||''):''}"></div>
+      </div>
+      <div class="field"><label>Sahip türü</label>
+        <div class="seg" id="arOwnerSeg">
+          <button data-ot="company" class="${initType==='company'?'on':''}">Şirket</button>
+          <button data-ot="sahis" class="${initType==='sahis'?'on':''}">Şahıs</button>
+        </div></div>
+      <div class="field" id="arCompanyWrap" style="${initType==='sahis'?'display:none':''}"><label>Şirket</label>
+        <select id="arCompany" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--card)">
+          <option value="">— Şirket seçilmedi —</option>
+          ${realCompanies.map(c=>`<option value="${c.id}"${editing&&arac.company===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}
+        </select></div>
+      <div class="field" id="arSahisWrap" style="${initType==='company'?'display:none':''}"><label>Şahıs adı</label>
+        <input type="text" id="arSahisAdi" placeholder="Örn. Ahmet Yılmaz" value="${editing?esc(arac.sahisAdi||''):''}"></div>
+      <div class="field"><label>Sigorta şirketi</label>
+        <input type="text" id="arSigSirket" placeholder="Örn. AXA, Allianz" value="${editing?esc(arac.sigortaSirketi||''):''}"></div>
+      <div class="two">
+        <div class="field"><label>Sigorta bitiş</label>
+          <input type="date" id="arSigBitis" value="${editing&&arac.sigortaBitis?arac.sigortaBitis:''}"></div>
+        <div class="field"><label>Muayene bitiş</label>
+          <input type="date" id="arMuayene" value="${editing&&arac.muayeneBitis?arac.muayeneBitis:''}"></div>
+      </div>
+      <div class="field"><label>Egzoz muayenesi bitiş <span style="font-weight:400;color:var(--faint)">(isteğe bağlı)</span></label>
+        <input type="date" id="arEgzoz" value="${editing&&arac.egzozBitis?arac.egzozBitis:''}"></div>
+      <div class="field"><label>Not (isteğe bağlı)</label>
+        <textarea id="arNote" rows="2">${editing?esc(arac.note||''):''}</textarea></div>
+      <div class="modal-foot">
+        ${editing?'<button class="btn danger" id="arDelete">Sil</button>':''}
+        <button class="btn subtle" id="arCancel">Vazgeç</button>
+        <button class="btn primary" id="arSave">${editing?'Kaydet':'Ekle'}</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');setTimeout(()=>$('#arPlaka').focus(),60);
+  modal.querySelectorAll('#arOwnerSeg button').forEach(b=>b.onclick=()=>{
+    ownerType=b.dataset.ot;
+    modal.querySelectorAll('#arOwnerSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    $('#arCompanyWrap').style.display=ownerType==='company'?'':'none';
+    $('#arSahisWrap').style.display=ownerType==='sahis'?'':'none';
+  });
+  $('#arCancel').onclick=closeModal;
+  $('#arSave').onclick=async()=>{
+    const plaka=$('#arPlaka').value.trim().toUpperCase();
+    const marka=$('#arMarka').value.trim();
+    const model=$('#arModel').value.trim();
+    const yil=parseInt($('#arYil').value)||null;
+    const company=ownerType==='company'?($('#arCompany').value||null):null;
+    const sahisAdi=ownerType==='sahis'?$('#arSahisAdi').value.trim():'';
+    const sigortaSirketi=$('#arSigSirket').value.trim();
+    const sigortaBitis=$('#arSigBitis').value||'';
+    const muayeneBitis=$('#arMuayene').value||'';
+    const egzozBitis=$('#arEgzoz').value||'';
+    const note=$('#arNote').value.trim();
+    if(editing){Object.assign(arac,{plaka,marka,model,yil,company,ownerType,sahisAdi,sigortaSirketi,sigortaBitis,muayeneBitis,egzozBitis,note});await put('araclar',arac)}
+    else{await put('araclar',{id:generateId(),plaka,marka,model,yil,company,ownerType,sahisAdi,sigortaSirketi,sigortaBitis,muayeneBitis,egzozBitis,note,createdAt:Date.now()})}
+    araclar=(await getAll('araclar')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+    closeModal();render();toast(editing?'Güncellendi':'Araç eklendi');
+  };
+  if(editing)$('#arDelete').onclick=async()=>{await del('araclar',arac.id);araclar=araclar.filter(x=>x.id!==arac.id);closeModal();render();toast('Araç silindi')};
 }
 
 function anlikEntryHTML(){
@@ -5247,6 +5422,8 @@ function bindHome(){
   const esig=$('[data-sigortalar]');if(esig)esig.addEventListener('click',()=>{view={page:'sigortalar',companyId:null,section:null,cardId:null};render();});
   // Vergiler — sayfa girişi
   const everg=$('[data-vergiler]');if(everg)everg.addEventListener('click',()=>{view={page:'vergiler',companyId:null,section:null,cardId:null};render();});
+  // Araçlar & Sigortalar — sayfa girişi
+  const earac=$('[data-araclar]');if(earac)earac.addEventListener('click',()=>{view={page:'araclar',companyId:null,section:null,cardId:null};render();});
   // Hatırlatıcılar
   const edr=$('[data-custom-rem]');if(edr)edr.addEventListener('click',()=>{view={page:'reminders',companyId:null,section:null,cardId:null};render()});
   // Anlık Harcamalar
