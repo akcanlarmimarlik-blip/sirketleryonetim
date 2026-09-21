@@ -3993,15 +3993,21 @@ function renderNotlarimPage(){
   document.documentElement.style.setProperty('--accent','#7C5C9F');
   const myNotes = Object.values(notes)
     .filter(n=>n.companyId==='__notlarim__')
-    .sort((a,b)=>(b.updatedAt||b.date||'').localeCompare(a.updatedAt||a.date||''));
+    .sort((a,b)=>{
+      if(!!a.done!==!!b.done) return a.done?1:-1;
+      return (b.updatedAt||b.date||'').localeCompare(a.updatedAt||a.date||'');
+    });
 
   const rows = myNotes.length === 0
     ? `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz not yok</div><div style="font-size:13px;margin-top:4px">Sağ üstten yeni not ekle.</div></div>`
     : myNotes.map(n=>`
-        <div class="bill" style="cursor:pointer;display:block;padding:14px 16px" data-noteopen="${n.id}">
-          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc((n.title||'Not').substring(0,60))}</div>
-          <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;overflow:hidden;max-height:48px">${esc((n.text||'').substring(0,120))}</div>
-          <div style="font-size:11px;color:var(--faint);margin-top:6px">${n.date||''}</div>
+        <div class="bill" style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px">
+          <button data-notetoggle="${n.id}" title="${n.done?'Geri al':'Hallettim'}" style="flex:none;margin-top:2px;width:22px;height:22px;border-radius:6px;border:2px solid ${n.done?'#7C5C9F':'var(--line)'};background:${n.done?'#7C5C9F':'transparent'};color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">${n.done?'✓':''}</button>
+          <div data-noteopen="${n.id}" style="flex:1;cursor:pointer;min-width:0;opacity:${n.done?0.45:1}">
+            <div style="font-weight:600;font-size:14px;margin-bottom:4px;${n.done?'text-decoration:line-through':''}">${esc((n.title||'Not').substring(0,60))}</div>
+            <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;overflow:hidden;max-height:48px">${esc((n.text||'').substring(0,120))}</div>
+            <div style="font-size:11px;color:var(--faint);margin-top:6px">${n.date||''}${n.done?` · <span style="color:#7C5C9F;font-weight:600">Hallettim ✓</span>`:''}</div>
+          </div>
         </div>`).join('');
 
   app.innerHTML=`
@@ -4024,6 +4030,14 @@ function renderNotlarimPage(){
   $('#addNoteBtn').addEventListener('click',()=>openNotlarimModal(null));
   document.querySelectorAll('[data-noteopen]').forEach(el=>
     el.addEventListener('click',()=>openNotlarimModal(el.dataset.noteopen))
+  );
+  document.querySelectorAll('[data-notetoggle]').forEach(btn=>
+    btn.addEventListener('click',async()=>{
+      const n=notes[btn.dataset.notetoggle];if(!n)return;
+      n.done=!n.done;
+      await put('notes',n);
+      renderNotlarimPage();
+    })
   );
   bindFooter();
 }
