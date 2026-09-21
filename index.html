@@ -4328,9 +4328,10 @@ function cardTile(cd){
   const inst=installments.filter(i=>i.cardId===cd.id);
   const activeInst=inst.filter(i=>(i.paidCount||0)<i.months);
   const monthlyBurden=activeInst.reduce((s,i)=>s+(Number(i.total||0)/i.months),0);
+  const cdComp=cd.companyId?companies.find(c=>c.id===cd.companyId):null;
   return `<div class="card-tile" data-center="${cd.id}" style="--c:${cd.color||'#3A3733'}">
     <div class="ct-top">
-      <span class="ct-bank">${esc(cd.bank)}</span>
+      <span class="ct-bank">${esc(cd.bank)}${cdComp?`<span style="display:block;font-size:10px;font-weight:400;opacity:0.75;margin-top:2px">${esc(cdComp.name)}</span>`:''}</span>
       <button class="ct-menu" data-cmenu="${cd.id}" aria-label="Seçenekler">${svgDots()}</button>
     </div>
     <div class="ct-num">•••• •••• •••• ${esc(cd.last4||'••••')}</div>
@@ -5747,6 +5748,11 @@ function openCardModal(card){
         <div class="field"><label>Son ödeme günü</label>
           <input type="number" id="kDue" min="1" max="31" placeholder="1" value="${editing?(card.dueDay||''):''}"></div>
       </div>
+      <div class="field"><label>Şirket (isteğe bağlı)</label>
+        <select id="kCompany" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--card)">
+          <option value="">— Şirket seçilmedi —</option>
+          ${companies.map(c=>`<option value="${c.id}"${(editing&&card.companyId===c.id)?' selected':''}>${esc(c.name)}</option>`).join('')}
+        </select></div>
       <div class="field"><label>Hesap kesim günü (isteğe bağlı)</label>
         <input type="number" id="kStmt" min="1" max="31" placeholder="—" value="${editing?(card.statementDay||''):''}"></div>
       <div class="field"><label>Renk</label>
@@ -5768,8 +5774,9 @@ function openCardModal(card){
     const debt=parseFloat($('#kDebt').value)||0;
     const dueDay=Math.min(31,Math.max(1,parseInt($('#kDue').value)||1));
     const stmt=$('#kStmt').value?Math.min(31,Math.max(1,parseInt($('#kStmt').value))):null;
-    if(editing){Object.assign(card,{bank,last4,limit,debt,dueDay,statementDay:stmt,currency:cur,color});await put('cards',card)}
-    else{await put('cards',{id:generateId(),bank,last4,limit,debt,dueDay,statementDay:stmt,currency:cur,color,order:cards.length,createdAt:Date.now()})}
+    const companyId=$('#kCompany').value||null;
+    if(editing){Object.assign(card,{bank,last4,limit,debt,dueDay,statementDay:stmt,currency:cur,color,companyId});await put('cards',card)}
+    else{await put('cards',{id:generateId(),bank,last4,limit,debt,dueDay,statementDay:stmt,currency:cur,color,companyId,order:cards.length,createdAt:Date.now()})}
     cards=(await getAll('cards')).sort((a,b)=>(a.order??0)-(b.order??0));
     closeModal();render();toast(editing?'Güncellendi':'Kart eklendi');
   };
