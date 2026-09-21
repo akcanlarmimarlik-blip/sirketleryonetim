@@ -4002,11 +4002,11 @@ function renderNotlarimPage(){
     ? `<div class="empty"><div class="ico">◌</div><div style="font-weight:500;color:var(--ink)">Henüz not yok</div><div style="font-size:13px;margin-top:4px">Sağ üstten yeni not ekle.</div></div>`
     : myNotes.map(n=>`
         <div class="bill" style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px">
-          <button data-notetoggle="${n.id}" title="${n.done?'Geri al':'Hallettim'}" style="flex:none;margin-top:2px;width:22px;height:22px;border-radius:6px;border:2px solid ${n.done?'#7C5C9F':'var(--line)'};background:${n.done?'#7C5C9F':'transparent'};color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">${n.done?'✓':''}</button>
+          <button data-notetoggle="${n.id}" title="${n.done?'Geri al':'Tamamlandı olarak işaretle'}" style="flex:none;margin-top:2px;width:22px;height:22px;border-radius:6px;border:2px solid ${n.done?'#7C5C9F':'var(--line)'};background:${n.done?'#7C5C9F':'transparent'};color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">${n.done?'✓':''}</button>
           <div data-noteopen="${n.id}" style="flex:1;cursor:pointer;min-width:0;opacity:${n.done?0.45:1}">
             <div style="font-weight:600;font-size:14px;margin-bottom:4px;${n.done?'text-decoration:line-through':''}">${esc((n.title||'Not').substring(0,60))}</div>
             <div style="font-size:12px;color:var(--muted);white-space:pre-wrap;overflow:hidden;max-height:48px">${esc((n.text||'').substring(0,120))}</div>
-            <div style="font-size:11px;color:var(--faint);margin-top:6px">${n.date||''}${n.done?` · <span style="color:#7C5C9F;font-weight:600">Hallettim ✓</span>`:''}</div>
+            <div style="font-size:11px;color:var(--faint);margin-top:6px">${n.date||''}${n.done?` · <span style="color:#7C5C9F;font-weight:600">Tamamlandı ✓</span>`:''}</div>
           </div>
         </div>`).join('');
 
