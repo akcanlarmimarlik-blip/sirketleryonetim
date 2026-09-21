@@ -747,7 +747,7 @@ const FREQ = [
 let db;
 function openDB(){
   return new Promise((res,rej)=>{
-    const r = indexedDB.open('rutinMerkezi', 14);
+    const r = indexedDB.open('rutinMerkezi', 15);
     r.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('companies')) d.createObjectStore('companies',{keyPath:'id'});
@@ -781,6 +781,8 @@ function openDB(){
       if(!d.objectStoreNames.contains('fedexParamHistory'))      d.createObjectStore('fedexParamHistory',     {keyPath:'id'});
       // FedEx Kural Geçmişi / Snapshot (v14)
       if(!d.objectStoreNames.contains('fedexRuleVersions'))      d.createObjectStore('fedexRuleVersions',     {keyPath:'id'});
+      // Hayat Sigortaları (v15)
+      if(!d.objectStoreNames.contains('sigortalar'))             d.createObjectStore('sigortalar',            {keyPath:'id'});
     };
     r.onsuccess = e=>{db=e.target.result;res()};
     r.onerror = e=>rej(e);
@@ -793,7 +795,7 @@ function del(store,key){return new Promise(r=>{const q=tx(store,'readwrite').del
 function clearStore(store){return new Promise(r=>{const q=tx(store,'readwrite').clear();q.onsuccess=()=>{afterWrite(store);r()}})}
 function getOne(store,key){return new Promise(res=>{try{const q=tx(store).get(key);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)}catch(e){res(null)}})}
 
-const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans','customReminders','anlikHarcamalar'];
+const SYNC_STORES=['companies','routines','completions','notes','bills','cards','payments','installments','cheques','banks','bankAccounts','loans','customReminders','anlikHarcamalar','sigortalar'];
 let suppressPush=false;
 function afterWrite(store){
   if(suppressPush)return;
@@ -824,6 +826,7 @@ function periodKeyFor(freq,d=new Date()){
 let companies=[], routines=[], completions={}, notes={}; // notes: id -> {id,companyId,date,text}
 let bills=[], cards=[], payments={}, installments=[], cheques=[]; // payments: `${itemId}__${YYYY-MM}` -> rec
 let banks=[], bankAccounts=[], loans=[], customReminders=[], anlikHarcamalar=[], anlikBankLabels=[];
+let sigortalar=[];
 let fedexSettings={version:16,rules:[
   {region:'Latin Amerika',service:'PAK',minKg:0,  maxKg:0.5,minTL:1304,maxTL:1500},
   {region:'Latin Amerika',service:'PAK',minKg:0.5,maxKg:1.0,minTL:1375,maxTL:1581},
@@ -1347,6 +1350,7 @@ async function loadAll(){
   loans = (await getAll('loans')).sort((a,b)=>(a.order??0)-(b.order??0));
   customReminders = (await getAll('customReminders')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
   anlikHarcamalar = (await getAll('anlikHarcamalar')).sort((a,b)=>(b.createdAt??0)-(a.createdAt??0));
+  sigortalar = (await getAll('sigortalar')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
 }
 
 /* ---------- Toggle ---------- */
@@ -1401,6 +1405,7 @@ function render(){
   else if(view.page==='banks') renderBanksPage();
   else if(view.page==='bank') renderBankDetail();
   else if(view.page==='bills') renderBillsPage();
+  else if(view.page==='sigortalar') renderSigortalarPage();
   else if(view.page==='reminders') renderRemindersPage();
   else if(view.page==='anlik') renderAnlikPage();
   else if(view.page==='tasks') renderTaskPage();
@@ -1434,6 +1439,7 @@ function renderHome(){
         ${banksEntryHTML()}
         ${chequesEntryHTML()}
         ${faturalarimEntryHTML()}
+        ${sigortalarEntryHTML()}
       </div>
       ${realCompanies.some(c=>c.link) ? `<div class="entry-grid-2">${
         realCompanies.filter(c=>c.link).map(c=>`
@@ -1822,6 +1828,147 @@ function renderBillsPage(){
     const b=bills.find(x=>x.id===btn.dataset.fbedit);if(b)openBillModal(b);
   }));
   bindFooter();
+}
+
+function sigortalarEntryHTML(){
+  const active=sigortalar.filter(s=>!s.endDate||s.endDate>=new Date().toISOString().slice(0,10));
+  const summary=sigortalar.length
+    ? `${sigortalar.length} poliçe${active.length<sigortalar.length?` · ${active.length} aktif`:''}`
+    : 'Henüz poliçe yok — eklemek için gir';
+  return `
+  <button class="entry-panel" data-sigortalar style="--accent:#1A6B5A;--accent-tint:#D8F0EB">
+    <span class="entry-ico" style="background:#D8F0EB;color:#1A6B5A">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </span>
+    <span class="entry-body">
+      <span class="entry-title">Hayat Sigortaları</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+function renderSigortalarPage(){
+  document.documentElement.style.setProperty('--accent','#1A6B5A');
+  const realCompanies=companies.filter(c=>!c.isPersonal);
+  const today=new Date().toISOString().slice(0,10);
+  const rows=sigortalar.map(s=>{
+    const comp=companies.find(c=>c.id===s.company);
+    const expired=s.endDate&&s.endDate<today;
+    const daysLeft=s.endDate?Math.round((new Date(s.endDate)-new Date(today))/86400000):null;
+    return `<div class="bill${expired?' paid':''}" style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px">
+          <span style="font-size:14px;font-weight:600">${esc(s.name)}</span>
+          ${expired?`<span style="font-size:10px;padding:1px 7px;border-radius:5px;background:#fee2e2;color:#b91c1c;font-weight:700">Süresi doldu</span>`:''}
+        </div>
+        <div style="font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          ${s.insurer?`<span style="font-weight:500;color:var(--ink)">${esc(s.insurer)}</span>`:''}
+          ${s.policyNo?`<span>Poliçe: ${esc(s.policyNo)}</span>`:''}
+          ${s.premium?`<span>${fmtMoney(s.premium,s.currency||'TRY')}/${s.period==='annual'?'yıl':'ay'}</span>`:''}
+          ${comp?`<span style="padding:1px 7px;border-radius:5px;background:${comp.tint||'#eee'};color:${comp.accent||'#333'};font-weight:600;font-size:10px">${esc(comp.name)}</span>`:''}
+          ${s.endDate?`<span>${expired?'Bitti':'Bitiş'}: ${s.endDate}${!expired&&daysLeft!==null?` · ${daysLeft} gün kaldı`:''}</span>`:''}
+        </div>
+        ${s.note?`<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">${esc(s.note)}</div>`:''}
+      </div>
+      <button data-sigedit="${s.id}" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:2px 4px;flex:none">✎</button>
+    </div>`;
+  }).join('');
+  app.innerHTML=`
+  <div class="cv" style="--accent:#1A6B5A;--accent-tint:#D8F0EB">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:#D8F0EB;color:#1A6B5A;width:56px;height:56px">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:#1A6B5A">Poliçe takibi</div>
+        <h2>Hayat Sigortaları</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="sec-add" id="sigAddBtn">${svgPlus()} Poliçe ekle</button>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden">
+      ${rows||`<div style="text-align:center;padding:32px;font-size:13px;color:var(--muted)">Henüz poliçe yok — eklemek için yukardaki butona bas</div>`}
+    </div>
+  </div>
+  ${renderFooter()}`;
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null};render()});
+  $('#sigAddBtn').addEventListener('click',()=>openSigortaModal(null));
+  document.querySelectorAll('[data-sigedit]').forEach(btn=>btn.addEventListener('click',()=>{
+    const s=sigortalar.find(x=>x.id===btn.dataset.sigedit);if(s)openSigortaModal(s);
+  }));
+  bindFooter();
+}
+
+function openSigortaModal(sig){
+  const editing=!!sig;
+  const realCompanies=companies.filter(c=>!c.isPersonal);
+  let cur=(sig?.currency)||'TRY';
+  modal.innerHTML=`
+    <div class="modal-head">
+      <div class="eyebrow">${editing?'Poliçeyi düzenle':'Yeni poliçe'}</div>
+      <h3>${editing?'Düzenle':'Poliçe ekle'}</h3>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Poliçe adı / açıklama</label>
+        <input type="text" id="sgName" placeholder="Örn. AXA Hayat Koruma" value="${editing?esc(sig.name):''}"></div>
+      <div class="two">
+        <div class="field"><label>Sigorta şirketi</label>
+          <input type="text" id="sgInsurer" placeholder="Örn. AXA, Allianz, Güneş" value="${editing?esc(sig.insurer||''):''}"></div>
+        <div class="field"><label>Poliçe numarası</label>
+          <input type="text" id="sgPolicyNo" placeholder="—" value="${editing?esc(sig.policyNo||''):''}"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Prim tutarı</label>
+          <input type="number" id="sgPremium" inputmode="decimal" placeholder="0" value="${editing&&sig.premium?sig.premium:''}"></div>
+        <div class="field"><label>Ödeme dönemi</label>
+          <div class="seg" id="sgPeriod">
+            <button data-p="monthly" class="${(!sig||sig.period==='monthly')?'on':''}">Aylık</button>
+            <button data-p="annual" class="${sig&&sig.period==='annual'?'on':''}">Yıllık</button>
+          </div></div>
+      </div>
+      <div class="field"><label>Para birimi</label>
+        <div class="seg" id="sgCur">${['TRY','USD','EUR'].map(k=>`<button data-c="${k}" class="${k===cur?'on':''}">${k}</button>`).join('')}</div></div>
+      <div class="two">
+        <div class="field"><label>Başlangıç tarihi</label>
+          <input type="date" id="sgStart" value="${editing&&sig.startDate?sig.startDate:''}"></div>
+        <div class="field"><label>Bitiş tarihi</label>
+          <input type="date" id="sgEnd" value="${editing&&sig.endDate?sig.endDate:''}"></div>
+      </div>
+      <div class="field"><label>Şirket (isteğe bağlı)</label>
+        <select id="sgCompany" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)">
+          <option value="">— Şirket seçilmedi —</option>
+          ${realCompanies.map(c=>`<option value="${c.id}"${editing&&sig.company===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}
+        </select></div>
+      <div class="field"><label>Not (isteğe bağlı)</label>
+        <textarea id="sgNote" rows="2">${editing?esc(sig.note||''):''}</textarea></div>
+      <div class="modal-foot">
+        ${editing?'<button class="btn danger" id="sgDelete">Sil</button>':''}
+        <button class="btn subtle" id="sgCancel">Vazgeç</button>
+        <button class="btn primary" id="sgSave">${editing?'Kaydet':'Ekle'}</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');setTimeout(()=>$('#sgName').focus(),60);
+  let period=sig?.period||'monthly';
+  modal.querySelectorAll('#sgPeriod button').forEach(b=>b.onclick=()=>{period=b.dataset.p;modal.querySelectorAll('#sgPeriod button').forEach(x=>x.classList.toggle('on',x===b))});
+  modal.querySelectorAll('#sgCur button').forEach(b=>b.onclick=()=>{cur=b.dataset.c;modal.querySelectorAll('#sgCur button').forEach(x=>x.classList.toggle('on',x===b))});
+  $('#sgCancel').onclick=closeModal;
+  $('#sgSave').onclick=async()=>{
+    const name=$('#sgName').value.trim();if(!name){$('#sgName').focus();return}
+    const insurer=$('#sgInsurer').value.trim();
+    const policyNo=$('#sgPolicyNo').value.trim();
+    const premium=parseFloat($('#sgPremium').value)||0;
+    const startDate=$('#sgStart').value||'';
+    const endDate=$('#sgEnd').value||'';
+    const company=$('#sgCompany').value||null;
+    const note=$('#sgNote').value.trim();
+    if(editing){Object.assign(sig,{name,insurer,policyNo,premium,currency:cur,period,startDate,endDate,company,note});await put('sigortalar',sig)}
+    else{await put('sigortalar',{id:generateId(),name,insurer,policyNo,premium,currency:cur,period,startDate,endDate,company,note,createdAt:Date.now()})}
+    sigortalar=(await getAll('sigortalar')).sort((a,b)=>(a.createdAt??0)-(b.createdAt??0));
+    closeModal();render();toast(editing?'Güncellendi':'Poliçe eklendi');
+  };
+  if(editing)$('#sgDelete').onclick=async()=>{await del('sigortalar',sig.id);sigortalar=sigortalar.filter(x=>x.id!==sig.id);closeModal();render();toast('Poliçe silindi')};
 }
 
 function anlikEntryHTML(){
@@ -4931,6 +5078,8 @@ function bindHome(){
   const ebk=$('[data-banks]');if(ebk)ebk.addEventListener('click',()=>{view={page:'banks',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
   // Faturalarım — sayfa girişi
   const ebills=$('[data-bills]');if(ebills)ebills.addEventListener('click',()=>{view={page:'bills',companyId:null,section:null,cardId:null};render();});
+  // Hayat Sigortaları — sayfa girişi
+  const esig=$('[data-sigortalar]');if(esig)esig.addEventListener('click',()=>{view={page:'sigortalar',companyId:null,section:null,cardId:null};render();});
   // Hatırlatıcılar
   const edr=$('[data-custom-rem]');if(edr)edr.addEventListener('click',()=>{view={page:'reminders',companyId:null,section:null,cardId:null};render()});
   // Anlık Harcamalar
