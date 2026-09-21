@@ -1400,6 +1400,7 @@ function render(){
   else if(view.page==='card') renderCardDetail();
   else if(view.page==='banks') renderBanksPage();
   else if(view.page==='bank') renderBankDetail();
+  else if(view.page==='bills') renderBillsPage();
   else if(view.page==='reminders') renderRemindersPage();
   else if(view.page==='anlik') renderAnlikPage();
   else if(view.page==='tasks') renderTaskPage();
@@ -1432,8 +1433,8 @@ function renderHome(){
         ${loansEntryHTML()}
         ${banksEntryHTML()}
         ${chequesEntryHTML()}
+        ${faturalarimEntryHTML()}
       </div>
-      ${faturalarimSectionHTML()}
       ${realCompanies.some(c=>c.link) ? `<div class="entry-grid-2">${
         realCompanies.filter(c=>c.link).map(c=>`
           <a class="firm-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer"
@@ -1755,31 +1756,72 @@ function banksEntryHTML(){
   </button>`;
 }
 
-function faturalarimSectionHTML(){
+function faturalarimEntryHTML(){
+  const today=new Date();
+  const upcoming=bills.filter(b=>!isPaid(b.id)&&b.dueDay&&daysUntil(nextDueDate(b.dueDay))<=7).length;
+  const summary=bills.length
+    ? `${bills.length} fatura${upcoming?` · ${upcoming} yaklaşıyor`:''}`
+    : 'Henüz fatura yok — eklemek için gir';
+  return `
+  <button class="entry-panel" data-bills style="--accent:#6B5B9A;--accent-tint:#EDE8F5">
+    <span class="entry-ico" style="background:#EDE8F5;color:#6B5B9A">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/></svg>
+    </span>
+    <span class="entry-body">
+      <span class="entry-title">Faturalarım</span>
+      <span class="entry-sum">${summary}</span>
+    </span>
+    ${svgArrow()}
+  </button>`;
+}
+
+function renderBillsPage(){
+  document.documentElement.style.setProperty('--accent','#6B5B9A');
   const realCompanies=companies.filter(c=>!c.isPersonal);
   const filtered=faturalarimFilter?bills.filter(b=>b.company===faturalarimFilter):bills;
   const rows=filtered.map(b=>{
     const comp=companies.find(c=>c.id===b.company);
     const paid=isPaid(b.id);
     const dleft=b.dueDay?daysUntil(nextDueDate(b.dueDay)):null;
-    return `<div class="bill ${paid?'paid':''}" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:default">
+    return `<div class="bill ${paid?'paid':''}" style="display:flex;align-items:center;gap:8px;padding:12px 16px">
       ${comp?`<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${comp.tint||'#eee'};color:${comp.accent||'#333'};white-space:nowrap;flex:none">${esc(comp.name)}</span>`:''}
-      <span style="flex:1;font-size:13px;font-weight:500">${esc(b.name)}</span>
-      ${b.dueDay?`<span style="font-size:11px;color:var(--muted);white-space:nowrap">Ayın ${b.dueDay}'i${dleft!==null?` · ${dleft}g`:''}</span>`:''}
-      <button data-fbedit="${b.id}" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:2px 4px;flex:none">✎</button>
+      <span style="flex:1;font-size:14px;font-weight:500">${esc(b.name)}</span>
+      ${b.dueDay?`<span style="font-size:11px;color:var(--muted);white-space:nowrap">Ayın ${b.dueDay}'i${dleft!==null?` · ${dleft<0?Math.abs(dleft)+' gün gecikti':dleft===0?'bugün':dleft+' gün'}`:''}</span>`:''}
+      <button data-fbedit="${b.id}" style="background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:2px 6px;flex:none">✎</button>
     </div>`;
   }).join('');
-  return `<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:0">
-    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap">
-      <span style="font-size:14px;font-weight:700;flex:1">Faturalarım</span>
-      <select id="faturalarimFilter" style="font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer">
+  app.innerHTML=`
+  <div class="cv" style="--accent:#6B5B9A;--accent-tint:#EDE8F5">
+    <button class="backbtn" data-back>${svgBack()} Genel bakış</button>
+    <div class="cv-head">
+      <span class="logo" style="background:#EDE8F5;color:#6B5B9A;width:56px;height:56px">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/></svg>
+      </span>
+      <div class="cv-title">
+        <div class="eyebrow" style="color:#6B5B9A">Abonelik &amp; faturalar</div>
+        <h2>Faturalarım</h2>
+      </div>
+      <span class="spacer"></span>
+      <button class="sec-add" id="billsAddBtn">${svgPlus()} Fatura ekle</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:0 0 12px">
+      <select id="billsCompanyFilter" style="font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer;flex:1">
         <option value="">Tüm şirketler</option>
         ${realCompanies.map(c=>`<option value="${c.id}"${c.id===faturalarimFilter?' selected':''}>${esc(c.name)}</option>`).join('')}
       </select>
-      <button id="faturalarimAdd" style="font-size:12px;padding:5px 12px;background:#4B5B6B;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">+ Ekle</button>
     </div>
-    ${rows||`<div style="text-align:center;padding:24px;font-size:13px;color:var(--muted)">Henüz fatura yok${faturalarimFilter?' — bu şirket için':''}</div>`}
-  </div>`;
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden">
+      ${rows||`<div style="text-align:center;padding:32px;font-size:13px;color:var(--muted)">Henüz fatura yok${faturalarimFilter?' — bu şirket için':''}</div>`}
+    </div>
+  </div>
+  ${renderFooter()}`;
+  $('[data-back]').addEventListener('click',()=>{view={page:'home',companyId:null,section:null,cardId:null};render()});
+  $('#billsAddBtn').addEventListener('click',()=>openBillModal(null,faturalarimFilter||null));
+  $('#billsCompanyFilter').addEventListener('change',e=>{faturalarimFilter=e.target.value;renderBillsPage();});
+  document.querySelectorAll('[data-fbedit]').forEach(btn=>btn.addEventListener('click',()=>{
+    const b=bills.find(x=>x.id===btn.dataset.fbedit);if(b)openBillModal(b);
+  }));
+  bindFooter();
 }
 
 function anlikEntryHTML(){
@@ -4887,12 +4929,8 @@ function bindHome(){
   const eq=$('[data-cheques]');if(eq)eq.addEventListener('click',()=>{view={page:'cheques',companyId:null,section:null,cardId:null};render()});
   // Banka hesapları — tek girişle aç
   const ebk=$('[data-banks]');if(ebk)ebk.addEventListener('click',()=>{view={page:'banks',companyId:null,section:null,cardId:null,bankId:null,homeTab:view.homeTab||'overview'};render()});
-  // Faturalarım bölümü
-  $('#faturalarimFilter')?.addEventListener('change',e=>{faturalarimFilter=e.target.value;renderHome();});
-  $('#faturalarimAdd')?.addEventListener('click',()=>openBillModal(null,faturalarimFilter||null));
-  document.querySelectorAll('[data-fbedit]').forEach(btn=>btn.addEventListener('click',()=>{
-    const b=bills.find(x=>x.id===btn.dataset.fbedit);if(b)openBillModal(b);
-  }));
+  // Faturalarım — sayfa girişi
+  const ebills=$('[data-bills]');if(ebills)ebills.addEventListener('click',()=>{view={page:'bills',companyId:null,section:null,cardId:null};render();});
   // Hatırlatıcılar
   const edr=$('[data-custom-rem]');if(edr)edr.addEventListener('click',()=>{view={page:'reminders',companyId:null,section:null,cardId:null};render()});
   // Anlık Harcamalar
